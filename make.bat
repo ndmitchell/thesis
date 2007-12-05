@@ -1,9 +1,19 @@
 mkdir obj
-copy *.* obj\*.*
-chdir obj
-lhs2tex thesis.tex -o final.tex
+
+REM Graphics
+copy graphics\*.eps obj
+
+REM Tex files
+for %%i in (*.tex) do lhs2tex %%i -o obj\%%i
+
+REM Bibtex
+copy thesis.bib obj
+
+REM Combine
+cd obj
 bibtex thesis
-texify final.tex %1
+texify thesis.tex %1
 cd ..
+
 del thesis.dvi
-copy obj\final.dvi thesis.dvi
+copy obj\thesis.dvi thesis.dvi
