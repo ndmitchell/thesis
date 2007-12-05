@@ -1,12 +1,19 @@
+\usepackage{alltt}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bar}
+\usepackage{comment}
+\usepackage{datetime}
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{url}
+
+%include thesis.fmt
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SUPERO
 
-\usepackage{url}
-\usepackage{bar}
-\usepackage{comment}
-\usepackage{graphicx}
 
 \newenvironment{fig}
     {\begin{figure}[tbp]\hrule}
@@ -18,4 +25,58 @@
 \newcommand{\noexample}{\hfill$\Box$}
 
 \newcommand{\generalise}{\bowtie}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% UNIPLATE
+
+
+% general stuff
+\newcommand{\T}[1]{\texttt{#1}}
+\newcommand{\C}[1]{\textsf{#1}}
+\newcommand{\tup}[1]{\ensuremath{\langle #1 \rangle}}
+\newcommand{\mtxt}[1]{\textsf{#1}}
+
+\newcommand{\pic}[1]{\includegraphics[scale=0.55]{#1.eps}}
+
+% examples
+\newcounter{exmp}
+\setcounter{exmp}{0}
+\newcommand{\yesexample}{\refstepcounter{exmp}\subsubsection*{Example \arabic{exmp}}}
+
+\newcommand{\todo}[1]{\textbf{\textsc{Todo:} #1}}
+
+% code blocks
+\newenvironment{codepage}
+    {\begin{minipage}[h]{\textwidth}\begin{code}}
+    {\end{code}\end{minipage}}
+
+\renewenvironment{example}{\yesexample}{\noexample}
+\newenvironment{revisit}[1]{\subsubsection*{Example #1 (revisited)}}{\noexample}
+\newenvironment{examplename}[1]
+    {\refstepcounter{exmp}\subsubsection*{Example \arabic{exmp} (#1)}}
+    {\noexample}
+
+\newcommand{\K}{\ensuremath{^\ast}} % kleene star
+\newcommand{\D}{\ensuremath{\cdot}} % central dot
+
+\renewcommand{\c}[3]{\tup{\T{#1},\T{#2},\T{\{#3\}}}}
+\newcommand{\cc}[2]{\c{#1}{$\lambda$}{#2}}
+
+\newcommand{\s}[1]{\ensuremath{_{\tt #1}}} % subscript, in tt font
+\newcommand{\g}[1]{\{#1\}} % group, put { } round it
+\newcommand{\U}{\textunderscore}
+\newcommand{\vecto}[1]{\overrightarrow{#1\;}}
+\newcommand{\gap}{\;\;}
+\newcommand{\dom}{\text{dom}}
+
+\newcommand{\derive}{\textsc{Derive}}
+\newcommand{\ignore}{}
+
+\newcommand{\compare}[2]{\subsubsection*{\textsf{#1} from #2:}\vspace{-1ex}}
+\newcommand{\figureend}{\vspace{-4mm}}
+\newcommand{\codeexample}{\vspace{-9mm}\par}
+
 
