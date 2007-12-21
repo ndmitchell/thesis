@@ -23,11 +23,12 @@ context = undefined
 \end{comment}
 
 
-Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. The definitions of functions involving such traversals may repeat very similar patterns, but with variations for different data types and different functionality. Libraries of operations abstracting away boilerplate code typically rely on elaborate types to make operations generic. The motivating observation for this paper is that \textit{most traversals have value-specific behaviour for just one type}. We present the design of a new library exploiting this assumption. Our library allows concise expression of traversals with competitive performance.
 
 
 
 \section{Introduction}
+
+Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. The definitions of functions involving such traversals may repeat very similar patterns, but with variations for different data types and different functionality. Libraries of operations abstracting away boilerplate code typically rely on elaborate types to make operations generic. The motivating observation for this paper is that \textit{most traversals have value-specific behaviour for just one type}. We present the design of a new library exploiting this assumption. Our library allows concise expression of traversals with competitive performance.
 
 Take a simple example of a recursive data type:
 
