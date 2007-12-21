@@ -44,10 +44,10 @@ WORD: starts with a letter, ends with a space
 -}
 
 countFile :: FilePath -> IO Int
-countFile file = return 27555 {- do
+countFile file = do
     putStrLn $ "Counting: " ++ file
     src <- if file == "commands.tex" then return "" else readFile file
-    sumM $ map countLine $ dropComments $ lines src -}
+    sumM $ map countLine $ dropComments $ lines src
 
 dropComments :: [String] -> [String]
 dropComments (x:xs) | isBeginComment x = drop 1 $ dropWhile (not . isEndComment) xs
