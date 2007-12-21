@@ -2,3 +2,60 @@
 %include thesis.fmt
 
 \chapter{Background}
+
+This chapter introduces the background material, that should be familiar to all readers of functional programming language.
+
+\section{Core Language}
+
+
+\subsection{The Yhc Compiler}
+
+
+The full Haskell language is unwieldy for analysis. As noted in \S\ref{sec:core}, analysis is performed instead on a simplified language, a core to which other Haskell programs can be reduced.
+
+-- a simple variant of lambda calculus without types, but with source position information. Yhc works by applying basic desugaring transformations, without optimisation. This simplicity ensures the generated PosLambda is close to the original Haskell in its structure. Each top-level function in a source file maps to a top-level function in the generated PosLambda, retaining the same name.
+
+However, PosLambda has constructs that have no direct representation in Haskell. For example, there is a FatBar construct \cite{spj:implementation}, used for compiling pattern matches which require fall through behaviour. The PosLambda language
+
+To generate core representations of programs, it is natural to start with a full Haskell compiler, and we chose Yhc \citep{me:yhc_core}, a fork of nhc \citep{nhc}. The core language of Yhc, PosLambda, was intended only as an internal representation, and exposes certain details that are specific to the compiler. We have therefore introduced a new Core language to Yhc, to which PosLambda can easily be translated. All names are fully qualified. Haskell's type classes have been removed (see \S\ref{sec:dict}). Only top-level functions remain; all local functions have been lambda lifted. All constructor applications are fully saturated. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an \C{error} alternative if necessary.
+
+
+\subsection{The Dictionary Transformation}
+\label{sec:dict}
+
+Most transformations in Yhc operate within a single function definition. The only phases which require information about more than one function are type checking and the transformation used to implement type classes \citep{wadler:type_classes}. The dictionary transformation introduces tuples (or \textit{dictionaries}) of methods passed as additional arguments to class-polymorphic functions. Haskell also allows subclassing. For example, \C{Ord} requires \C{Eq} for the same type. In such cases the dictionary transformation generates a nested tuple: the \C{Eq} dictionary is a component of the \C{Ord} dictionary.
+
+\begin{example}
+\nopagebreak
+\ignore\begin{code}
+f :: Eq alpha => alpha -> alpha -> Bool
+f x y = x == y || x /= y
+\end{code}
+
+\noindent is translated by Yhc into
+
+\begin{code}
+f :: (alpha -> alpha -> Bool, alpha -> alpha -> Bool) -> alpha -> alpha -> Bool
+f dict x y = (||) (((==) dict) x y) (((/=) dict) x y)
+
+(==) (a,b) = a
+(/=) (a,b) = b
+\end{code}
+
+The |Eq| class is implemented as two selector functions, |(==)| and |(/=)|, acting on a method table. For different types of |alpha|, different method tables are provided.
+\end{example}
+
+The dictionary transformation is a global transformation. In Example \lastexample{} the \C{Eq} context in \C{f} not only requires a dictionary to be accepted by \C{f}; it requires all the callers of \C{f} to pass a dictionary as first argument. An alternative approach to implementing type classes, given in \citet{jones:dictionary_free}, does not rely on higher order functions. Although this approach might suit \catch{} better, we re-used the method already implemented in Yhc.
+
+
+\section{Semantics}
+
+
+
+
+\section{Sharing}
+
+\subsection{Recursive let bindings}
+
+\subsection{Constant Applicative Form}
+
