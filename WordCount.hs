@@ -121,7 +121,8 @@ makeGraph dat = "http://chart.apis.google.com/chart" ++
         rangeX = [(v1,v2,v3) | (v1,v2) <- ranX, v3 <- [1..31]]
 
         val d = encode $ scale $ snd $ head $
-            (sort $ filter ((>= d) . fst) dat) ++ [(undefined,-1)]
+            (sortBy srt $ filter ((>= d) . fst) dat) ++ [(undefined,-1)]
+        srt (a,b) (c,d) = (a, negate b) `compare` (c, negate d)
 
         scale y = (61 * (y - minY)) `div` (maxY - minY)
 
