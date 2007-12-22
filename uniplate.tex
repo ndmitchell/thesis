@@ -17,7 +17,7 @@ class Uniplate x where
 transform' x = transform x
 \end{code}
 \begin{code}
-children_ = undefined
+children = undefined
 context = undefined
 \end{code}
 \end{comment}
@@ -502,14 +502,14 @@ Requiring each instance of the |Uniplate| class to implement ten separate method
 
 \begin{code}
 uniplate :: Uniplate alpha => alpha -> ([alpha], [alpha] -> alpha)
-uniplate x = (children_,context)
+uniplate x = (children,context)
 \end{code}
 
-The |children_| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the length of the list given to |context| is the same as the length of |children_|. The result pair splits the information in the value, but by combining the |context| with the |children_| the original value can be recovered:
+The |children| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the length of the list given to |context| is the same as the length of |children|. The result pair splits the information in the value, but by combining the |context| with the |children| the original value can be recovered:
 
 \begin{code}
-propId x = x == context children_
-    where (children_,context) = uniplate x
+propId x = x == context children
+    where (children,context) = uniplate x
 \end{code}
 
 \subsection{Operations in terms of |uniplate|}
@@ -525,12 +525,12 @@ universe :: Uniplate alpha => alpha -> [alpha]
 universe x = x : concatMap universe (children x)
 
 transform :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
-transform f x = f $ context $ map (transform f) children_
-    where (children_, context) = uniplate x
+transform f x = f $ context $ map (transform f) children
+    where (children, context) = uniplate x
 
 descend :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
-descend f x = context $ map f children_
-    where (children_, context) = uniplate x
+descend f x = context $ map f children
+    where (children, context) = uniplate x
 \end{code}
 
 The common pattern is to call |uniplate|, then operate on the current children, often calling |context| to create a modified value. Some of these definitions can be made more efficient -- see \S\ref{sec:optimise_everything}.
@@ -562,31 +562,31 @@ The distinguishing feature of our library is that the children are defined in te
 
 \subsection{Derivation Rules}
 
-We can define derivation rules for the |children_| and |context| functions, allowing the definition:
+We can define derivation rules for the |children| and |context| functions, allowing the definition:
 
 \ignore\begin{code}
 instance Uniplate Type where
-    uniplate x = (children_ x, context x)
+    uniplate x = (children x, context x)
 \end{code}
 
 Alternatively, it is possible to define one single function which generates both elements of the pair at once, avoiding the need to examine each value twice (see \S\ref{sec:optimise_playdata} for an example).
 
-We model the derivation of an instance by describing a derivation from a data type to a set of declarations. The derivation rules have three functional parameters: |(<>)|, |unit| and |target|. By varying these parameters we derive either |children_| or |context| functions.
+We model the derivation of an instance by describing a derivation from a data type to a set of declarations. The derivation rules have three functional parameters: |(<>)|, |unit| and |target|. By varying these parameters we derive either |children| or |context| functions.
 
 \begin{figure}
 \ignore\begin{code}
-_D \< data d v_1...v_n = a_1...a_m \> =
-        _N \< d \> \? v_1...v_n x = case  x of _C \< a_1 \> \? ... \? _C \< a_m \>
+_D $| data d v_1...v_n = a_1...a_m |$ =
+        _N $| d |$ \? v_1...v_n x = case  x of _C $| a_1 |$ \? ... \? _C $| a_m |$
     where x {-" \mbox{ is fresh} "-}
 
-_C \< c t_1...t_n \> =
-        c y_1...y_n -> unit c <> _T \< t_1 \> \? y_1 <> ... <> _T \< t_n \> \? y_n
+_C $| c t_1...t_n |$ =
+        c y_1...y_n -> unit c <> _T $| t_1 |$ \? y_1 <> ... <> _T $| t_n |$ \? y_n
     where y_1...y_n {-" \mbox{ are fresh} "-}
 
-_T \< TargetType     \> = target
-_T \< PrimitiveType  \> = unit
-_T \< d t_1...t_n    \> = _N \< d \> \? _T \< t_1 \> \? ... \? _T \< t_n \>
-_T \< v              \> = v
+_T $| TargetType     |$ = target
+_T $| PrimitiveType  |$ = unit
+_T $| d t_1...t_n    |$ = _N $| d |$ \? _T $| t_1 |$ \? ... \? _T $| t_n |$
+_T $| v              |$ = v
 
 _N {-" \mbox{ is an injection to fresh variables} "-}
 \end{code}
@@ -644,34 +644,34 @@ separate sep xs = concat $ intersperse [sep] xs
 Applying |_D| to |Expr|, the result is:
 
 \begin{code}
-_N \< Expr \> \? x = case x of
+_N $| Expr |$ \? x = case x of
     Val  y_1      -> unit Val  <> unit y_1
-    Var  y_1      -> unit Var  <> _N \< List \> \? unit y_1
+    Var  y_1      -> unit Var  <> _N $| List |$ \? unit y_1
     Neg  y_1      -> unit Neg  <> target y_1
     Add  y_1 y_2  -> unit Add  <> target y_1 <> target y_2
     Sub  y_1 y_2  -> unit Sub  <> target y_1 <> target y_2
     Mul  y_1 y_2  -> unit Mul  <> target y_1 <> target y_2
     Div  y_1 y_2  -> unit Div  <> target y_1 <> target y_2
 
-_N \< List \> \? v_1 x = case x of
+_N $| List |$ \? v_1 x = case x of
     []            -> unit []
-    (:)  y_1 y_2  -> unit (:) <> v_1 y_1 <> _N \< List \> \? v_1 y_2
+    (:)  y_1 y_2  -> unit (:) <> v_1 y_1 <> _N $| List |$ \? v_1 y_2
 \end{code}
 
 \begin{comment}
 To generate a particular operation we can replace the |unit|, |target| and |<>| functions with versions specific to that operation. We do this replacement using multiple copies of the template, introducing |where| clauses with local definitions of the three functions.
 \end{comment}
 
-\subsubsection{Defining |children_|}
+\subsubsection{Defining |children|}
 
-To derive the |children_| function, the derivations are applied with the following parameter values.
+To derive the |children| function, the derivations are applied with the following parameter values.
 
 \begin{code}
 unit    = const []
 target  = (:[])
 (<>)    = (++)
 
-children_ x = _N \< Type \> \? x
+children x = _N $| Type |$ \? x
 \end{code}
 
 The generated function is a traversal which visits every value in the data type. A list is created of all the target types by placing the targets into lists, combining lists using |(++)|, and skipping uninteresting values.
@@ -696,7 +696,7 @@ target x (n:ns) = (n,ns)
                      (b'  ,ns3  ) = b  ns2
                 in   (a' b',ns3)
 
-context x ns = fst (_N \< Type \> \? x ns)
+context x ns = fst (_N $| Type |$ \? x ns)
 \end{code}
 
 The central |Cont| type is an extension to the type of |context| which takes a list of children to substitute into a value, and returns both the new value, and the children which were not used. By returning the unused children the |(<>)| operation is able to determine both the new value for |a| (namely |a'|), and the remaining list of children (namely |ns2|), sequencing the use of the children. The |target| function consumes a child, and the |unit| function returns the children unmodified.
@@ -740,8 +740,8 @@ Running the \derive{} tool over this file, the generated code is:
 
 \begin{code}
 instance Uniplate Term where
-    uniplate (Name  x1     ) = ([]     , \_       -> Name x1     )
-    uniplate (Apply x1 x2  ) = (x1:x2  , \(n:ns)  -> Apply n ns  )
+    uniplate (Name  x_1      ) = ([]       , \_       -> Name x_1     )
+    uniplate (Apply x_1 x_2  ) = (x_1:x_2  , \(n:ns)  -> Apply n ns  )
 \end{code}
 \end{example}
 
@@ -796,8 +796,8 @@ universeOn biplate x =
 transformOn  ::  Uniplate alpha
              => BiplateType beta alpha -> (alpha -> alpha) -> beta -> beta
 transformOn biplate f x =
-    context $ map (transform f) children_
-    where (children_, context) = biplate x
+    context $ map (transform f) children
+    where (children, context) = biplate x
 \end{code}
 
 These operations are similar to the original |universe| and |transform|. They unwrap |beta| values to find the |alpha| values within them, operate using the standard |Uniplate| operations for type |alpha|, then rewrap if necessary. If |alpha| is constant, there is another way to abstract away the |biplate| argument, as the following example shows.
@@ -1023,9 +1023,9 @@ The disadvantages of this approach are (1) \textit{lack of type safety} -- there
 \ignore\begin{code}
 repChildren  :: (Data alpha, Uniplate beta, Typeable alpha, Typeable beta)
              => alpha -> ([beta],[beta] -> alpha)
-repChildren x = (children_, context)
+repChildren x = (children, context)
     where
-        children_ = concat $ gmapQ (fst . biplate) x
+        children = concat $ gmapQ (fst . biplate) x
 
         context xs = evalState (gmapM f x) xs
         f y = do  let (cs,con) = biplate y

@@ -462,10 +462,10 @@ We claim that |_OO| terminates with bounded unfoldings and bounded expression si
 \noindent The following expressions have direct repetition.
 
 \begin{code}
-x:y:xs   where alpha = x:hole  , beta = xs
-f (f x)  where alpha = f hole  , beta = x
+x:y:xs   where alpha = x:bullet  , beta = xs
+f (f x)  where alpha = f bullet  , beta = x
 case x_1 of {[] -> nil ; y:ys -> case x_2 of {[] -> nil ; z:zs -> cons}}
-    where alpha = case x_1 of {[] -> nil; y:ys -> hole}, beta = cons
+    where alpha = case x_1 of {[] -> nil; y:ys -> bullet}, beta = cons
 \end{code}
 \noexample
 
