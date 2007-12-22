@@ -10,6 +10,9 @@
 
 %include thesis.fmt
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% GENERAL FORMATTING AND LAYOUT
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SUPERO
@@ -53,7 +56,7 @@
     {\begin{minipage}[h]{\textwidth}\begin{code}}
     {\end{code}\end{minipage}}
 
-\renewenvironment{example}{\yesexample}{\noexample}
+\newenvironment{example}{\yesexample}{\noexample}
 \newenvironment{revisit}[1]{\subsubsection*{Example #1 (revisited)}}{\noexample}
 \newenvironment{examplename}[1]
     {\refstepcounter{exmp}\subsubsection*{Example \arabic{exmp} (#1)}}

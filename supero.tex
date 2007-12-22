@@ -61,55 +61,7 @@ Our goal is an automatic optimisation that makes high-level Haskell programs run
 
 We first introduce a Core language in \S\ref{sec:core}, on which all transformations are applied. Next we describe our supercompilation method in \S\ref{sec:optimisation}. We then give a number of benchmarks, comparing both against C (compiled with GCC) in \S\ref{sec:c_results} and Haskell (compiled with GHC) in \S\ref{sec:haskell_results}. Finally, we review related work in \S\ref{sec:related} and conclude in \S\ref{sec:conclusion}.
 
-\section{Core Language}
-\label{sec:core}
 
-\begin{fig}
-\begin{code}
-expr  =  v                                          {-" \text{  variable} "-}
-      |  c                                          {-" \text{  constructor} "-}
-      |  f                                          {-" \text{  function} "-}
-      |  x ys_                                      {-" \text{  application} "-}
-      |  \vs_ -> x                                  {-" \text{  lambda abstraction} "-}
-      |  let v = x in y                             {-" \text{  let binding} "-}
-      |  case x of {p_1 -> y_1 ; ... ; p_n -> y_n}  {-" \text{  case expression} "-}
-
-pat   =  c vs_
-\end{code}
-
-Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over functions, |x| and |y| range over expressions and |p| ranges over patterns.
-\bigskip
-\figend
-\caption{Core syntax}
-\label{fig:core}
-\end{fig}
-
-Our supercompiler uses the Yhc-Core language \cite{me:yhc_core}. The expression type is given in Figure \ref{fig:core}. A program is a mapping of function names to expressions. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions, and all case expressions are exhaustive. All names are fully qualified. Haskell's type classes have been removed using the dictionary transformation \cite{wadler:type_classes}.
-
-The Yhc compiler, a fork of nhc \cite{nhc}, can output Core files. Yhc can also link in all definitions from all required libraries, producing a single Core file representing a whole program.
-
-The primary difference between Yhc-Core and GHC-Core \cite{ghc_core} is that Yhc-Core is untyped. The Core is generated from well-typed Haskell, and is guaranteed not to fail with a type error. All the transformations could be implemented equally well in a typed Core language, but we prefer to work in an untyped language for simplicity of implementation.
-
-In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and must maintain it.
-
-\begin{fig}
-\vspace{2mm}
-\begin{tabular}{rcl}
-|split(v)| & |=| & |(v, [])| \\
-|split(c)| & |=| & |(c, [])| \\
-|split(f)| & |=| & |(f, [])| \\
-|split(x ys_)| & |=| & |(bullet {-"\text{ } \overline{\bullet} "-}, x:ys_)| \\
-|split(\vs_ -> x)| & |=| & |(\vs_ -> bullet, x)| \\
-|split(let v = x in y)| & |=| & |(let v = bullet in bullet, [x,y])| \\
-|split(case x of {p_1 \! -> \! y_1 ; ... ; p_n \! -> \! y_n})| & |=| & |(case {-"\hspace{-1mm}"-} bullet {-"\hspace{-1mm}"-} of {p_1 \! -> \! bullet ; ... ; p_n \! -> \! bullet}, [x, y_1, ... ,y_n])|
-\end{tabular}
-\vspace{2mm}
-\figend
-\caption{The |split| function, returning a spine and all subexpressions.}
-\label{fig:split}
-\end{fig}
-
-We define the |split| function in Figure \ref{fig:split}, which splits an expression into a pair of its spine and its immediate subexpressions. The $\bullet$ markers in the spine indicate the positions from which subexpressions have been removed. We define the |join| operation to be the inverse of |split|, taking a spine and a list of expressions, and producing an expression.
 
 \section{Supercompilation}
 \label{sec:optimisation}

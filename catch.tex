@@ -237,7 +237,6 @@ Figure \ref{fig:core_operations} gives the signatures for helper functions over 
 \subsubsection{Algebraic Abstractions of Primitive Types}
 \label{sec:abstraction}
 
-\begin{comment}
 Natural numbers are often encoded by Peano numerals, and this idea can easily be extended to integers:
 
 \begin{code}
@@ -246,7 +245,6 @@ data Int  = Minus Pos | Zero | Plus Pos
 \end{code}
 
 Although this abstraction of \C{Int} captures all the underlying detail of the number system, the underlying constraint systems discussed in \S\ref{sec:constraint} would be unable to distinguishing between any pair of numbers both greater than 2, or both less than -2.
-\end{comment}
 
 The Core language only has algebraic data types. \catch{} allows for primitive types such as characters and numbers by abstracting them into algebraic types. For example, the integer abstraction used in \catch{} is simply:
 

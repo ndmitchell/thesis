@@ -2,14 +2,47 @@
 %include thesis.fmt
 
 \chapter{Background}
+\label{chp:background}
 
-This chapter introduces the background material, that should be familiar to all readers of functional programming language.
+In this chapter we introduce the background material and general notations that are used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, including its sharing properties in \S\ref{sec:sharing}.
 
 \section{Core Language}
 
+\label{sec:core}
 
-\subsection{The Yhc Compiler}
+\begin{fig}
+\begin{code}
+expr  =  v                                          {-" \text{  variable} "-}
+      |  c                                          {-" \text{  constructor} "-}
+      |  f                                          {-" \text{  function} "-}
+      |  x ys_                                      {-" \text{  application} "-}
+      |  \vs_ -> x                                  {-" \text{  lambda abstraction} "-}
+      |  let v = x in y                             {-" \text{  let binding} "-}
+      |  case x of {p_1 -> y_1 ; ... ; p_n -> y_n}  {-" \text{  case expression} "-}
 
+pat   =  c vs_
+\end{code}
+
+Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over functions, |x| and |y| range over expressions and |p| ranges over patterns.
+\bigskip
+\figend
+\caption{Core syntax}
+\label{fig:core}
+\end{fig}
+
+The expression type is given in Figure \ref{fig:core}. A program is a mapping of function names to expressions. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions, and all case expressions are exhaustive. All names are fully qualified. Haskell's type classes have been removed using the dictionary transformation \cite{wadler:type_classes}.
+
+All names are fully qualified. Haskell's type classes have been removed (see \S\ref{sec:dict}). Only top-level functions remain; all local functions have been lambda lifted. All constructor applications are fully saturated. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an \C{error} alternative if necessary.
+ 
+In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and must maintain it.
+
+\subsection{Generating Core}
+
+Our supercompiler uses the Yhc-Core language \cite{me:yhc_core}.
+
+The Yhc compiler, a fork of nhc \cite{nhc}, can output Core files. Yhc can also link in all definitions from all required libraries, producing a single Core file representing a whole program.
+
+The primary difference between Yhc-Core and GHC-Core \cite{ghc_core} is that Yhc-Core is untyped. The Core is generated from well-typed Haskell, and is guaranteed not to fail with a type error. All the transformations could be implemented equally well in a typed Core language, but we prefer to work in an untyped language for simplicity of implementation.
 
 The full Haskell language is unwieldy for analysis. As noted in \S\ref{sec:core}, analysis is performed instead on a simplified language, a core to which other Haskell programs can be reduced.
 
@@ -17,7 +50,7 @@ The full Haskell language is unwieldy for analysis. As noted in \S\ref{sec:core}
 
 However, PosLambda has constructs that have no direct representation in Haskell. For example, there is a FatBar construct \cite{spj:implementation}, used for compiling pattern matches which require fall through behaviour. The PosLambda language
 
-To generate core representations of programs, it is natural to start with a full Haskell compiler, and we chose Yhc \citep{me:yhc_core}, a fork of nhc \citep{nhc}. The core language of Yhc, PosLambda, was intended only as an internal representation, and exposes certain details that are specific to the compiler. We have therefore introduced a new Core language to Yhc, to which PosLambda can easily be translated. All names are fully qualified. Haskell's type classes have been removed (see \S\ref{sec:dict}). Only top-level functions remain; all local functions have been lambda lifted. All constructor applications are fully saturated. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an \C{error} alternative if necessary.
+To generate core representations of programs, it is natural to start with a full Haskell compiler, and we chose Yhc \citep{me:yhc_core}, a fork of nhc \citep{nhc}. The core language of Yhc, PosLambda, was intended only as an internal representation, and exposes certain details that are specific to the compiler. We have therefore introduced a new Core language to Yhc, to which PosLambda can easily be translated.
 
 
 \subsection{The Dictionary Transformation}
@@ -46,6 +79,34 @@ The |Eq| class is implemented as two selector functions, |(==)| and |(/=)|, acti
 \end{example}
 
 The dictionary transformation is a global transformation. In Example \lastexample{} the \C{Eq} context in \C{f} not only requires a dictionary to be accepted by \C{f}; it requires all the callers of \C{f} to pass a dictionary as first argument. An alternative approach to implementing type classes, given in \citet{jones:dictionary_free}, does not rely on higher order functions. Although this approach might suit \catch{} better, we re-used the method already implemented in Yhc.
+
+\subsection{Operations on Core}
+
+\subsubsection{Free Variable detection}
+
+
+
+\subsubsection{The |split| operation}
+
+\begin{fig}
+\vspace{2mm}
+\begin{tabular}{rcl}
+|split(v)| & |=| & |(v, [])| \\
+|split(c)| & |=| & |(c, [])| \\
+|split(f)| & |=| & |(f, [])| \\
+|split(x ys_)| & |=| & |(bullet {-"\text{ } \overline{\bullet} "-}, x:ys_)| \\
+|split(\vs_ -> x)| & |=| & |(\vs_ -> bullet, x)| \\
+|split(let v = x in y)| & |=| & |(let v = bullet in bullet, [x,y])| \\
+|split(case x of {p_1 \! -> \! y_1 ; ... ; p_n \! -> \! y_n})| & |=| & |(case {-"\hspace{-1mm}"-} bullet {-"\hspace{-1mm}"-} of {p_1 \! -> \! bullet ; ... ; p_n \! -> \! bullet}, [x, y_1, ... ,y_n])|
+\end{tabular}
+\vspace{2mm}
+\figend
+\caption{The |split| function, returning a spine and all subexpressions.}
+\label{fig:split}
+\end{fig}
+
+We define the |split| function in Figure \ref{fig:split}, which splits an expression into a pair of its spine and its immediate subexpressions. The $\bullet$ markers in the spine indicate the positions from which subexpressions have been removed. We define the |join| operation to be the inverse of |split|, taking a spine and a list of expressions, and producing an expression.
+
 
 
 \section{Semantics}
