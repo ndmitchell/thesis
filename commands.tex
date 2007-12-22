@@ -18,6 +18,24 @@
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% HIDING BITS OF THE THESIS
+
+\let\oldinclude\include
+\renewcommand{\include}[1]
+    {\ifthenelse{\equal{#1}{\only}\or\equal{\only}{}}
+        {\oldinclude{#1}}
+        {}
+    }
+
+\let\oldbibliography\bibliography
+\renewcommand{\bibliography}[1]
+    {\ifthenelse{\equal{\only}{}}
+        {\oldbibliography{#1}}
+        {}
+    }
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% LHS2TEX
 
 \setlength\blanklineskip{3mm}
