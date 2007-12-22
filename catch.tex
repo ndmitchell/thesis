@@ -429,7 +429,7 @@ replaceVars xs p = propMap (\(i:<k) -> (xs!!i) :< k) p
 
 Constraints on expressions other than argument variables can be rewritten using the |back| function, detailed in Figure \ref{fig:backward}. The |backs| function repeatedly applies |back| until all constraints are on arguments. The |replaceVars| function takes a propositional constraint over a set of index variables, \ignore|v1..v_n|, and replaces each variable with a corresponding expression from an indexed list.
 
-\para{The |Var| rule} applies to variables bound by patterns in case alternatives. It lifts conditions on a bound variable to the subject of the case expression in which they occur. The | ||>| operator lifts a constraint on one part of a data structure to a constraint on the entire data structure. For BP-constraints | ||>| can be defined:
+\paragraph{The |Var| rule} applies to variables bound by patterns in case alternatives. It lifts conditions on a bound variable to the subject of the case expression in which they occur. The | ||>| operator lifts a constraint on one part of a data structure to a constraint on the entire data structure. For BP-constraints | ||>| can be defined:
 
 \begin{code}
 (c,i) |> k = map extend k
@@ -438,7 +438,7 @@ Constraints on expressions other than argument variables can be rewritten using 
     anys j = replicate j Any
 \end{code}
 
-\para{The |Make| rule} deals with an application of a constructor. The |<||| operator splits a constraint on an entire structure into a combination of constraints on each part.
+\paragraph{The |Make| rule} deals with an application of a constructor. The |<||| operator splits a constraint on an entire structure into a combination of constraints on each part.
 
 \begin{code}
 c <| k = propOrs (map f k)
@@ -448,9 +448,9 @@ c <| k = propOrs (map f k)
         propAnds (map propLit (zipWith (:<) [0..] (map (:[]) xs)))
 \end{code}
 
-\para{The |Case| rule} generates a conjunct for each alternative. An alternative is safe if \textit{either} it is never taken, \textit{or} it meets the constraint when taken. The |notin| function is used to assert that a particular alternative never matches.
+\paragraph{The |Case| rule} generates a conjunct for each alternative. An alternative is safe if \textit{either} it is never taken, \textit{or} it meets the constraint when taken. The |notin| function is used to assert that a particular alternative never matches.
 
-\para{The |Call| rule} relies on the key property:
+\paragraph{The |Call| rule} relies on the key property:
 
 \begin{code}
 propRestrict fn xs k = propIsTrue $
@@ -628,11 +628,11 @@ The |2^rec| term corresponds to the number of possible constraints under |Star|.
 
 \catch{} computes over propositional formulae with constraints as atomic propositions. Among other operators on propositions, they are compared for equality to obtain a fixed point. All the fixed-point algorithms given in this paper stop once equal constraints are found. We use Binary Decision Diagrams (BDD) \citep{lee:bdd} to make these equality tests fast. Since the complexity of performing an operation is often proportional to the number of atomic constraints in a proposition, we apply simplification rules to reduce this number. Three of the nineteen rules are:
 
-\para{Exhaustion:} In the constraint |x :< (r :- [":","[]"])| the condition lists all the possible constructors. Because of static typing |x| must be one of these constructors. Any such constraint simplifies to True.
+\paragraph{Exhaustion:} In the constraint |x :< (r :- [":","[]"])| the condition lists all the possible constructors. Because of static typing |x| must be one of these constructors. Any such constraint simplifies to True.
 
-\para{And merging:} The conjunction \ignore|e :< (r :- c1) `propAnd` e :< (r :- c2)| can be replaced by \ignore|e :< (r :- (c1 `intersect` c2))|.
+\paragraph{And merging:} The conjunction \ignore|e :< (r :- c1) `propAnd` e :< (r :- c2)| can be replaced by \ignore|e :< (r :- (c1 `intersect` c2))|.
 
-\para{Or merging:} The disjunction \ignore|e :< (r :- c1) `propOr` e :< (r :- c2)| can be replaced by \ignore|e :< (r :- c2)| if \ignore|c1 `subseteq` c2|.
+\paragraph{Or merging:} The disjunction \ignore|e :< (r :- c1) `propOr` e :< (r :- c2)| can be replaced by \ignore|e :< (r :- c2)| if \ignore|c1 `subseteq` c2|.
 
 
 \subsection{Multipattern (MP) Constraints \& Simplification}
@@ -707,9 +707,9 @@ MP-constraints are similar to BP-constraints, but can constrain an infinite numb
 
 MP-constraints also have simplification rules.  Two of the eight rules are:
 
-\para{\ignore|[Val]| simplification:} Given a list of |Val|, if the value |Any| is in this list, the list is equal to |[Any]|. If a value occurs more than once in the list, one copy can be removed.
+\paragraph{\ignore|[Val]| simplification:} Given a list of |Val|, if the value |Any| is in this list, the list is equal to |[Any]|. If a value occurs more than once in the list, one copy can be removed.
 
-\para{|Val| simplification:} If both |p1| and |p2| cover all constructors and all their components have |Any| as their constraint, the constraint |p1 :* p2| can be replaced with |Any|.
+\paragraph{|Val| simplification:} If both |p1| and |p2| cover all constructors and all their components have |Any| as their constraint, the constraint |p1 :* p2| can be replaced with |Any|.
 
 
 \subsubsection{Finitely Many MP-Constraints per Type}
@@ -899,9 +899,9 @@ firstify :: Program -> Program
 firstify = fix (inline . fix specialise)
 \end{code}
 
-\para{The |inline| stage} inlines each |Call| for which the body passes the |isHO| test, defined in Figure \ref{fig:isHO}. If this process causes a function to no longer be called from the root of the program, then the function is removed after inlining.
+\paragraph{The |inline| stage} inlines each |Call| for which the body passes the |isHO| test, defined in Figure \ref{fig:isHO}. If this process causes a function to no longer be called from the root of the program, then the function is removed after inlining.
 
-\para{The |specialise| stage} takes every expression of the form |Call fn xs| where \ignore|any isHO xs|, and generates a specialised version of the function |fn| with all functional arguments in |xs| frozen in, and all others passed normally.
+\paragraph{The |specialise| stage} takes every expression of the form |Call fn xs| where \ignore|any isHO xs|, and generates a specialised version of the function |fn| with all functional arguments in |xs| frozen in, and all others passed normally.
 
 In rare circumstances a program may have an infinite number of specialisations. If necessary we revert to Reynolds style defunctionalization.
 
@@ -930,14 +930,14 @@ average xs = if null xs then 0 else sum xs `div` length xs
 
 \noindent Now if |xs| is |[]|, the program simply returns 0, and no pattern match error occurs. In general, pattern-match errors can be avoided in two ways:
 
-\para{Widen the domain of definition:} In the example, we widen the domain definition for the |average| function. The modification is made in one place only -- in the definition of |average| itself. An alternative approach to the |average| example would be to widen the domain of definition for division, using a variant such as:
+\paragraph{Widen the domain of definition:} In the example, we widen the domain definition for the |average| function. The modification is made in one place only -- in the definition of |average| itself. An alternative approach to the |average| example would be to widen the domain of definition for division, using a variant such as:
 
 \begin{code}
 safeDiv x y = if y == 0 then 0 else x / y
 \end{code}
 
 
-\para{Narrow the domain of application:} In the example, we narrow the domain of application for the |(/)| function.  Note that we narrow this domain only for the |(/)| application in |average| -- other |(/)| applications may remain unsafe. Another alternative would be to narrow the domain of application for |average|, ensuring that |[]| is not passed as the argument. This alternative would require a deeper understanding of the flow of the program, requiring rather more work.
+\paragraph{Narrow the domain of application:} In the example, we narrow the domain of application for the |(/)| function.  Note that we narrow this domain only for the |(/)| application in |average| -- other |(/)| applications may remain unsafe. Another alternative would be to narrow the domain of application for |average|, ensuring that |[]| is not passed as the argument. This alternative would require a deeper understanding of the flow of the program, requiring rather more work.
 
 In the following sections, where modifications are required, we prefer to make the minimum number of changes. Consequently, we widen the domain of definition.
 
