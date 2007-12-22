@@ -1077,7 +1077,7 @@ The Paraffins program uses the function \ignore|array :: Ix a => (a, a) -> [(a, 
 This program is quite complex, featuring a number of possible pattern-match errors. To illustrate, consider the following fragment:
 
 \begin{code}
-carryPropagate base (d:ds) = elipses
+carryPropagate base (d:ds) = ...
   where  carryguess = d `div` base
          remainder = d `mod` base
          nextcarry:fraction = carryPropagate (base+1) ds
@@ -1111,9 +1111,9 @@ data Branch a b = Branch a b
 \end{comment}
 
 \begin{code}
-delFromFM (Branch key elipses) del_key  | del_key  >   key = elipses
-                                        | del_key  <   key = elipses
-                                        | del_key  ==  key = elipses
+delFromFM (Branch key ...) del_key  | del_key  >   key = ...
+                                    | del_key  <   key = ...
+                                    | del_key  ==  key = ...
 \end{code}
 
 At first glance the cases appear to be exhaustive. The law of trichotomy leads us to expect one of the guards to be true. However, the Haskell |Ord| class does not enforce this law. There is nothing to prevent an instance for a type with partially ordered values, some of which are incomparable. So \catch{} cannot verify the safety to |delFromFM| as defined as above.

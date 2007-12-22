@@ -79,11 +79,39 @@ The dictionary transformation is a global transformation. In Example \ref{ex:dic
 
 \subsection{Operations on Core}
 
+There are several operations that can be defined on our Core expressions type. We present some of the most useful, which are used later on.
+
 \subsubsection{Substitution}
 
-Capture free parallel substitution.
+We define |e[x / y]| to be the capture free substitution of the variable |x| for the expression |y| within the expression |e|. We define |e[x_1,...,x_n / y_1,...,y_n]| to be the simultaneous substitution of each variable |x_i| for each expression |y_i| in |e|.
+
+\begin{example}
+\begin{code}
+(v + 1)[v / 2]               => 2 + 1
+(let v = 3 in v + 1)[v / 2]  => let v = 3 in v + 1
+\end{code}
+\end{example}
 
 \subsubsection{Variable Classification}
+
+\begin{figure}
+\begin{code}
+fv :: Expr -> [FreeVar]
+fv (v) = [v]
+fv (c) = []
+fv (f) = []
+fv (x ys_) = fv x `union` unions (map fv ys_)
+fv (\vs_ -> x) = fv x \\ vs_
+fv (let v = x in y) = fv x `union` (fv y \\ v)
+fv (case x of alts_) = fv x `union` unions (map f alts)
+    where f (c vs_ -> y) = fv y \\ vs_
+\end{code}
+\caption{Free variables of an expression.}
+\label{fig:free_variables}
+\end{figure}
+
+A variable in an expression is either free or bound. Variables are introduced in let, lambda or case expressions. A variable is free if it is
+
 
 Bound, free etc.
 
