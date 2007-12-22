@@ -18,8 +18,7 @@ From right to left, the |getContents| function reads the input as a list of char
 
 An equivalent C program is given in Figure \ref{fig:c_words}. Compared to the C program, the Haskell version is more concise and more easily seen to be correct. Unfortunately, the Haskell program (compiled with GHC \cite{ghc}) is also three times slower than the C version (compiled with GCC). This slowdown is caused by several factors:
 
-\begin{fig}
-\bigskip
+\begin{figure}
 \begin{verbatim}
 int main()
 {
@@ -35,10 +34,9 @@ int main()
 	return 0;
 }
 \end{verbatim}
-\figend
 \caption{Word counting in C.}
 \label{fig:c_words}
-\end{fig}
+\end{figure}
 
 \begin{description}
 \item[Intermediate Lists] The Haskell program produces and consumes many intermediate lists as it computes the result. The |getContents| function produces a list of characters, |words| consumes this list and produces a list of lists of characters, |length| then consumes the outermost list. The C version uses no intermediate data structures.
@@ -68,7 +66,7 @@ We first introduce a Core language in \S\ref{sec:core}, on which all transformat
 
 Our supercompiler takes a Core program as input, and produces an equivalent Core program as output. To improve the program we do not make small local changes to the original, but instead \textit{evaluate it} so far as possible at compile time, leaving a \textit{residual program} to be run.
 
-\begin{fig}
+\begin{figure}
 \begin{code}
 supercompile()
     seen := {}
@@ -102,15 +100,14 @@ drive(rho, x)
 
 Where |psi| is a mapping from expressions to function names, and |fv\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decided whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it.
 \vspace{3mm}
-\figend
 \caption{The |supercompile| function.}
 \label{fig:supercompile}
-\end{fig}
+\end{figure}
 
 The general method of supercompilation is shown in Figure \ref{fig:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost element in the expression becomes part of the residual program. All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to alpha renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions are then supercompiled as before.
 
 \begin{comment}
-\begin{fig}
+\begin{figure}
 \begin{code}
 _O\<case x of alts_  \> =  case _O\<x\> \? of alts_
 _O\<let v = x in y   \> =  let v = _O\<x\> \? in _O\<y\>
@@ -121,13 +118,12 @@ _O\<v                \> =  v
 _O\<c                \> =  c
 _O\< \v -> x         \> =  \v -> x
 \end{code}
-\figend
 \caption{Optimisation rules.}
 \label{fig:optimise}
-\end{fig}
+\end{figure}
 \end{comment}
 
-\begin{fig}
+\begin{figure}
 \begin{code}
 case v of {... ; c vs_ -> x ; ...}
     => case v of {... ; c vs_ -> x[v/c vs_]; ...}
@@ -143,10 +139,9 @@ let v = c x_1 ... x_n in y
         y[v/c x_1 ... x_n]
     where v_1 ... v_n {-" \hbox{ are fresh} "-}
 \end{code}
-\figend
 \caption{Simplification rules.}
 \label{fig:simplify}
-\end{fig}
+\end{figure}
 
 The supercompilation of an expression proceeds by repeatedly inlining a function application until some termination criterion is met. Once the termination criterion holds, the expression is generalised before the outer spine becomes part of the residual program and all subexpressions are assigned names. After each inlining step, the expression is simplified using the rules in Figure \ref{fig:simplify}. There are three key decisions in the supercompilation of an expression:
 
@@ -543,17 +538,14 @@ All the C versions are implemented following a similar pattern to Figure \ref{fi
 
 We performed all benchmarks on a machine running Windows XP, with a 3GHz processor and 1Gb RAM. All benchmarks were run over a 50Mb log file, repeated 10 times, and the lowest value was taken. The C versions used GCC\footnote{\url{http://gcc.gnu.org/}} version 3.4.2 with -O3. The Haskell version used GHC 6.8.1 with -O2. The Supero version was compiled using our optimiser, then written back as a Haskell file, and compiled once more with GHC 6.8.1 and -O2.
 
-\begin{fig}
-\vspace{4mm}
+\begin{figure}
 \begin{center}
 % http://csdl.ics.hawaii.edu/FAQ/chart-ps.html
 \includegraphics[scale=0.75,angle=270]{supero-wc.eps}
 \end{center}
-\vspace{1mm}
-\figend
 \caption{Benchmarks with C, Supero+GHC and GHC alone.}
 \label{fig:c_results}
-\end{fig}
+\end{figure}
 
 The results are given in Figure \ref{fig:c_results}. In all the benchmarks C and Supero are within 10\% of each other, while GHC trails further behind.
 
@@ -565,7 +557,7 @@ During initial trials using these benchmarks, we identified two unnecessary bott
 
 The first issue is that |isSpace| in Haskell is much more expensive than |isspace| in C. The simplest solution is to use a FFI (Foreign Function Interface) \cite{spj:awkward_squad} call to the C |isspace| function in all cases, removing this factor from the benchmark. A GHC bug (number 1473) has been filed about the slow performance of |isSpace|.
 
-\begin{fig}
+\begin{figure}
 \begin{code}
 words :: String -> [String]
 words s = case  dropWhile isSpace s of
@@ -581,10 +573,9 @@ words' s = case  dropWhile isSpace s of
 drop1 []      = []
 drop1 (x:xs)  = xs
 \end{code}
-\figend
 \caption{The |words| function from the Haskell standard libraries, and an improved |words'|.}
 \label{fig:words}
-\end{fig}
+\end{figure}
 
 \paragraph{Inefficient \textsf{words} function}
 
@@ -623,21 +614,16 @@ The standard set of Haskell benchmarks is the nofib suite \cite{nofib}. It is di
 
 We exclude two benchmarks, paraffins and gen\_regexps. The paraffins benchmark makes substantial use of arrays, and we have not yet mapped the array primitives of Yhc onto those of GHC, which is necessary to run the transformed result. The gen\_regexps benchmark tests character processing: for some reason (as yet unknown) the supercompiled executable fails.
 
-\begin{fig}
-\vspace{4mm}
+\begin{figure}
 \begin{center}
 % http://csdl.ics.hawaii.edu/FAQ/chart-ps.html
 \includegraphics[scale=0.75,angle=270]{supero-nofib.eps}
 \end{center}
-\vspace{3mm}
-\figend
 \caption{Runtime, relative to GHC being 1.}
 \label{fig:haskell_results}
-\end{fig}
+\end{figure}
 
-\begin{table}[tb]
-\hrule
-\vspace{3mm}
+\begin{table}
 
 \begin{tabular}{lrrrrrr}
 \textbf{Program} & \hspace{5mm}\textbf{Supero} & \hspace{5mm}\textbf{msg} & \hspace{5mm}\textbf{spine} & \hspace{5mm}\textbf{none} & \hspace{5mm}\textbf{Size} & \hspace{5mm}\textbf{Memory} \\
