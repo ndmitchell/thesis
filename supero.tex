@@ -160,7 +160,7 @@ The original Supero work \cite{me:supero_ifl} inlined following evaluation order
 
 \subsection{Examples of Supercompilation}
 
-\subsubsection{Example 1: Supercompiling and Specialisation}\hfill
+\begin{examplename}{Supercompiling and Specialisation}
 
 \begin{code}
 main as = map (\b -> b + 1) as
@@ -190,9 +190,10 @@ h0 as = case  as of
               d:ds  -> d+1 : h0 ds
 \end{code}
 
-We have now specialised the higher-order argument, passing less data at runtime.\noexample
+We have now specialised the higher-order argument, passing less data at runtime.
+\end{examplename}
 
-\subsubsection{Example 2: Supercompiling and Deforestation}\hfill
+\begin{examplename}{Supercompiling and Deforestation}
 
 The deforestation transformation \cite{wadler:deforestation} removes intermediate lists from a traversal. A similar result is obtained by applying supercompilation, as shown here. Consider the operation of mapping |(*2)| over a list and then mapping |(+1)| over the result. The first |map| deconstructs one list, and constructs another. The second does the same.
 
@@ -226,7 +227,8 @@ h0 as  = case  (case  as of
                d:ds  -> (y*2)+1 : h0 ds
 \end{code}
 
-Both intermediate lists have been removed, and the functional arguments to |map| have both been specialised.  \noexample
+Both intermediate lists have been removed, and the functional arguments to |map| have both been specialised.
+\end{examplename}
 
 \subsection{Which function to inline}
 
@@ -326,7 +328,7 @@ Our generalisation is characterised by $x \bowtie y$, which produces an expressi
 
 The fv function in the first rule calculates the free variables of an expression, and $\sigma^*(y)$ denotes a subexpression $y$ within a containing context $\sigma^*$. The first rule applies if the homeomorphic embedding first applied the dive rule. The idea is to descend to the element which matched, and then promote this to the top-level using a lambda. The second rule applies the most specific generalisation operation if the coupling rule was applied first. We now show an example where most specific generalisation fails to produce the ideal generalised version.
 
-\subsubsection{Example 3}\hfill
+\begin{example}
 
 \begin{code}
 case  putStr (repeat '1') r of
@@ -361,7 +363,8 @@ in case  putChar '1' r of
          (r, _) -> x r
 \end{code}
 
-Our generalisation is superior because it has split out the |putStr| application \textit{without} lifting the |putChar| application or the constant |'1'|. The |putChar| application can now be supercompiled further in the context of the case expression.\noexample
+Our generalisation is superior because it has split out the |putStr| application \textit{without} lifting the |putChar| application or the constant |'1'|. The |putChar| application can now be supercompiled further in the context of the case expression.
+\end{example}
 
 
 
