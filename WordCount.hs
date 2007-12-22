@@ -57,7 +57,7 @@ dropComments [] = []
 isBeginComment = isPrefixOf "\\begin{comment}"
 isEndComment   = isPrefixOf "\\end{comment}"
 
-countLine x | "\\include{" `isPrefixOf` x = countFile $ init (drop 9 x) ++ ".tex"
+countLine x | "\\include{" `isPrefixOf` x = countFile $ takeWhile (/= '}') (drop 9 x) ++ ".tex"
 countLine x = return $ f x
     where
         f ('\\':xs) = f (dropWhile isAlpha xs)
