@@ -490,7 +490,6 @@ universe    :: Uniplate alpha => alpha -> [alpha]
 \end{code}
 \caption{All |Uniplate| methods.}
 \label{fig:play}
-\figureend
 \end{figure}
 
 We present signatures for all our methods in Figure \ref{fig:play}, including several monadic variants. In our experience, the most commonly used operations are |universe| and |transform|, followed by |transformM| and |descend|.
@@ -554,7 +553,6 @@ instance Uniplate Expr where
 \end{code}
 \caption{The |Uniplate| class and an instance for |Expr|.}
 \label{fig:play_expr}
-\figureend
 \end{figure}
 
 We define a |Uniplate| instance for the |Expr| type in Figure \ref{fig:play_expr}.
@@ -1037,7 +1035,6 @@ repChildren x = (children_, context)
 \end{code}
 \caption{Code for |Uniplate| in terms of |Data|.}
 \label{fig:playdata}
-\figureend
 \end{figure}
 
 How do we implement the Uniplate class instances? The fundamental operation is given in Figure \ref{fig:playdata}. The \ignore|repChildren| function descends to each of the child nodes, and is guarded by a |Typeable| cast to ensure that \ignore|alpha /= beta|. The operation to get the children can be done using |gmapQ|. The operation to replace the children is more complex, requiring a state monad to keep track of the items to insert.
@@ -1207,7 +1204,6 @@ SYB        & 43 & 29 & 29 & 30 & 19 & 34 & 21 & 24 & 56 & 113 & 172 & 285 \\
 Compos     & 71 & 30 & 32 & 54 & 27 & 36 & 25 & 33 & 40 & 123 & 225 & 348 \\
 \hline
 \end{tabular*}
-\figureend
 \end{table*}
 
 \begin{table*}
@@ -1224,7 +1220,6 @@ Uniplate Data      &  2.30 &  4.64 & 12.70 &  1.84 &  1.89 &  3.60 & 10.70 &  2.
 SYB            &  2.21 &  5.88 & 16.62 &  2.30 &  2.13 &  5.56 & 24.29 &  3.12 &  2.35 & 13.09 &  2.42 &  7.16 \\
 \hline
 \end{tabular*}
-\figureend
 \end{table*}
 
 \begin{figure}
@@ -1238,7 +1233,6 @@ data Typ  =  T_int              | T_float
 \end{code}
 \caption{Data type from Compos.}
 \label{fig:compos}
-\figureend
 \end{figure}
 
 The statement type manipulated by the Compos paper is given in Figure \ref{fig:compos}. The Compos paper translates this type into a GADT, while Uniplate and SYB both accept the definition as supplied.
@@ -1319,7 +1313,6 @@ data  Salary    = S Integer
 \end{code}
 \caption{Paradise Benchmark data structure.}
 \label{fig:paradise}
-\figureend
 \end{figure}
 
 The Paradise benchmark was introduced in the SYB paper \citep{lammel:syb}. The data type is shown in Figure \ref{fig:paradise}. The idea is that this data type represents an XML file, and a Haskell program is being written to perform various operations over it. The Compos paper includes an encoding into a GADT, with tag types for each of the different types.

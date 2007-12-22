@@ -16,12 +16,25 @@
 % required to keep lhs2tex happy
 \newcommand{\perc}{\%
     }
+% for tex2hs
+\newcommand{\ignore}{}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% CUSTOM COMMANDS
 
 % \todo - write out a todo reminder, easy to grep for
 \newcommand{\todo}[1]{\textbf{\textsc{Todo:} #1}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% CUSTOM SYMBOLS AND NAMES
+
+\newcommand{\generalise}{\bowtie}
+\newcommand{\derive}{\textsc{Derive}}
+\newcommand{\catch}{\textsc{Catch}}
+\newcommand{\newtool}{\catch07}
+\newcommand{\oldtool}{\catch05}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -65,7 +78,7 @@
 
 
 
-\newcommand{\generalise}{\bowtie}
+
 
 
 
@@ -91,9 +104,6 @@
 \newcommand{\K}{\ensuremath{^\ast}} % kleene star
 \newcommand{\D}{\ensuremath{\cdot}} % central dot
 
-\renewcommand{\c}[3]{\tup{\T{#1},\T{#2},\T{\{#3\}}}}
-\newcommand{\cc}[2]{\c{#1}{$\lambda$}{#2}}
-
 \newcommand{\s}[1]{\ensuremath{_{\tt #1}}} % subscript, in tt font
 \newcommand{\g}[1]{\{#1\}} % group, put { } round it
 \newcommand{\U}{\textunderscore}
@@ -101,21 +111,7 @@
 \newcommand{\gap}{\;\;}
 \newcommand{\dom}{\text{dom}}
 
-\newcommand{\derive}{\textsc{Derive}}
-\newcommand{\ignore}{}
+
 
 \newcommand{\compare}[2]{\subsubsection*{\textsf{#1} from #2:}\vspace{-1ex}}
-\newcommand{\figureend}{\vspace{-4mm}}
 \newcommand{\codeexample}{\vspace{-9mm}\par}
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% CATCH
-
-
-% general stuff
-
-\newcommand{\catch}{\textsc{Catch}}
-\newcommand{\newtool}{\catch07}
-\newcommand{\oldtool}{\catch05}
