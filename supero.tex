@@ -129,38 +129,12 @@ _O\< \v -> x         \> =  \v -> x
 
 \begin{fig}
 \begin{code}
-case (case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) of alts_
-    => case x of  {  p_1  -> case y_1 of alts_
-                  ;  ...
-                  ;  p_n  -> case y_n of alts_ }
-
-case c xs_ of {... ; c vs_ -> y ; ...}
-    => y[vs_/xs_]
-
 case v of {... ; c vs_ -> x ; ...}
     => case v of {... ; c vs_ -> x[v/c vs_]; ...}
 
-case (let v = x in y) of alts_
-    => let v = x in case y of alts_
-
-(let v = x in y) z
-    => let v = x in y z
-
-(case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) z
-    => case x of {p_1 -> y_1 z ; ... ; p_n -> y_n z}
-
-(\v -> x) y
-    => let v = y in x
-
-let v = x in (case y of {p_1 -> y_1 ; ... ; p_n -> y_n})
-    => case y of  {  p_1  -> let v = x in y_1
-                  ;  ...
-                  ;  p_n  -> let v = x in y_n}
-    where v {-" \hbox{is not used in } "-} y
-
 let v = x in y
     => y[v/x]
-    where x {-" \hbox{is a lambda, variable, or used once in } "-} y
+    where x {-" \hbox{is a lambda or a variable } "-}
 
 let v = c x_1 ... x_n in y
     =>  let v_1 = x_1 in
