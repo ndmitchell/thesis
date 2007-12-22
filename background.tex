@@ -4,10 +4,9 @@
 \chapter{Background}
 \label{chp:background}
 
-In this chapter we introduce the background material and general notations that are used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, including its sharing properties in \S\ref{sec:sharing}.
+In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, including its sharing properties in \S\ref{sec:sharing}.
 
 \section{Core Language}
-
 \label{sec:core}
 
 \begin{fig}
@@ -30,37 +29,37 @@ Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over f
 \label{fig:core}
 \end{fig}
 
-The expression type is given in Figure \ref{fig:core}. A program is a mapping of function names to expressions. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions, and all case expressions are exhaustive. All names are fully qualified. Haskell's type classes have been removed using the dictionary transformation \cite{wadler:type_classes}.
+The expression type of our Core language is given in Figure \ref{fig:core}. A program is a mapping of function names to expressions. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary.
 
-All names are fully qualified. Haskell's type classes have been removed (see \S\ref{sec:dict}). Only top-level functions remain; all local functions have been lambda lifted. All constructor applications are fully saturated. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an \C{error} alternative if necessary.
- 
-In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and must maintain it.
+Some functions are used but lack corresponding definitions in the program. These are defined to be \textit{primitive}. They have some meaning to an underlying runtime system, but are not available for transformation. A primitive function may perform an action such as outputting a character to the screen, or may manipulate primitive numbers such as addition.
+
+The primary difference between our Core language and GHC-Core \cite{ghc_core} is that our Core language is untyped. The Core is generated from well-typed Haskell, and is guaranteed not to fail with a type error. All the work we do could be implemented equally well in a typed Core language, but we prefer to work in an untyped language for simplicity of implementation. For describing data types we use the same notation as Haskell 98. One of the most common data types is the list, which can be defined as:
+
+\begin{code}
+data List alpha = Nil | Cons alpha (List alpha)
+\end{code}
+
+A list is either an empty list, or a cons cell which contains an element of the list type and the tail of the list. For example the list of 1,2,3 would be written |(Cons 1 (Cons 2 (Cons 3 Nil)))|. We allow the syntactic sugar of representing |Cons| as a right-associative infix application of |(:)| and |Nil| as |[]| -- allowing us to write |(1:2:3:[])|. We also permit |[1,2,3]|.
 
 \subsection{Generating Core}
 
-Our supercompiler uses the Yhc-Core language \cite{me:yhc_core}.
+In order to generate our Core language from the full Haskell language, we use the Yhc compiler \cite{yhc}, a fork of nhc \cite{nhc}.
 
-The Yhc compiler, a fork of nhc \cite{nhc}, can output Core files. Yhc can also link in all definitions from all required libraries, producing a single Core file representing a whole program.
+The internal Core language of Yhc is PosLambda -- a simple variant of lambda calculus without types, but with source position information. Yhc works by applying basic desugaring transformations, without optimisation. This simplicity ensures the generated PosLambda is close to the original Haskell in its structure. Each top-level function in a source file maps to a top-level function in the generated PosLambda, retaining the same name. However, PosLambda has constructs that have no direct representation in Haskell. For example, there is a FatBar construct \cite{spj:implementation}, used for compiling pattern matches which require fall through behaviour. We have therefore introduced a new Core language to Yhc, to which PosLambda can easily be translated \cite{me:yhc_core}.
 
-The primary difference between Yhc-Core and GHC-Core \cite{ghc_core} is that Yhc-Core is untyped. The Core is generated from well-typed Haskell, and is guaranteed not to fail with a type error. All the transformations could be implemented equally well in a typed Core language, but we prefer to work in an untyped language for simplicity of implementation.
+The Yhc compiler can generate the Core for a single source file. Yhc can also link in all definitions from all required libraries, producing a single Core file representing a whole program. All function and constructor names are fully qualified, so the linking process simply involves merging the list of functions from each required Core file.
 
-The full Haskell language is unwieldy for analysis. As noted in \S\ref{sec:core}, analysis is performed instead on a simplified language, a core to which other Haskell programs can be reduced.
-
--- a simple variant of lambda calculus without types, but with source position information. Yhc works by applying basic desugaring transformations, without optimisation. This simplicity ensures the generated PosLambda is close to the original Haskell in its structure. Each top-level function in a source file maps to a top-level function in the generated PosLambda, retaining the same name.
-
-However, PosLambda has constructs that have no direct representation in Haskell. For example, there is a FatBar construct \cite{spj:implementation}, used for compiling pattern matches which require fall through behaviour. The PosLambda language
-
-To generate core representations of programs, it is natural to start with a full Haskell compiler, and we chose Yhc \citep{me:yhc_core}, a fork of nhc \citep{nhc}. The core language of Yhc, PosLambda, was intended only as an internal representation, and exposes certain details that are specific to the compiler. We have therefore introduced a new Core language to Yhc, to which PosLambda can easily be translated.
+In the process of generating a Core file, Yhc performs several transformations. Haskell's type classes are removed using the dictionary transformation (see \S\ref{sec:dictionary_transformation}). All local functions are lambda lifted, leaving only top-level functions -- ensuring Yhc generated Core does \textit{not} contain any lambda expressions. All constructor applications and primitive applications are fully saturated.
 
 
 \subsection{The Dictionary Transformation}
-\label{sec:dict}
+\label{sec:dictionary_transformation}
 
-Most transformations in Yhc operate within a single function definition. The only phases which require information about more than one function are type checking and the transformation used to implement type classes \citep{wadler:type_classes}. The dictionary transformation introduces tuples (or \textit{dictionaries}) of methods passed as additional arguments to class-polymorphic functions. Haskell also allows subclassing. For example, \C{Ord} requires \C{Eq} for the same type. In such cases the dictionary transformation generates a nested tuple: the \C{Eq} dictionary is a component of the \C{Ord} dictionary.
+Most transformations in Yhc operate within a single function definition. The only phases which require information about more than one function are type checking and the transformation used to implement type classes \citep{wadler:type_classes}. The dictionary transformation introduces tuples (or \textit{dictionaries}) of methods passed as additional arguments to class-polymorphic functions. Haskell also allows subclassing. For example, |Ord| requires |Eq| for the same type. In such cases the dictionary transformation generates a nested tuple: the |Eq| dictionary is a component of the |Ord| dictionary.
 
 \begin{example}
-\nopagebreak
-\ignore\begin{code}
+\label{ex:dictionary}
+\begin{code}
 f :: Eq alpha => alpha -> alpha -> Bool
 f x y = x == y || x /= y
 \end{code}
@@ -78,7 +77,7 @@ f dict x y = (||) (((==) dict) x y) (((/=) dict) x y)
 The |Eq| class is implemented as two selector functions, |(==)| and |(/=)|, acting on a method table. For different types of |alpha|, different method tables are provided.
 \end{example}
 
-The dictionary transformation is a global transformation. In Example \lastexample{} the \C{Eq} context in \C{f} not only requires a dictionary to be accepted by \C{f}; it requires all the callers of \C{f} to pass a dictionary as first argument. An alternative approach to implementing type classes, given in \citet{jones:dictionary_free}, does not rely on higher order functions. Although this approach might suit \catch{} better, we re-used the method already implemented in Yhc.
+The dictionary transformation is a global transformation. In Example \ref{ex:dictionary} the |Eq| context in |f| not only requires a dictionary to be accepted by |f|; it requires all the callers of |f| to pass a dictionary as first argument. There are alternative approaches to implementing type classes, such as \citet{jones:dictionary_free}, which does not create a tuple of higher order functions. We use the dictionary transformation for simplicity, as it is already implemented within Yhc.
 
 \subsection{Operations on Core}
 
@@ -89,6 +88,9 @@ Capture free parallel substitution.
 \subsubsection{Variable Classification}
 
 Bound, free etc.
+
+In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and must maintain it.
+
 
 
 \subsubsection{The |split| operation}
@@ -111,6 +113,61 @@ Bound, free etc.
 \end{fig}
 
 We define the |split| function in Figure \ref{fig:split}, which splits an expression into a pair of its spine and its immediate subexpressions. The $\bullet$ markers in the spine indicate the positions from which subexpressions have been removed. We define the |join| operation to be the inverse of |split|, taking a spine and a list of expressions, and producing an expression.
+
+
+
+
+
+\section{Semantics}
+
+Our Core language is defined to be lazy.
+
+We define the semantics by the rules:
+
+A one-step reduction
+
+
+\subsection{Simplification Rules}
+
+\begin{fig}
+\begin{code}
+case (case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) of alts_
+    => case x of  {  p_1  -> case y_1 of alts_
+                  ;  ...
+                  ;  p_n  -> case y_n of alts_ }
+
+case c xs_ of {... ; c vs_ -> y ; ...}
+    => y[vs_/xs_]
+
+case (let v = x in y) of alts_
+    => let v = x in case y of alts_
+
+(let v = x in y) z
+    => let v = x in y z
+
+(case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) z
+    => case x of {p_1 -> y_1 z ; ... ; p_n -> y_n z}
+
+(\v -> x) y
+    => let v = y in x
+
+(x xs_) ys_
+    => x xs_ ys_
+
+let v = x in (case y of {p_1 -> y_1 ; ... ; p_n -> y_n})
+    => case y of  {  p_1  -> let v = x in y_1
+                  ;  ...
+                  ;  p_n  -> let v = x in y_n}
+    where v {-" \hbox{is not used in } "-} y
+
+let v = x in y
+    => y[v/x]
+    where x {-" \hbox{is used once in } "-} y
+\end{code}
+\figend
+\caption{Simplification rules.}
+\label{fig:simplify}
+\end{fig}
 
 
 
@@ -152,53 +209,6 @@ It is possible to engineer examples where the recursive let removal does cause a
 \subsection{Constant Applicative Form}
 
 
-
-\section{Semantics}
-
-Our Core language is defined to be lazy.
-
-We define the semantics by the rules:
-
-A one-step reduction 
-
-
-\subsection{Simplification Rules}
-
-\begin{fig}
-\begin{code}
-case (case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) of alts_
-    => case x of  {  p_1  -> case y_1 of alts_
-                  ;  ...
-                  ;  p_n  -> case y_n of alts_ }
-
-case c xs_ of {... ; c vs_ -> y ; ...}
-    => y[vs_/xs_]
-
-case (let v = x in y) of alts_
-    => let v = x in case y of alts_
-
-(let v = x in y) z
-    => let v = x in y z
-
-(case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) z
-    => case x of {p_1 -> y_1 z ; ... ; p_n -> y_n z}
-
-(\v -> x) y
-    => let v = y in x
-
-let v = x in (case y of {p_1 -> y_1 ; ... ; p_n -> y_n})
-    => case y of  {  p_1  -> let v = x in y_1
-                  ;  ...
-                  ;  p_n  -> let v = x in y_n}
-    where v {-" \hbox{is not used in } "-} y
-
-let v = x in y
-    => y[v/x]
-    where x {-" \hbox{is used once in } "-} y
-\end{code}
-\figend
-\caption{Simplification rules.}
-\label{fig:simplify}
-\end{fig}
+\subsection{Common Sub Expression}
 
 

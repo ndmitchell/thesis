@@ -15,6 +15,54 @@
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% CUSTOM COMMANDS
+
+% \todo - write out a todo reminder, easy to grep for
+\newcommand{\todo}[1]{\textbf{\textsc{Todo:} #1}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% EXAMPLES
+
+\newcounter{exmp}
+\setcounter{exmp}{0}
+
+% generic example (can be anything)
+\newenvironment{exampleany}[1]
+    {\subsubsection*{Example #1}}
+    {\hfill$\Box$}
+
+% standard example
+\newenvironment{example}
+    {\refstepcounter{exmp}
+     \begin{exampleany}{\arabic{exmp}}}
+    {\end{exampleany}}
+
+% naming an example
+\newenvironment{examplename}[1]
+    {\refstepcounter{exmp}
+     \begin{exampleany}{\arabic{exmp} (#1)}}
+    {\end{exampleany}}
+
+% revisiting a previous example
+\newenvironment{examplerevisit}[1]
+    {\begin{exampleany}{#1 (revisited)}}
+    {\end{exampleany}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TO SORT OUT BELOW THIS LINE
+
+
+% example related
+\newcommand{\yesexample}{\refstepcounter{exmp}\subsubsection*{Example \arabic{exmp}}}
+\newcommand{\noexample}{\hfill$\Box$}
+\newcommand{\lastexample}{\arabic{exmp}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SUPERO
 
 
@@ -25,7 +73,6 @@
 \newcommand{\figend}{\hrule}
 \newcommand{\perc}{\%
     }
-\newcommand{\noexample}{\hfill$\Box$}
 
 \newcommand{\generalise}{\bowtie}
 
@@ -45,22 +92,11 @@
 \newcommand{\pic}[1]{\includegraphics[scale=0.55]{#1.eps}}
 
 % examples
-\newcounter{exmp}
-\setcounter{exmp}{0}
-\newcommand{\yesexample}{\refstepcounter{exmp}\subsubsection*{Example \arabic{exmp}}}
-
-\newcommand{\todo}[1]{\textbf{\textsc{Todo:} #1}}
 
 % code blocks
 \newenvironment{codepage}
     {\begin{minipage}[h]{\textwidth}\begin{code}}
     {\end{code}\end{minipage}}
-
-\newenvironment{example}{\yesexample}{\noexample}
-\newenvironment{revisit}[1]{\subsubsection*{Example #1 (revisited)}}{\noexample}
-\newenvironment{examplename}[1]
-    {\refstepcounter{exmp}\subsubsection*{Example \arabic{exmp} (#1)}}
-    {\noexample}
 
 \newcommand{\K}{\ensuremath{^\ast}} % kleene star
 \newcommand{\D}{\ensuremath{\cdot}} % central dot
@@ -95,7 +131,6 @@
 \newcommand{\oldtool}{\catch05}
 
 % examples
-\newcommand{\lastexample}{\arabic{exmp}}
 
 \newcommand{\para}[1]{\vspace{2mm}\noindent\textbf{#1}}
 

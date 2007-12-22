@@ -270,7 +270,7 @@ always r x = fromMaybe x (r x)
 
 What restrictions on |r| ensure that the property \ignore|rewrite r x == transform (always r) x| holds? It is sufficient that the constructors on the right-hand side of |r| do not overlap with the constructors on the left-hand side.
 
-\begin{revisit}{\ref{ex:simplify}}
+\begin{examplerevisit}{\ref{ex:simplify}}
 
 Recall the |simplify| transformation, as a rewrite:
 
@@ -296,7 +296,7 @@ f (Sub x y)           = f $ Add x (Neg y)
 f (Add x y) | x == y  = Mul (Val 2) x
 f x                   = x
 \end{code}\codeexample
-\end{revisit}
+\end{examplerevisit}
 
 \begin{comment}
  We can start by defining a more abstract representation of a rewrite rule:
@@ -866,16 +866,16 @@ transformBi = transformOn biplate
 
 In general the move to |Biplate| requires few code changes, merely the use of the new set of |Bi| functions. To illustrate we give generalisations of two examples from previous sections, implemented using |Biplate|. We extend the |variables| and |simplify| functions to work on |Expr|, |Stmt| or many other types.
 
-\subsubsection*{Example from \S1 (revisited)}
+\begin{exampleany}{from \S1 (revisited)}
 \begin{code}
 variables :: Biplate beta Expr => beta -> [String]
 variables x = [y | Var y <- universeBi x]
 \end{code}
 
 The equation requires only one change: the addition of the |Bi| suffix to |universe|. In the type signature we replace |Expr| with \ignore|Biplate beta Expr => beta|. Instead of requiring the input to be an |Expr|, we merely require that from the input we know how to reach an |Expr|.
-\endexample
+\end{exampleany}
 
-\begin{revisit}{\ref{ex:simplify}}
+\begin{examplerevisit}{\ref{ex:simplify}}
 \begin{code}
 simplify :: Biplate beta Expr => beta -> beta
 simplify x = transformBi f x
@@ -884,7 +884,7 @@ simplify x = transformBi f x
 \end{code}
 
 In this redefinition we have again made a single change to the equation: the addition of |Bi| at the end of |transform|.
-\end{revisit}
+\end{examplerevisit}
 
 \section{Implementing |Biplate|}
 \label{sec:implement_playex}
@@ -1129,7 +1129,7 @@ As test operations we have taken the first three examples from this paper, three
 
 \subsubsection{Examples from this Paper}
 
-\subsubsection*{Example from \S1 (revisited)}
+\begin{exampleany}{Example from \S1 (revisited)}
 
 \ignore\begin{code}
 uni_variables x = [y | Var y <- universe x]
@@ -1145,9 +1145,9 @@ com_variables x = case x of
 \end{code}
 
 Only Compos needs a type signature, due to the use of GADTs. List comprehensions allow for succinct queries in Uniplate.
-\noexample
+\end{exampleany}
 
-\begin{revisit}{\ref{ex:zerocount}}
+\begin{examplerevisit}{\ref{ex:zerocount}}
 
 \ignore\begin{code}
 uni_zeroCount x = length [() | Div _ (Val 0) <- universe x]
@@ -1163,9 +1163,9 @@ com_zeroCount x = case x of
 \end{code}
 
 In the Uniplate solution the list of |()| is perhaps inelegant. However, Uniplate is the only scheme that is able to use the standard |length| function: the other two express the operation as a fold. Compos requires additional boilerplate to continue the operation on |Div y|.
-\end{revisit}
+\end{examplerevisit}
 
-\begin{revisit}{\ref{ex:simplify}}
+\begin{examplerevisit}{\ref{ex:simplify}}
 
 \ignore\begin{code}
 simp (Sub x y)           = simp $ Add x (Neg y)
@@ -1187,7 +1187,7 @@ com_simplify x = case x of
 \end{code}
 
 This is a modified version of |simplify| discussed in \S\ref{sec:rewrite_bottom}. The two rules are applied everywhere possible. Compos does not provide a bottom-up transformation, so needs extra boilerplate.
-\end{revisit}
+\end{examplerevisit}
 
 \subsubsection{Multi-type examples from the Compos paper}
 

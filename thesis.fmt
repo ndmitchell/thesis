@@ -40,7 +40,6 @@
 %format `cons` = "\;\textsf{\`{}\!cons\!\`{}}\;"
 
 %subst conid a = "\mathsf{" a "}"
-%subst varid a = "\mathsf{" a "}"
 %subst varsym a = "\mathsf{" a "}"
 %subst keyword a = "\hspace{-1mm}\text{\textsf{\textbf{ " a "}}}"
 
