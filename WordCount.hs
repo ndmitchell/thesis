@@ -51,6 +51,7 @@ countFile file = do
 
 dropComments :: [String] -> [String]
 dropComments (x:xs) | isBeginComment x = drop 1 $ dropWhile (not . isEndComment) xs
+dropComments (('%':_):xs) = dropComments xs
 dropComments (x:xs) = x : dropComments xs
 dropComments [] = []
 
