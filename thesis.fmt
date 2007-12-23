@@ -28,6 +28,8 @@
 %format phi = "{\phi}"
 %format psi = "{\psi}"
 %format rho = "{\rho}"
+%format Gamma = "{\Gamma}"
+%format Gamma' = "{\Gamma^\prime}"
 %format unions = "{\bigcup\!}"
 %format ~= = "\mathbin{\simeq}"
 
@@ -41,6 +43,10 @@
 %format $| = "[\!["
 %format |$ = "]\!]"
 
+%format \< = "{\langle}"
+%format \> = "{\rangle}"
+%format |- = "\mathbin{\vdash}"
+
 % spacing modifiers
 %format \? = "\;"
 %format \! = "\!"
@@ -49,7 +55,7 @@
 % uniplate
 %format target = "\textsc{target}"
 %format unit = "\textsc{unit}"
-%format |- = "\mathsf{\hspace{1mm}|\hspace{-0.5mm}\hbox{-\!-}\;}"
+%% %format |- = "\mathsf{\hspace{1mm}|\hspace{-0.5mm}\hbox{-\!-}\;}"
 %format |+ = "\mathsf{\hspace{1mm}|\hspace{-0.5mm}\hbox{\small{+}}\;}"
 %format |* = "\mathsf{\hspace{1mm}|\hspace{-0.65mm}*\;}"
 %format ||* = "\mathsf{\hspace{1mm}||\hspace{-0.65mm}*\;}"
@@ -79,6 +85,7 @@
 
 %format _C = "\mathcal{C}"
 %format _D = "\mathcal{D}"
+%format _F = "\mathcal{F}"
 %format _N = "\mathcal{N}"
 %format _O = "\mathcal{O}"
 %format _T = "\mathcal{T}"
@@ -86,15 +93,15 @@
 %format _C_ = "\mathcal{\overline{C}}"
 %format _T_ = "\mathcal{\overline{T}}"
 
-%format a'  = "\Varid{a^\prime{}}"
-%format b'  = "\Varid{b^\prime{}}"
-%format e'  = "\Varid{e^\prime{}}"
-%format x'  = "\Varid{x^\prime{}}"
-%format xs' = "\Varid{xs^\prime{}}"
+%format a'  = "\Varid{a^\prime}"
+%format b'  = "\Varid{b^\prime}"
+%format e'  = "\Varid{e^\prime}"
+%format x'  = "\Varid{x^\prime}"
+%format xs' = "\Varid{xs^\prime}"
 
-%format x_1' = "\Varid{x_1^\prime{}}"
-%format x_2' = "\Varid{x_2^\prime{}}"
-%format x_n' = "\Varid{x_n^\prime{}}"
+%format x_1' = "\Varid{x_1^\prime}"
+%format x_2' = "\Varid{x_2^\prime}"
+%format x_n' = "\Varid{x_n^\prime}"
 
 %format alts_  = "\Varid{\overline{alts}}"
 %format c_     = "\Varid{\overline{c}}"

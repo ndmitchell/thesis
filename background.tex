@@ -14,8 +14,8 @@ In this chapter we introduce the background material and general notations used 
 expr  =  v                                          {-" \text{  variable} "-}
       |  c                                          {-" \text{  constructor} "-}
       |  f                                          {-" \text{  function} "-}
-      |  x ys_                                      {-" \text{  application} "-}
-      |  \vs_ -> x                                  {-" \text{  lambda abstraction} "-}
+      |  x y                                        {-" \text{  application} "-}
+      |  \v -> x                                    {-" \text{  lambda abstraction} "-}
       |  let v = x in y                             {-" \text{  let binding} "-}
       |  case x of {p_1 -> y_1 ; ... ; p_n -> y_n}  {-" \text{  case expression} "-}
 
@@ -28,6 +28,13 @@ Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over f
 \end{figure}
 
 The expression type of our Core language is given in Figure \ref{fig:core}. A program is a mapping of function names to expressions. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary.
+
+We allow a list of variables to appear in a lambda abstraction, or a list of expressions to appear as the second argument of an application. These can be translated away using the following rules:
+
+\begin{code}
+x y ys_      => (x y) ys_
+\v vs_ -> x  => \v -> (\vs_ -> x)
+\end{code}
 
 Some functions are used but lack corresponding definitions in the program. These are defined to be \textit{primitive}. They have some meaning to an underlying runtime system, but are not available for transformation. A primitive function may perform an action such as outputting a character to the screen, or may manipulate primitive numbers such as addition.
 
@@ -97,28 +104,24 @@ We define |e[x / y]| to be the capture free substitution of the variable |x| for
 \begin{figure}
 \begin{code}
 fv :: Expr -> [FreeVar]
-fv (v) = [v]
-fv (c) = []
-fv (f) = []
-fv (x ys_) = fv x `union` unions (map fv ys_)
-fv (\vs_ -> x) = fv x \\ vs_
-fv (let v = x in y) = fv x `union` (fv y \\ v)
-fv (case x of alts_) = fv x `union` unions (map f alts)
+fv (v                ) = [v]
+fv (c                ) = []
+fv (f                ) = []
+fv (x ys_            ) = fv x `union` unions (map fv ys_)
+fv (\vs_ -> x        ) = fv x \\ vs_
+fv (let v = x in y   ) = fv x `union` (fv y \\ v)
+fv (case x of alts_  ) = fv x `union` unions (map f alts)
     where f (c vs_ -> y) = fv y \\ vs_
 \end{code}
 \caption{Free variables of an expression.}
 \label{fig:free_variables}
 \end{figure}
 
-A variable in an expression is either free or bound. Variables are introduced in let, lambda or case expressions. A variable is free if it is
+The variables in the patterns of case expressions, the arguments of lambda abstractions and the bindings of let expressions are \textit{bound}; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |fv e|, and can be computed using the function in Figure \ref{fig:free_variables}. Within a function definition all variables must be bound.
 
+In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and afterwards any repeated bound variables can be assigned fresh names.
 
-Bound, free etc.
-
-In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and must maintain it.
-
-
-
+\begin{comment}
 \subsubsection{The |split| operation}
 
 \begin{figure}
@@ -136,12 +139,53 @@ In order to avoid accidental variable name clashes while performing transformati
 \end{figure}
 
 We define the |split| function in Figure \ref{fig:split}, which splits an expression into a pair of its spine and its immediate subexpressions. The $\bullet$ markers in the spine indicate the positions from which subexpressions have been removed. We define the |join| operation to be the inverse of |split|, taking a spine and a list of expressions, and producing an expression.
-
-
-
+\end{comment}
 
 
 \section{Semantics}
+
+We first augment the language with $\bot$, then we can follow much the same pattern as \cite{hammond:semantics}. We define residual forms to be |c \< ... \>|, |\v -> r| and $\bot$.
+
+\newcommand{\sem}[2]{\[\begin{array}{c} #1 \\ \hline \vspace{-1em} \\ #2 \end{array}\]}
+\newcommand{\semm}[1]{\[\begin{array}{c} #1 \end{array}\]}
+
+\begin{figure}
+\sem{|Gamma(v) = \< Gamma', v' \>| \\
+     |Gamma' ||- v' => r|}
+    {|Gamma ||- v => r|}
+
+\semm{|Gamma ||- c => c \< \>|}
+
+\sem{|_F(f) = f'| \\
+     |Gamma ||- f' => r|}
+    {|Gamma ||- f => r|}
+
+\sem{|Gamma ||- x => undefined|}
+    {|Gamma ||- x y => undefined|}
+
+\sem{|Gamma ||- x => c \< vs_ \>| \\
+     |Gamma ||- y => y'|}
+    {|Gamma ||- x y => c \< vs_ y' \>|}
+
+\sem{|Gamma ||- x => \v -> x'| \\
+     |Gamma{v = \< Gamma, r' \>} ||- x' => r|}
+    {|Gamma ||- x y => r|}
+
+\sem{|Gamma ||- x => r|}
+    {|Gamma ||- \v -> x => \v -> r|}
+
+\sem{|Gamma{v = \< Gamma, x \>} ||- y => r|}
+    {|Gamma ||- let v = x in y => r|}
+
+\sem{|Gamma ||- x => c < xs_ >| \\
+     |Gamma{vs_ = \< Gamma, xs \>} ||- y => r|}
+    {|Gamma ||- case x of {... ; c vs_ -> y ; ...} => r|}
+
+\sem{|Gamma ||- x => undefined|}
+    {|Gamma ||- case x of alts_ => undefined|}
+\caption{Semantics of Core.}
+\label{fig:semantics}
+\end{figure}
 
 Our Core language is defined to be lazy.
 
@@ -195,6 +239,10 @@ let v = x in y
 
 \section{Sharing}
 
+\subsection{Let bindings}
+
+
+
 \subsection{Recursive let bindings}
 
 In the standard Haskell language, let bindings can be \textit{recursive}. To take an example:
@@ -231,6 +279,16 @@ It is possible to engineer examples where the recursive let removal does cause a
 \subsection{Constant Applicative Form}
 
 
-\subsection{Common Sub Expression}
+A CAF (constant applicative form) is a top level definition of zero arity. In Haskell, CAFs are computed at most once per program run, and retained as long as references to them remain. Consider the program:
 
+\begin{code}
+caf = expensive
+
+main = caf + caf
+\end{code}
+
+
+\subsection{Common Subexpression Elimination}
+
+\cite{chitil:cse}
 
