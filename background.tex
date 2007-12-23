@@ -144,14 +144,24 @@ We define the |split| function in Figure \ref{fig:split}, which splits an expres
 
 \section{Semantics}
 
-We first augment the language with $\bot$, then we can follow much the same pattern as \cite{hammond:semantics}. We define residual forms to be |c \< ... \>|, |\v -> r| and $\bot$.
+The evaluation strategy of our Core language is lazy. We give a semantics based on that of \citet{hammond:semantics}. At each step |Gamma| is the environment containing a mapping from variable names to closures. A closure is a pair of an environment and an expression to be evaluated in that environment. We use the |_F| function to denote the mapping from top-level program names to expressions.
+
+The residual forms in our language are defined by:
+
+\begin{code}
+r  =  c \< rs_ \>  {-" \text{  constructor} "-}
+   |  \v -> r      {-" \text{  lambda} "-}
+   |  undefined    {-" \text{  bottom/undefined} "-}
+\end{code}
+
+A residual form is either a constructor, a lambda, or the undefined value. The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. |_F(error) = undefined|. The semantics are given in Figure \ref{fig:semantics}.
 
 \newcommand{\sem}[2]{\[\begin{array}{c} #1 \\ \hline \vspace{-1em} \\ #2 \end{array}\]}
 \newcommand{\semm}[1]{\[\begin{array}{c} #1 \end{array}\]}
 
 \begin{figure}
-\sem{|Gamma(v) = \< Gamma', v' \>| \\
-     |Gamma' ||- v' => r|}
+\sem{|Gamma(v) = \< Gamma', x \>| \\
+     |Gamma' ||- x => r|}
     {|Gamma ||- v => r|}
 
 \semm{|Gamma ||- c => c \< \>|}
@@ -186,13 +196,6 @@ We first augment the language with $\bot$, then we can follow much the same patt
 \caption{Semantics of Core.}
 \label{fig:semantics}
 \end{figure}
-
-Our Core language is defined to be lazy.
-
-We define the semantics by the rules:
-
-A one-step reduction
-
 
 \subsection{Simplification Rules}
 
