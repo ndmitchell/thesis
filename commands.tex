@@ -16,6 +16,12 @@
 % for tex2hs
 \newcommand{\ignore}{}
 
+\let\oldfigure\figure
+\let\oldendfigure\endfigure
+\renewenvironment{figure}
+    {\oldfigure}
+    {\hrule\oldendfigure}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% HIDING BITS OF THE THESIS

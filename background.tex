@@ -177,7 +177,7 @@ We first augment the language with $\bot$, then we can follow much the same patt
 \sem{|Gamma{v = \< Gamma, x \>} ||- y => r|}
     {|Gamma ||- let v = x in y => r|}
 
-\sem{|Gamma ||- x => c < xs_ >| \\
+\sem{|Gamma ||- x => c \< xs_ \>| \\
      |Gamma{vs_ = \< Gamma, xs \>} ||- y => r|}
     {|Gamma ||- case x of {... ; c vs_ -> y ; ...} => r|}
 
