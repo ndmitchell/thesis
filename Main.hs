@@ -20,12 +20,12 @@ main = do
     for bib $
         \b -> replaceDirectory b obj <== [b] $ \from to -> do
             copyFile from to
-            system_ "obj" $ "bibtex " ++ takeFileName b
+            system_ "obj" $ "bibtex -quiet " ++ takeBaseName (takeFileName b)
     for tex $
         \t -> replaceDirectory t obj <== [t,"thesis.fmt"] $ \from to -> do
             system_ "." $ "lhs2tex " ++ from ++ " -o " ++ to
 
-    system_ "obj" "texify thesis.tex"
+    system_ "obj" "texify --quiet thesis.tex"
     copyFile "obj/thesis.dvi" "thesis.dvi"
 
 
@@ -42,7 +42,10 @@ system_ dir cmd = do
     bracket_ (setCurrentDirectory dir) (setCurrentDirectory orig) $ do
         putStrLn cmd
         res <- system cmd
-        when (res /= ExitSuccess) $ error "System command failed!"
+        when (res /= ExitSuccess) $ do
+            putStrLn "System command failed! Press enter to continue"
+            getChar
+            exitWith (ExitFailure 1)
 
 (<==) :: FilePath -> [FilePath] -> (FilePath -> FilePath -> IO ()) -> IO ()
 (<==) to froms@(from:_) action = do
