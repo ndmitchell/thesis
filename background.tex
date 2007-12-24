@@ -27,13 +27,15 @@ Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over f
 \label{fig:core}
 \end{figure}
 
-The expression type of our Core language is given in Figure \ref{fig:core}. A program is a mapping of function names to expressions. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary.
+The expression type of our Core language is given in Figure \ref{fig:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. A program is a mapping of function names to expressions. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary.
 
-We allow a list of variables to appear in a lambda abstraction, or a list of expressions to appear as the second argument of an application. These can be translated away using the following rules:
+We allow a list of variables to appear in a lambda abstraction, a list of expressions to appear as the second argument of an application and a list of bindings to appear in a let. These can be translated away using the following rules:
 
 \begin{code}
-x y ys_      => (x y) ys_
-\v vs_ -> x  => \v -> (\vs_ -> x)
+x y ys_                  => (x y) ys_
+\v vs_ -> x              => \v -> (\vs_ -> x)
+let v = x ; binds_ in y  => let v = x in (let binds_ in y)
+let v vs_ = x xs_ in y   => let v = x in (let vs_ = xs_ in y)
 \end{code}
 
 Some functions are used but lack corresponding definitions in the program. These are defined to be \textit{primitive}. They have some meaning to an underlying runtime system, but are not available for transformation. A primitive function may perform an action such as outputting a character to the screen, or may manipulate primitive numbers such as addition.
@@ -143,104 +145,152 @@ We define the |split| function in Figure \ref{fig:split}, which splits an expres
 
 
 \section{Semantics}
+\label{sec:semantics}
 
-The evaluation strategy of our Core language is lazy. We give a semantics based on that of \citet{hammond:semantics}. At each step |Gamma| is the environment containing a mapping from variable names to closures. A closure is a pair of an environment and an expression to be evaluated in that environment. We use the |_F| function to denote the mapping from top-level program names to expressions.
-
-The residual forms in our language are defined by:
+The evaluation strategy of our Core language is lazy. We specify a reduction to weak-head normal form (WHNF) in Figure \ref{fig:whnf} and a reduction to normal form (NF) in \ref{fig:nf}. The grammar for expressions in WHNF is:
 
 \begin{code}
-r  =  c \< rs_ \>  {-" \text{  constructor} "-}
-   |  \v -> r      {-" \text{  lambda} "-}
+r  =  c \< xs_ \>  {-" \text{  constructor} "-}
+   |  \v -> x      {-" \text{  lambda} "-}
    |  undefined    {-" \text{  bottom/undefined} "-}
 \end{code}
 
-A residual form is either a constructor, a lambda, or the undefined value. The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. |_F(error) = undefined|. The semantics are given in Figure \ref{fig:semantics}.
+The grammar for expression in NF is:
 
-\newcommand{\sem}[2]{\[\begin{array}{c} #1 \\ \hline \vspace{-1em} \\ #2 \end{array}\]}
-\newcommand{\semm}[1]{\[\begin{array}{c} #1 \end{array}\]}
+\begin{code}
+n  =  c \< ns_ \>  {-" \text{  constructor} "-}
+   |  \v -> x      {-" \text{  lambda} "-}
+   |  undefined    {-" \text{  bottom/undefined} "-}
+\end{code}
+
+\newcommand{\sem}[1]
+    {& \begin{array}{c}#1\smallskip\end{array}}
+\newcommand{\semm}[2]
+    {& \frac{\begin{array}{c}#1\end{array}}
+            {\begin{array}{c}#2\smallskip\end{array}}}
+\newcommand{\semmm}[3]
+    {& \frac{\begin{array}{c}#1\\#2\end{array}}
+            {\begin{array}{c}#3\smallskip\end{array}}}
 
 \begin{figure}
-\sem{|Gamma(v) = \< Gamma', x \>| \\
-     |Gamma' ||- x => r|}
-    {|Gamma ||- v => r|}
-
-\semm{|Gamma ||- c => c \< \>|}
-
-\sem{|_F(f) = f'| \\
-     |Gamma ||- f' => r|}
-    {|Gamma ||- f => r|}
-
-\sem{|Gamma ||- x => undefined|}
-    {|Gamma ||- x y => undefined|}
-
-\sem{|Gamma ||- x => c \< vs_ \>| \\
-     |Gamma ||- y => y'|}
-    {|Gamma ||- x y => c \< vs_ y' \>|}
-
-\sem{|Gamma ||- x => \v -> x'| \\
-     |Gamma{v = \< Gamma, r' \>} ||- x' => r|}
-    {|Gamma ||- x y => r|}
-
-\sem{|Gamma ||- x => r|}
-    {|Gamma ||- \v -> x => \v -> r|}
-
-\sem{|Gamma{v = \< Gamma, x \>} ||- y => r|}
-    {|Gamma ||- let v = x in y => r|}
-
-\sem{|Gamma ||- x => c \< xs_ \>| \\
-     |Gamma{vs_ = \< Gamma, xs \>} ||- y => r|}
-    {|Gamma ||- case x of {... ; c vs_ -> y ; ...} => r|}
-
-\sem{|Gamma ||- x => undefined|}
-    {|Gamma ||- case x of alts_ => undefined|}
-\caption{Semantics of Core.}
-\label{fig:semantics}
+\begin{eqnarray}
+\sem
+    {|c => c \< \>|}
+\\ \semmm
+    {|_F(f) = x|}
+    {|x => r|}
+    {|f => r|}
+\\ \semm
+    {|x => undefined|}
+    {|x y => undefined|}
+\\ \semm
+    {|x => c \< xs_ \>|}
+    {|x y => c \< xs_ y \>|}
+\\ \semmm
+    {|x => \v -> x'|}
+    {|x'[v/y] => r|}
+    {|x y => r|}
+\\ \semm
+    {|y[v/x] => r|}
+    {|let v = x in y => r|}
+\\ \semmm
+    {|x => c \< xs_ \>|}
+    {|y[vs_ / xs_] => r|}
+    {|case x of {... ; c vs_ -> y ; ...} => r|}
+\\ \semm
+    {|x => undefined|}
+    {|case x of alts_ => undefined|}
+\end{eqnarray}
+\caption{Reduction to weak-head normal form, |(=>)|.}
+\label{fig:whnf}
 \end{figure}
+
+\begin{figure}
+\begin{eqnarray}
+\semm
+    {|x => undefined|}
+    {|x =>* undefined|}
+\\ \semm
+    {|x => \v -> y|}
+    {|x =>* \v -> y|}
+\\ \semmm
+    {|x => c \< xs_ \>|}
+    {|xs_ =>* xs_' |}
+    {|x =>* c \< xs_' \>|}
+\end{eqnarray}
+\caption{Reduction to normal form, |(=>*)|.}
+\label{fig:nf}
+\end{figure}
+
+Our semantics does not respect sharing, this topic is dealt with in \S\ref{sec:sharing}. The evaluation of a program corresponds to reducing |main| to NF.
+
+We never descend below a bound variable without replacing that variable, therefore any remaining variable would have to be free in the definition of the program, which is not permitted. Consequently, there is no rule for a variable. We choose not evaluate inside a lambda, even on |=>*|, as this would generate a free variable. The |_F| mapping never crashes, as it is checked statically that all mentioned function names exist in the mapping.
+
+The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. |_F(error) = undefined|. If a computation forces a |undefined| value, in the scrutinee of a case or the first argument of an application, the |undefined| is propagated.
+
+There is no rule for case of a lambda abstraction, as this situation is not permitted by the type system. Similarly, the type system plus the exhaustiveness of case branches means that if the scrutinee successfully evaluates, it will match exactly one alternative.
 
 \subsection{Simplification Rules}
 
 \begin{figure}
+\renewcommand{\f}[2]{\vspace{-7mm} #2 & (#1) \\}
+
+\begin{flushright}
+\begin{tabular}{p{8cm}r}
+\f{case-con}{
 \begin{code}
-case (case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) of alts_
-    => case x of  {  p_1  -> case y_1 of alts_
-                  ;  ...
-                  ;  p_n  -> case y_n of alts_ }
-
 case c xs_ of {... ; c vs_ -> y ; ...}
-    => y[vs_/xs_]
+    => let vs_ = xs_ in y
+\end{code}}
 
-case (let v = x in y) of alts_
-    => let v = x in case y of alts_
-
-(let v = x in y) z
-    => let v = x in y z
-
-(case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) z
-    => case x of {p_1 -> y_1 z ; ... ; p_n -> y_n z}
-
+\f{lam-app}{
+\begin{code}
 (\v -> x) y
     => let v = y in x
+\end{code}}
 
-(x xs_) ys_
-    => x xs_ ys_
+\f{case-app}{
+\begin{code}
+(case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) z
+    => case x of {p_1 -> y_1 z ; ... ; p_n -> y_n z}
+\end{code}}
 
+\f{let-case}{
+\begin{code}
 let v = x in (case y of {p_1 -> y_1 ; ... ; p_n -> y_n})
     => case y of  {  p_1  -> let v = x in y_1
                   ;  ...
                   ;  p_n  -> let v = x in y_n}
     where v {-" \hbox{is not used in } "-} y
+\end{code}}
 
+\f{case-case}{
+\begin{code}
+case (case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) of alts_
+    => case x of  {  p_1  -> case y_1 of alts_
+                  ;  ...
+                  ;  p_n  -> case y_n of alts_ }
+\end{code}}
+
+\f{let}{
+\begin{code}
 let v = x in y
     => y[v/x]
     where x {-" \hbox{is used once in } "-} y
-\end{code}
+\end{code}}
+\end{tabular}
+\end{flushright}
 \caption{Simplification rules.}
 \label{fig:simplify}
 \end{figure}
 
+We present several simplification rules in Figure \ref{fig:simplify}, which can be applied to our Core language. These rules are standard and would be applied by any optimising compiler. All the rules preserve both the semantics and the sharing behaviour of an expression.
+
+The case-con and lam-app rules simply follow the semantics, using let expressions to preserve the sharing. The case-app, let-case and case-case rules move outer expressions over an inner case expression, duplicating the outer expression in each alternative. The let rule substitutes let expressions where the bound variable is used only once, and therefore no loss of sharing is possible.
 
 
 \section{Sharing}
+\label{sec:sharing}
 
 \subsection{Let bindings}
 
