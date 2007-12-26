@@ -99,6 +99,7 @@
 %format e'  = "\Varid{e^\prime}"
 %format x'  = "\Varid{x^\prime}"
 %format xs' = "\Varid{xs^\prime}"
+%format main' = "\Varid{main^\prime}"
 
 %format xs_' = "\Varid{\overline{xs}^\prime}"
 
