@@ -292,9 +292,48 @@ The case-con and lam-app rules simply follow the semantics, using let expression
 \section{Sharing}
 \label{sec:sharing}
 
+The semantics presented give the correct answer, and model laziness correctly, but do not model the sharing present in Haskell. This section informally discusses the relevant sharing properties of Haskell.
+
 \subsection{Let bindings}
 
+A let expression introduces \textit{sharing} of the computational result of expressions. Consider the expression:
 
+\begin{example}
+\begin{code}
+let x = f 1
+in x + x
+\end{code}
+
+The semantic rules for evaluating this expression result in:
+
+\begin{code}
+(x + x)[x / f 1]
+(f 1 + f 1)
+\end{code}
+
+In the semantics, the expression |f 1| will be reduced twice. However, the real operational semantics would evaluate |f 1| only once. The first time the value of |x| was demanded, |f 1| would be evaluated to WHNF, and bound to |x|. Any successive examinations of |x| would return immediately, pointing at the same result.
+\end{example}
+
+\begin{figure}
+\begin{code}
+occurs :: VarName -> Expr -> Int
+occurs v (v'                ) = if v == v' then 1 else 0
+occurs v (c                 ) = 0
+occurs v (f                 ) = 0
+occurs v (x ys_             ) = occurs v x + sum (map (occurs v) ys_)
+occurs v (\vs_ -> x         ) = occurs v x
+occurs v (let v' = x in y   ) = if v == v' then 0 else occurs v x + occurs v y
+occurs v (case x of alts_   ) = occurs v x + maximum (map f alts_)
+    where f (c vs_ -> y) = if v `elem` vs_ then 0 else occurs v y
+
+linear :: VarName -> Expr -> Bool
+linear v x = occurs v x <= 1
+\end{code}
+\caption{Linear variables within an expression.}
+\label{fig:linear}
+\end{figure}
+
+In general, the substitution of a bound variable for the associated expression may cause duplicate computation to be formed. However, in some circumstances, duplicate computation can be guaranteed not to occur. If a bound variable can be used at most once in an expression, it is said to be \textit{linear}, and substitution can be performed. A variable is linear if it is used at most once, i.e. occurs at most once down each possible flow of control, and can be computed following Figure \ref{fig:linear}.
 
 \subsection{Recursive let bindings}
 

@@ -107,6 +107,7 @@
 %format x_n' = "\Varid{x_n^\prime}"
 
 %format alts_  = "\Varid{\overline{alts}}"
+%format binds_  = "\Varid{\overline{binds}}"
 %format c_     = "\Varid{\overline{c}}"
 %format t_     = "\Varid{\overline{t}}"
 %format rs_    = "\Varid{\overline{rs}}"
