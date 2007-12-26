@@ -5,8 +5,8 @@
 
 %subst conid a = "\mathsf{" a "}"
 %subst varsym a = "\mathsf{" a "}"
-%subst keyword a = "\hspace{-1mm}\text{\textsf{\textbf{ " a "}}}"
-
+%subst keyword a = "\text{\textsf{\textbf{" a "}}}"
+%format letrec = "\text{\textsf{\textbf{letrec}}}"
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% OBVIOUS EXTRA SYMBOLS
