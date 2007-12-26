@@ -108,8 +108,8 @@ makeGraph dat = "http://chart.apis.google.com/chart" ++
         simp = map val rangeX
 
         (dates,values) = unzip dat
-        minY = min 25000 (minimum values)
-        maxY = max 30000 (maximum values)
+        minY = (minimum values `div` 1000) * 1000
+        maxY = (maximum values `div` 1000) * 1000 + 1000
         ranY = map (*1000) [minY `div` 1000 .. maxY `div` 1000]
         
         minX@(x1,x2,x3) = minimum dates
