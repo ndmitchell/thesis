@@ -3,70 +3,129 @@
 
 \chapter{First-Order Reduction}
 
-\section{Converting Haskell to a First-order Core}
-\label{sec:transform}
+The Core language presented in \S\ref{sec:core} is higher-order, but to simplify the analysis in Catch (Chapter \ref{chp:catch}), we work with a first-order language. This chapter gives alternative methods for removing higher-order constructs. For the purposes of this work, we require a transformation that preserves the meaning of a program, but does not necessarily preserve the space behaviour. If such a transformation was done for optimisation purposes, then space behaviour would be critical, but for analysis it is unnecessary.
 
+\section{First-order Core}
 
+\begin{figure}
+\begin{code}
+prog  =  f |--> vs_ x
 
-\subsection{First-Order Haskell}
+expr  =  v                                          {-" \text{  variable} "-}
+      |  c xs_                                      {-" \text{  constructor} "-}
+      |  f xs_                                      {-" \text{  function} "-}
+      |  let v = x in y                             {-" \text{  let binding} "-}
+      |  case x of {p_1 -> y_1 ; ... ; p_n -> y_n}  {-" \text{  case expression} "-}
 
-The analysis presented in \S\ref{sec:manipulate} operates on a first-order language. In order to analyse full Haskell, we transform Haskell to a first-order language. We briefly consider three alternative methods.
+pat   =  c vs_
+\end{code}
+\caption{First-order Core syntax}
+\label{fig:fo_core}
+\end{figure}
 
-\subsubsection{Reynolds style defunctionalization}
+The first-order Core (FO-Core) language is given in Figure \ref{fig:fo_core}, and is based on the original higher-order Core (HO-Core) given in Figure \ref{fig:core}. The first difference is that a FO-Core program is a mapping of function names to a list of variables and an expression. Compared to the HO-Core, |f| mapping to |vs_ x| would be equivalent to |f| mapping to |\vs_ -> x|. The expression now has vector application for constructors and functions, all of which must be fully saturated. There is no longer an application construct, or a lambda abstraction.
 
-Reynolds style defunctionalization \citep{reynolds:defunc} is the seminal method for generating a first-order equivalent of a higher-order program.
+To convert from HO-Core to FO-Core we need to remove some features. Non-saturated constructors can be removed by adding a lambda which fully saturates the constructor. The removal of the lambda expression can be achieved using lambda lifting \cite{lambda_lift}, which replaces lambda's in expressions with top-level lambda abstractions. Applications to let expressions and case expressions can be removed using the case-app and let-app rules from Figure \ref{fig:simplify}.
+
+The only remaining functional values in HO-Core are functions which are not immediately saturated with an application -- i.e. partial application. The only use of a higher-order function is an application to a variable. Functions can be bound to variables at top-level lambda abstractions, case expressions or let expressions. If a function is bound in a let binding then it can be inlined.
+
+There are three methods available which remove higher order functions: Reynolds style defunctionalization, specialisation and super-specialisation. Of these, only Reynolds style is capable of removing all higher-order functions.
+
+\section{Reynolds style defunctionalization}
+
+Reynolds style defunctionalization \cite{reynolds:defunc} is the seminal method for generating a first-order equivalent of a higher-order program.
 
 \begin{example}
 \begin{code}
-map fn x = case  x of
-                 []      -> []
-                 (a:as)  -> fn a : map fn as
+map f x = case  x of
+                []      -> []
+                (y:ys)  -> f y : map f ys
 \end{code}
 
-\noindent Defunctionalization works by creating a data type to represent all values that |fn| may take anywhere in the whole program. For instance, it might be:
+\noindent Defunctionalization works by creating a data type to represent all values that |f| may take anywhere in the whole program. For instance, it might be:
 
 \ignore\begin{code}
-data Functions = Head | Tail
+data Function = Head | Tail
 
 apply Head  x = head  x
 apply Tail  x = tail  x
 
-map fn x = case  x of
+map f x = case  x of
                  []      -> []
-                 (a:as)  -> apply fn a : map fn as
+                 (y:ys)  -> apply f a : map f as
 \end{code}
 
-\noindent Now all calls to |map head| are replaced by \ignore|map Head|.
+\noindent Now all calls to |map head| are replaced by |map Head|.
 \end{example}
 
-Defunctionalized code is still type safe, but type checking would require a dependently typed language. This presents no problem for \catch{}, which does not use type information. The unacceptable aspect is the creation of an |apply| function, whose meaning is excessively general, introducing a bottleneck through which various properties must be proven. Asking questions such as \textit{``Is the result of |apply| an empty-list?''}, requires a lot of computation.
+This method naturally extends to partial application. To take a more complicated example, where higher-order functions are being used to store information:
 
-\catch{} only uses Reynolds style defunctionalization if all other methods fail.
+\begin{example}
+\begin{code}
+type Map = String -> Int
 
+new :: Map
+new _ = 0
 
-\subsubsection{Specialisation}
+get :: String -> Map -> Int
+get key mp = mp key
 
-\oldtool{} uses a different technique to remove higher-order functions: specialisation. A mutually recursive group of functions can be specialised if one argument is always passed between functions unmodified. Examples of common functions whose applications can be specialised include |map|, |filter|, |foldr| and |foldl|. When a function can be specialised, the expression passed as the invariant argument has all its free variables passed as extra arguments, and is expanded in the specialised version. All recursive calls within the new function are then renamed.
+add :: String -> Int -> Map -> Map
+add key val mp s = if s == key then val else get key mp
+
+test = get "foo" (add "bar" 4 (add "baz" 2 new))
+\end{code}
+
+\noindent The above code creates a functional map, which uses a higher-order function to store a mapping from |String| to |Int|. The |add| function inserts a new key/value pair into the map. This is transformed with defunctionalization to:
+
+\begin{code}
+data Function  =  New
+               |  Add3 String Int Function
+
+apply  New                 x = new x
+apply  (Add3 y_1 y_2 y_3)  x = add y_1 y_2 y_3 x
+
+new _ = 0
+
+get key mp = apply mp key
+
+add key val mp s = if s == key then val else get key mp
+
+test = get "foo" (Add3 "bar" 4 (Add3 "baz" 2 New))
+\end{code}
+
+Here we use the constructor |Add3| to represent the |add| function with three arguments pre-applied. Note that the |Function| data type now serves to store a linked-list of the values with |New| serving a similar role to |[]|, and |Add3| storing one key/value pair along with the remainder of the list.
+\end{example}
+
+Defunctionalized code is still type safe, but type checking would require a dependently typed language. The method is complete, removing all higher-order functions, and preserves space behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The flow control is complicated by the extra level of indirection.
+
+Reynold's method can always be used as a backup, if other transformation strategies leave residual higher-order functions.
+
+\section{Argument Specialisation}
+
+The Catch tool presented in \cite{me:catch_tfp} uses specialisation to remove higher-order functions. A mutually recursive group of functions can be specialised if one argument is always passed between functions unmodified. Examples of common functions whose applications can be specialised include |map|, |filter|, |foldr| and |foldl|. When a function can be specialised, the expression passed as the invariant argument has all its free variables passed as extra arguments, and is expanded in the specialised version. All recursive calls within the new function are then renamed.
 
 \begin{example}
 \begin{code}
 adds x n = map ((+) n) x
-map fn xs =  case  xs of
-             []      -> []
-             (a:as)  -> fn a : map fn as
+
+map f xs = case  xs of
+                 []    -> []
+                 y:ys  -> f y : map f ys
 \end{code}
 
 \noindent is transformed into:
 
 \begin{code}
 adds x n = map_adds n x
-map_adds n xs =  case  xs of
-                 []      -> []
-                 (a:as)  -> (+) n a : map_adds n as
-\end{code}\codeexample
+
+map_adds n xs = case  xs of
+                      []    -> []
+                      y:ys  -> (+) n y : map_adds n ys
+\end{code}
 \end{example}
 
-Specialisation alone is sufficient for many examples, but it cannot cope with point-free code, and does not deal with many forms of dictionaries.
+The method used in \cite{me:catch_tfp} first identifies all invariant arguments, then generates specialised variants. If a specialised variant then invokes further functions with arguments, they are not specialised -- the process is not repeated. Specialisation alone is sufficient for many examples, but it cannot cope with point-free code, and does not deal with many forms of dictionaries.
 
 \subsubsection{Specialisation with Inlining}
 

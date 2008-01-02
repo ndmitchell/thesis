@@ -11,6 +11,8 @@ In this chapter we introduce the background material and general notations used 
 
 \begin{figure}
 \begin{code}
+prog  =  f |--> x
+
 expr  =  v                                          {-" \text{  variable} "-}
       |  c                                          {-" \text{  constructor} "-}
       |  f                                          {-" \text{  function} "-}
@@ -22,7 +24,7 @@ expr  =  v                                          {-" \text{  variable} "-}
 pat   =  c vs_
 \end{code}
 
-Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over functions, |x| and |y| range over expressions and |p| ranges over patterns.
+Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over function names, |x| and |y| range over expressions and |p| ranges over patterns.
 \caption{Core syntax}
 \label{fig:core}
 \end{figure}
@@ -256,6 +258,12 @@ case c xs_ of {... ; c vs_ -> y ; ...}
     => case x of {p_1 -> y_1 z ; ... ; p_n -> y_n z}
 \end{code}}
 
+\f{let-app}{
+\begin{code}
+(let v = x in y) z
+    => let v = x in y z
+\end{code}}
+
 \f{let-case}{
 \begin{code}
 let v = x in (case y of {p_1 -> y_1 ; ... ; p_n -> y_n})
@@ -287,7 +295,7 @@ let v = x in y
 
 We present several simplification rules in Figure \ref{fig:simplify}, which can be applied to our Core language. These rules are standard and would be applied by any optimising compiler. All the rules preserve both the semantics and the sharing behaviour of an expression.
 
-The case-con and lam-app rules simply follow the semantics, using let expressions to preserve the sharing. The case-app, let-case and case-case rules move outer expressions over an inner case expression, duplicating the outer expression in each alternative. The let rule substitutes let expressions where the bound variable is used only once, and therefore no loss of sharing is possible.
+The case-con and lam-app rules simply follow the semantics, using let expressions to preserve the sharing. The case-app, let-case and case-case rules move outer expressions over an inner case expression, duplicating the outer expression in each alternative. The let-app rule moves an application over an inner let expression. The let rule substitutes let expressions where the bound variable is used only once, and therefore no loss of sharing is possible.
 
 
 \section{Sharing}
