@@ -16,6 +16,7 @@ expr  =  v                                          {-" \text{  variable} "-}
       |  f xs_                                      {-" \text{  function} "-}
       |  let v = x in y                             {-" \text{  let binding} "-}
       |  case x of {p_1 -> y_1 ; ... ; p_n -> y_n}  {-" \text{  case expression} "-}
+      |  v @ xs_                                    {-" \text{  variable application} "-}
 
 pat   =  c vs_
 \end{code}
@@ -23,11 +24,30 @@ pat   =  c vs_
 \label{fig:fo_core}
 \end{figure}
 
-The first-order Core (FO-Core) language is given in Figure \ref{fig:fo_core}, and is based on the original higher-order Core (HO-Core) given in Figure \ref{fig:core}. The first difference is that a FO-Core program is a mapping of function names to a list of variables and an expression. Compared to the HO-Core, |f| mapping to |vs_ x| would be equivalent to |f| mapping to |\vs_ -> x|. The expression now has vector application for constructors and functions, all of which must be fully saturated. There is no longer an application construct, or a lambda abstraction.
+The first-order Core (FO-Core) language is given in Figure \ref{fig:fo_core}, and is based on the original higher-order Core (HO-Core) given in Figure \ref{fig:core}. The first difference is that a FO-Core program is a mapping of function names to a list of variables and an expression. Compared to the HO-Core, |f| mapping to |vs_ x| would be equivalent to |f| mapping to |\vs_ -> x|. The expression now has vector application for constructors and functions, all of which must be fully saturated. There is no longer a general application construct, or a lambda abstraction.
+
+There is one new construct, variable application, written |v @ xs_| which applies the expressions |xs_| to the higher-order function bound to variable |v|. If a program has any |@| expressions within it, then it is no longer first-order. By permitting |@| expressions to appear, and relaxing the requirement that |f xs_| is saturated, we obtain a higher-order language which is suitable for transforming to first-order.
 
 To convert from HO-Core to FO-Core we need to remove some features. Non-saturated constructors can be removed by adding a lambda which fully saturates the constructor. The removal of the lambda expression can be achieved using lambda lifting \cite{lambda_lift}, which replaces lambda's in expressions with top-level lambda abstractions. Applications to let expressions and case expressions can be removed using the case-app and let-app rules from Figure \ref{fig:simplify}.
 
-The only remaining functional values in HO-Core are functions which are not immediately saturated with an application -- i.e. partial application. The only use of a higher-order function is an application to a variable. Functions can be bound to variables at top-level lambda abstractions, case expressions or let expressions. If a function is bound in a let binding then it can be inlined.
+The only remaining functional values in HO-Core are functions which are not immediately saturated with an application -- i.e. partial application. The only use of a higher-order function is an application to a variable. The partial application can be represented in FO-Core, and the application to a variable can be represented with an |@| expression.
+
+\begin{figure}
+\begin{code}
+unsaturated :: Expr -> Bool
+unsaturated v = False
+unsaturated (c xs_) = False
+unsaturated (f xs_) = arity f /= length xs_
+unsaturated (let v = x in y) = unsaturated (y[v/x])
+unsaturated (case x of alts_) = any f alts_
+    where f (c vs_ -> y) = unsaturated y
+unsaturated (v @ xs_) = False
+\end{code}
+\caption{Definition of which expressions are |unsaturated|.}
+\label{fig:unsaturated}
+\end{figure}
+
+An expression is unsaturated it evaluates to a lambda expression. One way of checking this property is using the type system. An alternative approximation is using the |unsaturated| function in Figure \ref{fig:unsaturated}, which we use.
 
 There are three methods available which remove higher order functions: Reynolds style defunctionalization, specialisation and super-specialisation. Of these, only Reynolds style is capable of removing all higher-order functions.
 
@@ -103,7 +123,7 @@ Reynold's method can always be used as a backup, if other transformation strateg
 
 \section{Argument Specialisation}
 
-The Catch tool presented in \cite{me:catch_tfp} uses specialisation to remove higher-order functions. A mutually recursive group of functions can be specialised if one argument is always passed between functions unmodified. Examples of common functions whose applications can be specialised include |map|, |filter|, |foldr| and |foldl|. When a function can be specialised, the expression passed as the invariant argument has all its free variables passed as extra arguments, and is expanded in the specialised version. All recursive calls within the new function are then renamed.
+The Catch tool presented in \cite{me:catch_tfp} uses specialisation to remove higher-order functions. A mutually recursive group of functions is specialised if one argument is always passed between functions unmodified, and that argument is unsaturated. Examples of common functions whose applications can be specialised include |map|, |filter|, |foldr| and |foldl|. When a function can be specialised, the expression passed as the unsaturated argument has all its free variables passed as extra arguments, and is expanded in the specialised version. All recursive calls within the new function are then renamed.
 
 \begin{example}
 \begin{code}
@@ -126,6 +146,10 @@ map_adds n xs = case  xs of
 \end{example}
 
 The method used in \cite{me:catch_tfp} first identifies all invariant arguments, then generates specialised variants. If a specialised variant then invokes further functions with arguments, they are not specialised -- the process is not repeated. Specialisation alone is sufficient for many examples, but it cannot cope with point-free code, and does not deal with many forms of dictionaries.
+
+\section{Moving Unsaturated Expressions}
+
+One way to eliminate expressions
 
 \subsubsection{Specialisation with Inlining}
 
