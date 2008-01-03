@@ -249,5 +249,9 @@ f = if condition then (if condition then f else id) else id
 At this stage we have inlined |f| once, so do not inline |f| again.
 \end{example}
 
-Our preferred method for higher-order function removal is to apply specialisation and inlining interleaved.
+
+\section{Results}
+
+Our preferred method for higher-order function removal is to apply specialisation and inlining interleaved. We have tried our method on the nofib suite, and have the following results.
+
 
