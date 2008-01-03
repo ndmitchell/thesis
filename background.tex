@@ -51,6 +51,12 @@ data List alpha = Nil | Cons alpha (List alpha)
 
 A list is either an empty list, or a cons cell which contains an element of the list type and the tail of the list. For example the list of 1,2,3 would be written |(Cons 1 (Cons 2 (Cons 3 Nil)))|. We allow the syntactic sugar of representing |Cons| as a right-associative infix application of |(:)| and |Nil| as |[]| -- allowing us to write |(1:2:3:[])|. We also permit |[1,2,3]|.
 
+We allow |if| expressions, with the translation:
+
+\begin{code}
+if x then y else z => case x of {True -> y; False -> z}
+\end{code}
+
 \subsection{Generating Core}
 
 In order to generate our Core language from the full Haskell language, we use the Yhc compiler \cite{yhc}, a fork of nhc \cite{nhc}.
