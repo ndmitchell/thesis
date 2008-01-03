@@ -36,7 +36,7 @@ The only remaining functional values in HO-Core are functions which are not imme
 \begin{code}
 unsaturated :: Expr -> Bool
 unsaturated v = False
-unsaturated (c xs_) = False
+unsaturated (c xs_) = any unsaturated xs_
 unsaturated (f xs_) = arity f /= length xs_
 unsaturated (let v = x in y) = unsaturated (y[v/x])
 unsaturated (case x of alts_) = any f alts_
@@ -47,7 +47,7 @@ unsaturated (v @ xs_) = False
 \label{fig:unsaturated}
 \end{figure}
 
-An expression is unsaturated it evaluates to a lambda expression. One way of checking this property is using the type system. An alternative approximation is using the |unsaturated| function in Figure \ref{fig:unsaturated}, which we use.
+An expression is unsaturated if it evaluates to a lambda expression. One way of checking this property is using the type system. An alternative approximation is using the |unsaturated| function in Figure \ref{fig:unsaturated}, which we use.
 
 There are three methods available which remove higher order functions: Reynolds style defunctionalization, specialisation and super-specialisation. Of these, only Reynolds style is capable of removing all higher-order functions.
 
@@ -71,8 +71,8 @@ apply Head  x = head  x
 apply Tail  x = tail  x
 
 map f x = case  x of
-                 []      -> []
-                 (y:ys)  -> apply f a : map f as
+                []    -> []
+                y:ys  -> apply f a : map f as
 \end{code}
 
 \noindent Now all calls to |map head| are replaced by |map Head|.
@@ -121,7 +121,7 @@ Defunctionalized code is still type safe, but type checking would require a depe
 
 A natural desire would be to eliminate the higher-order aspects of a program, without introducing any new data structures. However, it is simple to show that this transformation is not possible. Given a program, we can remove all data structures by Church encoding \cite{church_encode}. If we then had a transformation which made the program first-order \textit{without} introducing any data, we would end up with a program without data or closures, which is therefore incapable of storing an unbounded amount of information. Since with higher-order functions we can implement a Turing machine \cite{turing:halting}, and without an unbounded store we cannot, such a transformation cannot exist.
 
-The two following methods both attempt to remove higher-order functions without introducing any additional data structures, and therefore are not complete. Reynold's method can always be used as a backup, if there are residual higher-order functions.
+The following methods attempt to remove higher-order functions without introducing any additional data structures, and therefore are not complete. Reynold's method can always be used as a backup, if there are residual higher-order functions.
 
 
 \section{Argument Specialisation}
@@ -156,68 +156,98 @@ map_adds n xs = case  xs of
 An important point is that the transformation has also been made in the recursive call, making the entire fragment first-order.
 \end{example}
 
-The method used in \cite{me:catch_tfp} first identifies all invariant arguments, then generates specialised variants. If a specialised variant then invokes further functions with unsaturated arguments, they are not specialised -- the process is not repeated. Specialisation alone is sufficient for many examples, but it cannot cope with point-free code, and does not deal with many forms of dictionaries.
+The method used in \cite{me:catch_tfp} first identifies all invariant arguments, then generates specialised variants. If a specialised variant then invokes further functions with unsaturated arguments, they are not specialised -- the process is not repeated. Specialisation alone is sufficient for many examples, but fails in some cases. Two particular cases where it is insufficient are when unsaturated values are the result of a computation, and when a specialised variant only appears after inlining.
+
+\begin{example}
+\begin{code}
+id x = x
+same = id
+
+main = same 2
+\end{code}
+
+Here |same| is a higher-order function, but it is not passed to a function, so is not specialised.
+\end{example}
+
+\begin{example}
+\begin{code}
+apply2 f x = f x
+apply f x = apply2 f x
+
+main = apply id 2
+\end{code}
+
+Here the only function applied with unsaturated arguments is |apply|, which is called with |id|. We specialise this application to give:
+
+\begin{code}
+apply2 f x = f x
+apply_id x = apply2 id x
+
+main = apply_id 2
+\end{code}
+
+Because we only apply specialisation once, we are still left with the unsaturated |id| function in the |apply2| function.
+\end{example}
+
+In the following sections we will see how to reduce the impact of each of the above problems.
 
 \section{Fixed Point of Specialisation}
 
-A natural extension of specialisation is to take the fixed point. Unfortunately, such an algorithm would not terminate:
+A natural extension of specialisation is to take the fixed point, eliminating unsaturated expressions in generated functions. Unfortunately, such an algorithm would not terminate.
 
+\begin{example}
 \begin{code}
-dataWrap a= Wrap (Wrap a) | Value a
+data Wrap a  =  Wrap (Wrap a)
+             |  Value a
+
 f x = f (Wrap x)
-check = f (Value head)
+main = f (Value head)
 \end{code}
+
+In the first iteration, this would generate a version of |f| specialised to |Value head|. In the second iteration it would specialise |f| with respect to |Wrap (Value head)|, then in the third with |Wrap (Wrap (Value head))|. We would generate an infinite number of specialisations of |f|.
+\end{example}
+
+One simple way to prevent such non-termination is to have a bound on the number of specialisations. Another approach is to use a homeomorphic embedding. All functions relate to some original expression in the Core language, if the expression to be generated was a homeomorphic embedding of an already specialised expression, we can stop.
+
+Using homeomorphic embedding on the previous example, we would generate the following specialised variants of |f (Value head)| and |f (Wrap (Value head))|. Upon attempting to generate the specialised variant |f (Wrap (Wrap (Value head)))| we would abort, with an embedding of |f (Wrap (Value head))|.
+
 
 \section{Inlining Unsaturated Functions}
 
-\section{Specialisation with Inlining}
+The second cause of residual unsaturated expressions is at function and let bindings. If we are willing to ignore the problem of sharing, we can simply inline all let bindings, or all those which bind to unsaturated expressions. We can remove all unsaturated expressions bound at the top-level by inlining them. Returning to the example where specialisation failed:
 
+\begin{example}
+\begin{code}
+id x = x
+same = id
 
-
-The power of specialisation is greatly increased if it is combined with inlining, and applied selectively to higher-order functions.
-
-%if 0
-\begin{figure}
-\ignore\begin{code}
-data Expr  =  ... -- as in Figure {\ref{fig:core}}
-           |  Part   Int FuncName [Expr]
-           |  Apply  Expr [Expr]
-
--- equivalences
-Part 0 fn xs == Call fn xs
-Apply (Part n fn xs) ys == Part (n - length ys) fn (xs ++ ys)
-\end{code}
-\caption{Augmented Core syntax.}
-\label{fig:core_ho}
-\end{figure}
-
-In order to permit a higher-order program to be represented, the Core language is augmented with additional constructs, as shown in Figure \ref{fig:core_ho}. The |Apply| constructor represents an unsaturated function call, or a variable to be used as the function. The |Part| constructor is used to represent unsaturated function calls, leaving the normal |Call| constructor to represent saturated calls. A |Part| construction records how many arguments are needed.
-
-\begin{figure}
-\ignore\begin{code}
-isHO :: Expr -> Bool
-isHO (Part n _ _)    = n > 0
-isHO (Make _ xs)     = any isHO xs
-isHO (Case on alts)  = any (isHO . snd) alts
-isHO _               = False
-\end{code}
-\caption{Tests for the firstifier.}
-\label{fig:isHO}
-\end{figure}
-
-The algorithm for removing higher-order functions has two components, specialisation and inlining. We apply the specialise rule until a fixed point is reached, then apply the inline rule once. We repeat these two steps until a fixed point is reached. Given an appropriate |fix| function, |firstify| can be implemented as:
-
-\ignore\begin{code}
-firstify :: Program -> Program
-firstify = fix (inline . fix specialise)
+main = same 2
 \end{code}
 
-\paragraph{The |inline| stage} inlines each |Call| for which the body passes the |isHO| test, defined in Figure \ref{fig:isHO}. If this process causes a function to no longer be called from the root of the program, then the function is removed after inlining.
+Here |same| is bound to the unsaturated expression |id|, and can be inlined to give:
 
-\paragraph{The |specialise| stage} takes every expression of the form |Call fn xs| where \ignore|any isHO xs|, and generates a specialised version of the function |fn| with all functional arguments in |xs| frozen in, and all others passed normally.
+\begin{code}
+id x = x
 
-In rare circumstances a program may have an infinite number of specialisations. If necessary we revert to Reynolds style defunctionalization.
+main = id 2
+\end{code}
+\end{example}
 
-The combination of specialisation and inlining is powerful. We have encountered few examples where it fails -- mainly artificial tests created specifically to break the approach! In the definition of a higher-order function either the entire body is an application of the functional argument (in which case it will be inlined), or it must occur as the argument to a function (in which case it is specialised). There are only two places left for functional arguments to be used: (1) As the subject of a \ignore|case| expression. But this situation is impossible as all \ignore|case| expressions must choose over a data value. (2) Inside an |Apply| with another functional argument variable as the function. This situation is rare due to the removal of other functional arguments.
+As with specialisation, the inlining of functions until a fixed point can give rise to non-termination:
 
-%endif
+\begin{example}
+\begin{code}
+f = if condition then f else id
+\end{code}
+
+The expression bound to |f| will repeatedly grow in size as inlining is applied, and will remain unsaturated. We stop this problem by inlining a function at all application sites, but only once. In this example we would end up with:
+
+\begin{code}
+f = if condition then (if condition then f else id) else id
+\end{code}
+
+At this stage we have inlined |f| once, so do not inline |f| again.
+\end{example}
+
+Our preferred method for higher-order function removal is to apply specialisation and inlining interleaved.
+
