@@ -119,11 +119,20 @@ Here we use the constructor |Add3| to represent the |add| function with three ar
 
 Defunctionalized code is still type safe, but type checking would require a dependently typed language. The method is complete, removing all higher-order functions, and preserves space behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The flow control is complicated by the extra level of indirection.
 
-Reynold's method can always be used as a backup, if other transformation strategies leave residual higher-order functions.
+A natural desire would be to eliminate the higher-order aspects of a program, without introducing any new data structures. However, it is simple to show that this transformation is not possible. Given a program, we can remove all data structures by Church encoding \cite{church_encode}. If we then had a transformation which made the program first-order \textit{without} introducing any data, we would end up with a program without data or closures, which is therefore incapable of storing an unbounded amount of information. Since with higher-order functions we can implement a Turing machine \cite{turing:halting}, and without an unbounded store we cannot, such a transformation cannot exist.
+
+The two following methods both attempt to remove higher-order functions without introducing any additional data structures, and therefore are not complete. Reynold's method can always be used as a backup, if there are residual higher-order functions.
+
 
 \section{Argument Specialisation}
 
-The Catch tool presented in \cite{me:catch_tfp} uses specialisation to remove higher-order functions. A mutually recursive group of functions is specialised if one argument is always passed between functions unmodified, and that argument is unsaturated. Examples of common functions whose applications can be specialised include |map|, |filter|, |foldr| and |foldl|. When a function can be specialised, the expression passed as the unsaturated argument has all its free variables passed as extra arguments, and is expanded in the specialised version. All recursive calls within the new function are then renamed.
+The Catch tool presented in \cite{me:catch_tfp} uses specialisation to remove higher-order functions. For each application of a function to unsaturated arguments, a specialised variant is created, and used where applicable. The process follows the same pattern as constructor specialised \cite{spj:specconstr}, but applied to unsaturated expressions rather than known constructors. Examples of common functions whose applications can usually be made first-order include |map|, |filter|, |foldr| and |foldl|. When a function is specialised, the expression passed as the unsaturated argument has all its free variables passed as extra arguments, and is expanded in the specialised version. The specialisation proceeds in three steps:
+
+\begin{enumerate}
+\item Find all function calls with unsaturated arguments.
+\item Generate specialised variants.
+\item Replace calls with the specialised variants.
+\end{enumerate}
 
 \begin{example}
 \begin{code}
@@ -134,7 +143,7 @@ map f xs = case  xs of
                  y:ys  -> f y : map f ys
 \end{code}
 
-\noindent is transformed into:
+\noindent The function |map| is called with the argument |((+) n)|, which is unsaturated. We generate the new function |map_adds| with the rule that |map_adds n x == map ((+) n) x|. We then convert all suitable applications to use |map_adds|.
 
 \begin{code}
 adds x n = map_adds n x
@@ -143,18 +152,31 @@ map_adds n xs = case  xs of
                       []    -> []
                       y:ys  -> (+) n y : map_adds n ys
 \end{code}
+
+An important point is that the transformation has also been made in the recursive call, making the entire fragment first-order.
 \end{example}
 
-The method used in \cite{me:catch_tfp} first identifies all invariant arguments, then generates specialised variants. If a specialised variant then invokes further functions with arguments, they are not specialised -- the process is not repeated. Specialisation alone is sufficient for many examples, but it cannot cope with point-free code, and does not deal with many forms of dictionaries.
+The method used in \cite{me:catch_tfp} first identifies all invariant arguments, then generates specialised variants. If a specialised variant then invokes further functions with unsaturated arguments, they are not specialised -- the process is not repeated. Specialisation alone is sufficient for many examples, but it cannot cope with point-free code, and does not deal with many forms of dictionaries.
 
-\section{Moving Unsaturated Expressions}
+\section{Fixed Point of Specialisation}
 
-One way to eliminate expressions
+A natural extension of specialisation is to take the fixed point. Unfortunately, such an algorithm would not terminate:
 
-\subsubsection{Specialisation with Inlining}
+\begin{code}
+dataWrap a= Wrap (Wrap a) | Value a
+f x = f (Wrap x)
+check = f (Value head)
+\end{code}
+
+\section{Inlining Unsaturated Functions}
+
+\section{Specialisation with Inlining}
+
+
 
 The power of specialisation is greatly increased if it is combined with inlining, and applied selectively to higher-order functions.
 
+%if 0
 \begin{figure}
 \ignore\begin{code}
 data Expr  =  ... -- as in Figure {\ref{fig:core}}
@@ -197,3 +219,5 @@ firstify = fix (inline . fix specialise)
 In rare circumstances a program may have an infinite number of specialisations. If necessary we revert to Reynolds style defunctionalization.
 
 The combination of specialisation and inlining is powerful. We have encountered few examples where it fails -- mainly artificial tests created specifically to break the approach! In the definition of a higher-order function either the entire body is an application of the functional argument (in which case it will be inlined), or it must occur as the argument to a function (in which case it is specialised). There are only two places left for functional arguments to be used: (1) As the subject of a \ignore|case| expression. But this situation is impossible as all \ignore|case| expressions must choose over a data value. (2) Inside an |Apply| with another functional argument variable as the function. This situation is rare due to the removal of other functional arguments.
+
+%endif
