@@ -3,6 +3,9 @@
 
 \chapter{A Supercompiler for Core Haskell}
 
+To add: Notes on copy analysis. If a function is simply a copy (say map id or append with nil as the second argument), then skip the copying entirely. Can provide a speed boost in certain circumstances, and much more common after supercompilation.
+
+To add: Also add a termination analysis, if you loop straight back then replace with a runtime error message.
 
 Haskell is a functional language, with features such as higher order functions and lazy evaluation, which allow succinct programs. These high-level features present many challenges for optimising compilers. We report practical experiments using novel variants of \textit{supercompilation}, with special attention to let bindings and the generalisation technique. Results include runtime reductions of up to 55\% when our supercompiler is used in conjunction with GHC.
 
