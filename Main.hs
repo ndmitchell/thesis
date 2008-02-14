@@ -1,12 +1,13 @@
 
 module Main(main) where
 
-import System.Directory
-import System.FilePath
-import System.Cmd
-import System.Exit
 import Control.Exception
 import Control.Monad
+import Data.Char
+import System.Cmd
+import System.Directory
+import System.Exit
+import System.FilePath
 
 
 main = do
@@ -41,11 +42,30 @@ system_ dir cmd = do
     orig <- getCurrentDirectory
     bracket_ (setCurrentDirectory dir) (setCurrentDirectory orig) $ do
         putStrLn cmd
-        res <- system cmd
+        res <- system $ cmd ++ " > stdout.txt 2> stderr.txt"
+        out <- readFile "stdout.txt"
+        err <- readFile "stderr.txt"
+        putStr $ out ++ err
         when (res /= ExitSuccess) $ do
+            reportError out
             putStrLn "System command failed! Press enter to continue"
             getChar
             exitWith (ExitFailure 1)
+
+
+reportError :: String -> IO ()
+reportError s = do
+        b <- doesFileExist file
+        when (b && not (null pos) && all isDigit pos) $ do
+            src <- readFile file
+            putStr $ unlines $ map f $ take 7 $ drop (read pos - 3) $ zip [1..] $ lines src
+    where
+        (pre,post) = splitAt 3 s
+        (front,rest) = break (== ':') post
+        file = pre ++ front
+        pos = takeWhile (/= ':') $ drop 1 rest
+        f (p,s) = show p ++ " : " ++ s
+
 
 (<==) :: FilePath -> [FilePath] -> (FilePath -> FilePath -> IO ()) -> IO ()
 (<==) to froms@(from:_) action = do
