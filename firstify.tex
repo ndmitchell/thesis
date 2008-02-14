@@ -3,53 +3,121 @@
 
 \chapter{First-Order Reduction}
 
-The Core language presented in \S\ref{sec:core} is higher-order, but to simplify the analysis in Catch (Chapter \ref{chp:catch}), we work with a first-order language. This chapter gives alternative methods for removing higher-order constructs. For the purposes of this work, we require a transformation that preserves the meaning of a program, but does not necessarily preserve the space behaviour. If such a transformation was done for optimisation purposes, then space behaviour would be critical, but for analysis it is unnecessary.
+This chapter deals with the reduction from a higher-order Core language to a primarily first-order Core language. Our motivation is that the Catch analysis tool (see Chapter \ref{chp:catch}) is designed to work only upon a first-order language, but our method may have use for other analysis tools, particularly termination checking \cite{serini:term,someone_else,someone_else}. The transformations presented in this chapter are all semantics preserving, but do \textit{not} all preserve sharing. As such, these transformations may not be suitable for optimisation, but are perfectly acceptable for analysis methods.
 
-\section{First-order Core}
 
-\begin{figure}
+\section{Higher-Order Elements}
+
+A program can be said to be higher-order if at runtime the program generates and manipulates functional values. In our Core language as currently defined, the expression |id 1| first evaluates |id| to a functional value, then applies the argument |1|. For our higher-order classification we treat a top-level function symbol and all statically given application arguments as one unit, meaning |id 1| is not a functional value.
+
+\begin{example}
+\label{ex:ho_elements}
+The following two functions can be thought of as having functional elements:
+
 \begin{code}
-prog  =  f |--> vs_ x
+even = not . odd
 
-expr  =  v                                          {-" \text{  variable} "-}
-      |  c xs_                                      {-" \text{  constructor} "-}
-      |  f xs_                                      {-" \text{  function} "-}
-      |  let v = x in y                             {-" \text{  let binding} "-}
-      |  case x of {p_1 -> y_1 ; ... ; p_n -> y_n}  {-" \text{  case expression} "-}
-      |  v @ xs_                                    {-" \text{  variable application} "-}
-
-pat   =  c vs_
+map f x = case  x of
+                []    -> []
+                y:ys  -> f y : map f ys
 \end{code}
-\caption{First-order Core syntax}
-\label{fig:fo_core}
-\end{figure}
 
-The first-order Core (FO-Core) language is given in Figure \ref{fig:fo_core}, and is based on the original higher-order Core (HO-Core) given in Figure \ref{fig:core}. The first difference is that a FO-Core program is a mapping of function names to a list of variables and an expression. Compared to the HO-Core, |f| mapping to |vs_ x| would be equivalent to |f| mapping to |\vs_ -> x|. The expression now has vector application for constructors and functions, all of which must be fully saturated. There is no longer a general application construct, or a lambda abstraction.
+The |even| function passes |not| and |odd| to the function |(.)|, both of which are functional values. In addition, the |(.)| function, when applied to only two arguments, returns a functional value. The definition of |map| does not create any functional values, but applies the variable |f| to an argument, suggesting that |f| is a functional value.
+\end{example}
 
-There is one new construct, variable application, written |v @ xs_| which applies the expressions |xs_| to the higher-order function bound to variable |v|. If a program has any |@| expressions within it, then it is no longer first-order. By permitting |@| expressions to appear, and relaxing the requirement that |f xs_| is saturated, we obtain a higher-order language which is suitable for transforming to first-order.
+We classify higher-order elements as either \textit{creating} or \textit{applying} functional values.
 
-To convert from HO-Core to FO-Core we need to remove some features. Non-saturated constructors can be removed by adding a lambda which fully saturates the constructor. The removal of the lambda expression can be achieved using lambda lifting \cite{lambda_lift}, which replaces lambda's in expressions with top-level lambda abstractions. Applications to let expressions and case expressions can be removed using the case-app and let-app rules from Figure \ref{fig:simplify}.
 
-The only remaining functional values in HO-Core are functions which are not immediately saturated with an application -- i.e. partial application. The only use of a higher-order function is an application to a variable. The partial application can be represented in FO-Core, and the application to a variable can be represented with an |@| expression.
+\subsection{Creating Functional Values}
 
-\begin{figure}
+The most obvious way to create a functional value in our Core language is with an explicit lambda expression. The other way is to \textit{curry} or \textit{partially apply} a function, by passing fewer arguments than the arity of the function.
+
+\begin{example}
 \begin{code}
-unsaturated :: Expr -> Bool
-unsaturated v = False
-unsaturated (c xs_) = any unsaturated xs_
-unsaturated (f xs_) = arity f /= length xs_
-unsaturated (let v = x in y) = unsaturated (y[v/x])
-unsaturated (case x of alts_) = any f alts_
-    where f (c vs_ -> y) = unsaturated y
-unsaturated (v @ xs_) = False
+example1 = (\x -> x) 42
+
+example2 xs = map id xs
 \end{code}
-\caption{Definition of which expressions are |unsaturated|.}
-\label{fig:unsaturated}
-\end{figure}
 
-An expression is unsaturated if it evaluates to a lambda expression. One way of checking this property is using the type system. An alternative approximation is using the |unsaturated| function in Figure \ref{fig:unsaturated}, which we use.
+Here |example1| contains an explicit lambda, which is a functional value. In |example2| the function |id| has an arity of 1, but is not given any arguments, and hence is a functional value.
+\end{example}
 
-There are three methods available which remove higher order functions: Reynolds style defunctionalization, specialisation and super-specialisation. Of these, only Reynolds style is capable of removing all higher-order functions.
+It is possible for a program to have either one of these syntatic conditions, but at runtime, not create any functional values. Consider the following code:
+
+\begin{code}
+main = case  True of
+             True   -> 1
+             False  -> (\x -> x) 2
+\end{code}
+
+Here the |True| branch will always be taken due to the known case scrutinee. The |False| branch would create a functional value if taken, but as it will never be taken, this program will never create a functional value. This situation can be thought of as having functional elements in dead code.
+
+
+\subsection{Applying Functional Values}
+
+There are two ways to make use of functional values. The first is to apply an argument to an expression which is not a constructor or a top-level function. The second is to give a function more arguments than its associated arity.
+
+\begin{example}
+\begin{code}
+example1 f = f 42
+
+example2 = even 42
+\end{code}
+
+In |example1| the argument |f| is applied to the value 42, suggesting that |f| is functional. In |example2|, |even| is applied to one argument. Using the definition of |even| from Example \ref{ex:ho_elements}, with arity 0, this causes |even| to be given more arguments than its arity.
+\end{example}
+
+As before, we can construct an example where a functional value is applied, but which never occurs at runtime due to dead code. Another way of constructing an apparent application of a functional value is using |undefined| or a call to |error|.
+
+\begin{example}
+\begin{code}
+main = error "bang" 42
+\end{code}
+
+Here the |error| primitive is being given two arguments, even though at first glance it appears to only take one. The is possible because the type of error is |String -> alpha|, where |alpha| is completely unconstrained and can be anything, including a functional type.
+\end{example}
+
+
+\subsection{First-Order Core}
+
+We define a program to be first-order if it contains no expressions of the two types identified as creating functional values. In order to allow the property to be calculated statically, we ignore the issue of dead code. 
+
+There exist programs, or fragments of code, which cannot be reduced to first-order. We present several examples in turn, explaining why a first-order reduction is not possible.
+
+\begin{example}
+\begin{code}
+main = [id]
+\end{code}
+
+In this example, the |main| function returns a functional value inside a constructor. We cannot remove the functional value without changing the semantics of the |main| function, which is called from outside the our program, and hence cannot be altered. A related situation is:
+
+\begin{code}
+main = id
+\end{code}
+
+Here we can only reduce this program to first-order if we are allowed to increase the arity of |main| from zero to one. This situation occurs frequently in Haskell programs, whose |main| definition is typically of type |IO ()|. In the Yhc compiler, used to generate our Core language, the definition of |IO| is:
+
+\begin{code}
+newtype IO alpha = IO (World -> _E alpha)
+\end{code}
+
+At compilation time the |newtype| wrapper is removed, leaving a function from |World| to |_E alpha|. The |main| argument therefore takes a |World| parameter, before returning a first-order result. We permit the increasing of the arity of |main|.
+\end{example}
+
+\begin{example}
+\begin{code}
+main = id `seq` 42
+\end{code}
+
+Here a functional value (|id|) is passed to the primitive |seq|. As we are not able to peer inside the primitive, and must preserve its interface, we cannot remove this functional value. For most primitives, such as arithmetic operations, the types ensure that no functional values are passed as arguments. However, the |seq| primitive is of type |alpha -> beta -> beta|, allowing any type to be passed as either of the arguments, including functional values.
+
+Another primitive which permits functional values is |primCatch :: alpha -> (beta -> alpha) -> alpha|. While |seq| merely permits functional values, |primCatch| actually \textit{requires} that the second argument is a functional value.
+\end{example}
+
+In both these examples, a functional value must be created as it is required by either the interface to a primitive, or the interface to the root function. In a similar manner, the root function may have a functional argument, or a primitive may return a functional value, resulting in a functional application.
+
+If neither of the above cases occurs, then it is always possible to remove all function values from a Core program. One method for removing higher-order functions is Reynolds style defunctionalisation, which we detail first. Next we detail our method, which has some important differences from Reynold's method.
+
 
 \section{Reynolds style defunctionalization}
 
@@ -253,5 +321,3 @@ At this stage we have inlined |f| once, so do not inline |f| again.
 \section{Results}
 
 Our preferred method for higher-order function removal is to apply specialisation and inlining interleaved. We have tried our method on the nofib suite, and have the following results.
-
-
