@@ -31,7 +31,7 @@ Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over f
 
 The expression type of our Core language is given in Figure \ref{fig:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. A program is a mapping of function names to expressions. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary.
 
-We allow a list of variables to appear in a lambda abstraction, a list of expressions to appear as the second argument of an application and a list of bindings to appear in a let. When a top-level function is bound to a lambda, we allow the variables to be moved to the left of the equals. These can be translated away using the following rules:
+We allow a list of variables to appear in a lambda abstraction, a list of expressions to appear as the second argument of an application and a list of bindings to appear in a let. When a top-level function is bound to a lambda, we allow the variables to be moved to the left of the equals. The arity of a top-level function is the number of arguments in an associated lambda expressions. This syntactic sugar can be translated away using the following rules:
 
 \begin{code}
 x y ys_                  => (x y) ys_
