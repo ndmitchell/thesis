@@ -54,12 +54,13 @@ system_ dir cmd = do
 
 
 reportError :: String -> IO ()
-reportError s = do
+reportError s2 = do
         b <- doesFileExist file
         when (b && not (null pos) && all isDigit pos) $ do
             src <- readFile file
             putStr $ unlines $ map f $ take 7 $ drop (read pos - 3) $ zip [1..] $ lines src
     where
+        s = last $ "" : lines s2
         (pre,post) = splitAt 3 s
         (front,rest) = break (== ':') post
         file = pre ++ front
