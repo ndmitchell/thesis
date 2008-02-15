@@ -201,7 +201,7 @@ Our method proceeds in four steps:
 firstify = lambdas +|+ simplify +|+ inline +|+ specialise
 \end{code}
 
-Each stage will be elaborated on separately. The operator |(+|+)| is defined as:
+Each stage will be elaborated on separately. The operator |(+||+)| is defined as:
 
 \begin{code}
 infixl +|+
@@ -213,20 +213,23 @@ infixl +|+
 
 The operator applies the first argument until it reaches a fixed point, then applies the second argument. If the second argument changes anything, the first operator is tried again until a fixed point is achieved. This allows us to ensure two important properties:
 
-\begin{enumerate}
+\begin{description}
 \item[|f| and |g| are fixed]
+
 \begin{code}
 forall f g x `o` let r = (+|+) f g x in f r == r && g r == r
 \end{code}
+
 The result of the fixed point will not change if either |f| or |g| is reapplied.
 
 \item[The operator is idempotent]
+
 \begin{code}
 forall f g x `o` let r = (+|+) f g x in r == (+|+) f g r
 \end{code}
 
 \item[|f| is fixed before |g| is applied] Within the function, before |g| is applied, |f| must have reached a fixed point.
-\end{enumerate}
+\end{description}
 
 These properties allow us to not worry about overlapping the application sites between |f| and |g|, as |f| is always guaranteed to apply. It also removes the need to determine when the operations have finished, as by the end they will be sorted.
 
@@ -238,7 +241,7 @@ firstify = ((lambdas +|+ simplify) +|+ inline) +|+ specialise
 
 Within this chain we guarantee that the end result will be idempotent with respect to any of the functions, and before any function is invoked, all those to the left of it will be idempotent.
 
-The operator |(+|+)| is written for clarity, not for speed. If the first argument is idempotent on its own, then additional unnecessary work is performed. In the case of chaining operators, the left function is guaranteed to be idempotent in all but the first case, so much computation is duplicated. The |(+|+)| operator also checks for global equality, when typically operations will only operate within some locality, which could be exploited.
+The operator |(+||+)| is written for clarity, not for speed. If the first argument is idempotent on its own, then additional unnecessary work is performed. In the case of chaining operators, the left function is guaranteed to be idempotent in all but the first case, so much computation is duplicated. The |(+||+)| operator also checks for global equality, when typically operations will only operate within some locality, which could be exploited.
 
 
 \section{Argument Specialisation}
