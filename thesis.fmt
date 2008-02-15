@@ -63,6 +63,9 @@
 %format ||* = "\mathsf{\hspace{1mm}||\hspace{-0.65mm}*\;}"
 %format ||+ = "\mathsf{\hspace{1mm}||\hspace{-0.5mm}\hbox{\small{+}}\;}"
 
+% firstify
+%format +|+ = "\mathbin{\ddagger}"
+
 % catch
 %format :< = "\mbox{\ensuremath{<\hspace{-1em}-}}"
 %format :- = "\rightsquigarrow{}"
@@ -84,6 +87,7 @@
 
 %format `mkQ` = "\backtick{mkQ}"
 %format `cons` = "\backtick{cons}"
+%format `seq` = "\backtick{seq}"
 
 %format _C = "\mathcal{C}"
 %format _D = "\mathcal{D}"
