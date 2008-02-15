@@ -193,7 +193,7 @@ Some uses of Reynold's method include as preprocessing step in a whole-program a
 
 A natural desire would be to eliminate the higher-order aspects of a program, without introducing any new data structures. However, it is simple to show that this transformation is not possible. Given a program, we can remove all data structures by Church encoding \cite{church_encode}. If we then had a transformation which made the program first-order \textit{without} introducing any data, we would end up with a program without data or closures, which is therefore incapable of storing an unbounded amount of information. Since with higher-order functions we can implement a Turing machine \cite{turing:halting}, and without an unbounded store we cannot, such a transformation cannot exist.
 
-Our reduction method proceeds in four steps, each removing some higher-order elements, without introducing any data structures. Each step is independently terminating, and are combined using a fixed point operator. Because our method terminates and does not introduce any data structures, it is necessarily incomplete, but Reynold's method can always be used as a backup.
+Our reduction method proceeds in four steps, each removing some higher-order elements, without introducing any data structures. Each step is independently terminating, and are combined using a fixed point operator. Because our method terminates and does not introduce any data structures, it is necessarily incomplete -- but Reynold's method can be used afterwards.
 
 Our method proceeds in four steps:
 
@@ -201,37 +201,38 @@ Our method proceeds in four steps:
 firstify = lambdas +|+ simplify +|+ inline +|+ specialise
 \end{code}
 
-Each stage will be elaborated on separately. The operator |(+||+)| is defined as:
+Each stage will be described separately. The overall control of the algorithm is given by the |(+||+)| operate, defined as:
 
 \begin{code}
 infixl +|+
 
-(+|+) f g x  | f  x /= x  = (+|+) f g (f x)
-             | g  x /= x  = (+|+) f g (g x)
-             | otherwise  = x
+(+|+) :: Eq alpha => (alpha -> alpha) -> (alpha -> alpha) -> alpha -> alpha
+(+|+) f g x  = fix (fix x . y)
+
+fix :: Eq alpha => (alpha -> alpha) -> alpha -> alpha
+fix f x = if x == x2 then x else fix f x2
+    where x2 = f x
 \end{code}
 
-The operator applies the first argument until it reaches a fixed point, then applies the second argument. If the second argument changes anything, the first operator is tried again until a fixed point is achieved. This allows us to ensure two important properties:
+The |(+||+)| operator applies the first argument until it reaches a fixed point, then applies the second argument. If the second argument changes the value, the first argument is tried again until a fixed point is achieved. This formulation has several important properties:
 
 \begin{description}
-\item[|f| and |g| are fixed]
+\item[Idempotent in each function] After the operation has completed, applying either |f| or |g| will not change the value.
 
 \begin{code}
 forall f g x `o` let r = (+|+) f g x in f r == r && g r == r
 \end{code}
 
-The result of the fixed point will not change if either |f| or |g| is reapplied.
-
-\item[The operator is idempotent]
+\item[Idempotent] The operation as a whole is idempotent.
 
 \begin{code}
 forall f g x `o` let r = (+|+) f g x in r == (+|+) f g r
 \end{code}
 
-\item[|f| is fixed before |g| is applied] Within the function, before |g| is applied, |f| must have reached a fixed point.
+\item[Function ordering] The function |f| will have reached a fixed point before the function |g| is applied.
 \end{description}
 
-These properties allow us to not worry about overlapping the application sites between |f| and |g|, as |f| is always guaranteed to apply. It also removes the need to determine when the operations have finished, as by the end they will be sorted.
+The final property allows us to overlap the application sites between the two arguments, but guarantee the first will always be chosen. The other two properties ensure that when the operation finishes there will be no further sites where application could occur.
 
 The operator is left associative, meaning that the code can be rewritten with explicit bracketing as:
 
@@ -243,8 +244,116 @@ Within this chain we guarantee that the end result will be idempotent with respe
 
 The operator |(+||+)| is written for clarity, not for speed. If the first argument is idempotent on its own, then additional unnecessary work is performed. In the case of chaining operators, the left function is guaranteed to be idempotent in all but the first case, so much computation is duplicated. The |(+||+)| operator also checks for global equality, when typically operations will only operate within some locality, which could be exploited.
 
+We now describe each of the stages in the algorithm separately.
 
-\section{Argument Specialisation}
+\section{Lambda Insertion (|lambdas|)}
+
+The first stage removes all occurrences of partial application, replacing them with explicit lambda expressions.
+
+\begin{examplerevisit}{\ref{ex:ho_elements}}
+\begin{code}
+even = \x -> (.) (\y -> not y) (z -> odd z) x
+\end{code}
+
+Here the |even| function, which previously had three instances of partial application, has three lambda expressions inserted. Now each function is applied to a number of arguments equal to its arity. In this particular instance, the introduction of lambda expressions changes the arity of |even| from 0 to 1, possibly requiring applications of |even| to become partially applied.
+\end{examplerevisit}
+
+For each partially applied function, a lambda expression is inserted to ensure that the function is now given at least as many arguments as its associated arity. This step trades one form of function creation for another form, but has the advantage of making functional values more explicit.
+
+\section{Simplification (|simplify|)}
+
+\begin{figure}
+\renewcommand{\f}[2]{\vspace{-7mm} #2 & (#1) \\}
+
+\begin{flushright}
+\begin{tabular}{p{8cm}r}
+\f{case-lam}{
+\begin{code}
+case x of {... ; c vs_ -> \v -> y ; ...}
+    => \v' -> case x of {... ; c vs_ -> \v -> y ; ...} v'
+\end{code}}
+
+\f{bind-lam}{
+\begin{code}
+let v = \v' -> x in y
+    => y[v/ \v' -> x]
+\end{code}}
+
+
+\f{let-lam}{
+\begin{code}
+let v = x in \v' -> y
+    => \v' -> let v = x in y
+\end{code}}
+\end{tabular}
+\end{flushright}
+\caption{Lambda Simplification rules.}
+\label{fig:lambda_simplify}
+\end{figure}
+
+The second stage attempts to move lambda's upwards until they form part of the arity of a function. This stage makes use of the general simplification rules (Figure \ref{fig:simplify}), along with some additional rules which deal with lambda expressions, given in Figure \ref{fig:lambda_simplify}.
+
+The rule (case-lam) lifts a lambda out from within a case alternative to outside the case value. The (bind-lam) rule inlines a lambda bound in a let expression. The (let-lam) rule is the one responsible for the largest loss of sharing, promoting a lambda expression outside a let.
+
+\begin{example}
+\begin{code}
+f x = let i = expensive x
+      in \j -> i + j
+
+main xs = map (f 1) xs
+\end{code}
+
+In the above example, |expensive 1| is computed once and saved. Every application of the functional argument within |map| performs a single |(+)| operation. After applying the (let-lam) rule we get:
+
+\begin{code}
+f x j = let i = expensive x
+        in i + j
+\end{code}
+
+Now |expensive| will be recomputed for every element in |xs| -- potentially a very severe speed penalty.
+\end{example}
+
+The loss of sharing is not purely theoretical, the Uniplate library makes use of a let within a lambda (see \S\ref{sec:optimise_playdata}) to keep a scoreboard. The (let-lam) rule would make the scoreboard mechanism a severe performance penalty.
+
+\subsection{Inlining (|inline|)}
+
+The second cause of residual unsaturated expressions is at function and let bindings. If we are willing to ignore the problem of sharing, we can simply inline all let bindings, or all those which bind to unsaturated expressions. We can remove all unsaturated expressions bound at the top-level by inlining them. Returning to the example where specialisation failed:
+
+\begin{example}
+\begin{code}
+id x = x
+same = id
+
+main = same 2
+\end{code}
+
+Here |same| is bound to the unsaturated expression |id|, and can be inlined to give:
+
+\begin{code}
+id x = x
+
+main = id 2
+\end{code}
+\end{example}
+
+As with specialisation, the inlining of functions until a fixed point can give rise to non-termination:
+
+\begin{example}
+\begin{code}
+f = if condition then f else id
+\end{code}
+
+The expression bound to |f| will repeatedly grow in size as inlining is applied, and will remain unsaturated. We stop this problem by inlining a function at all application sites, but only once. In this example we would end up with:
+
+\begin{code}
+f = if condition then (if condition then f else id) else id
+\end{code}
+
+At this stage we have inlined |f| once, so do not inline |f| again.
+\end{example}
+
+
+\subsection{Specialisation (|special|)}
 
 The Catch tool presented in \cite{me:catch_tfp} uses specialisation to remove higher-order functions. For each application of a function to unsaturated arguments, a specialised variant is created, and used where applicable. The process follows the same pattern as constructor specialised \cite{spj:specconstr}, but applied to unsaturated expressions rather than known constructors. Examples of common functions whose applications can usually be made first-order include |map|, |filter|, |foldr| and |foldl|. When a function is specialised, the expression passed as the unsaturated argument has all its free variables passed as extra arguments, and is expanded in the specialised version. The specialisation proceeds in three steps:
 
@@ -332,42 +441,19 @@ One simple way to prevent such non-termination is to have a bound on the number 
 Using homeomorphic embedding on the previous example, we would generate the following specialised variants of |f (Value head)| and |f (Wrap (Value head))|. Upon attempting to generate the specialised variant |f (Wrap (Wrap (Value head)))| we would abort, with an embedding of |f (Wrap (Value head))|.
 
 
-\section{Inlining Unsaturated Functions}
+\subsection{Comparison to Catch 05}
 
-The second cause of residual unsaturated expressions is at function and let bindings. If we are willing to ignore the problem of sharing, we can simply inline all let bindings, or all those which bind to unsaturated expressions. We can remove all unsaturated expressions bound at the top-level by inlining them. Returning to the example where specialisation failed:
 
-\begin{example}
-\begin{code}
-id x = x
-same = id
 
-main = same 2
-\end{code}
+\subsection{Reachability Analysis}
 
-Here |same| is bound to the unsaturated expression |id|, and can be inlined to give:
 
-\begin{code}
-id x = x
+\section{Proof of Correctness}
 
-main = id 2
-\end{code}
-\end{example}
 
-As with specialisation, the inlining of functions until a fixed point can give rise to non-termination:
+\section{Proof of Termination}
 
-\begin{example}
-\begin{code}
-f = if condition then f else id
-\end{code}
 
-The expression bound to |f| will repeatedly grow in size as inlining is applied, and will remain unsaturated. We stop this problem by inlining a function at all application sites, but only once. In this example we would end up with:
-
-\begin{code}
-f = if condition then (if condition then f else id) else id
-\end{code}
-
-At this stage we have inlined |f| once, so do not inline |f| again.
-\end{example}
 
 
 \section{Results}
