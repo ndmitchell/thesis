@@ -3,10 +3,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% FORMATTING COMANDS
 
-%subst conid a = "\mathsf{" a "}"
-%subst varsym a = "\mathsf{" a "}"
-%subst keyword a = "\text{\textsf{\textbf{" a "}}}"
-%format letrec = "\text{\textsf{\textbf{letrec}}}"
+%subst conid a = "\conid{" a "}"
+%subst varid a = "\varid{" a "}"
+%subst keyword a = "\keyword{" a "}"
+%format letrec = "\keyword{letrec}"
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% OBVIOUS EXTRA SYMBOLS
