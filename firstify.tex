@@ -80,7 +80,7 @@ Here the |error| primitive is being given two arguments, even though at first gl
 
 \subsection{First-Order Core}
 
-We define a program to be first-order if it contains no expressions of the two types identified as creating functional values. In order to allow the property to be calculated statically, we ignore the issue of dead code. 
+We define a program to be first-order if it contains no expressions of the two types identified as creating functional values. In order to allow the property to be calculated statically, we ignore the issue of dead code.
 
 There exist programs, or fragments of code, which cannot be reduced to first-order. We present several examples in turn, explaining why a first-order reduction is not possible.
 
@@ -185,11 +185,60 @@ test = get "foo" (Add3 "bar" 4 (Add3 "baz" 2 New))
 Here we use the constructor |Add3| to represent the |add| function with three arguments pre-applied. Note that the |Function| data type now serves to store a linked-list of the values with |New| serving a similar role to |[]|, and |Add3| storing one key/value pair along with the remainder of the list.
 \end{example}
 
-Defunctionalized code is still type safe, but type checking would require a dependently typed language. The method is complete, removing all higher-order functions, and preserves space behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The flow control is complicated by the extra level of indirection.
+Defunctionalized code is still type safe, but type checking would require a dependently typed language. The method is complete, removing all possible higher-order functions, and preserves space behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The flow control is complicated by the extra level of indirection.
+
+Some uses of Reynold's method include as preprocessing step in a whole-program analysis \cite{grin,jhc} and as a step in a program transformation \cite{graham_hutton_calculating_an_exceptional_machine}.
+
+\section{Our First-Order Reduction Method}
 
 A natural desire would be to eliminate the higher-order aspects of a program, without introducing any new data structures. However, it is simple to show that this transformation is not possible. Given a program, we can remove all data structures by Church encoding \cite{church_encode}. If we then had a transformation which made the program first-order \textit{without} introducing any data, we would end up with a program without data or closures, which is therefore incapable of storing an unbounded amount of information. Since with higher-order functions we can implement a Turing machine \cite{turing:halting}, and without an unbounded store we cannot, such a transformation cannot exist.
 
-The following methods attempt to remove higher-order functions without introducing any additional data structures, and therefore are not complete. Reynold's method can always be used as a backup, if there are residual higher-order functions.
+Our reduction method proceeds in four steps, each removing some higher-order elements, without introducing any data structures. Each step is independently terminating, and are combined using a fixed point operator. Because our method terminates and does not introduce any data structures, it is necessarily incomplete, but Reynold's method can always be used as a backup.
+
+Our method proceeds in four steps:
+
+\begin{code}
+firstify = lambdas +|+ simplify +|+ inline +|+ specialise
+\end{code}
+
+Each stage will be elaborated on separately. The operator |(+|+)| is defined as:
+
+\begin{code}
+infixl +|+
+
+(+|+) f g x  | f  x /= x  = (+|+) f g (f x)
+             | g  x /= x  = (+|+) f g (g x)
+             | otherwise  = x
+\end{code}
+
+The operator applies the first argument until it reaches a fixed point, then applies the second argument. If the second argument changes anything, the first operator is tried again until a fixed point is achieved. This allows us to ensure two important properties:
+
+\begin{enumerate}
+\item[|f| and |g| are fixed]
+\begin{code}
+forall f g x `o` let r = (+|+) f g x in f r == r && g r == r
+\end{code}
+The result of the fixed point will not change if either |f| or |g| is reapplied.
+
+\item[The operator is idempotent]
+\begin{code}
+forall f g x `o` let r = (+|+) f g x in r == (+|+) f g r
+\end{code}
+
+\item[|f| is fixed before |g| is applied] Within the function, before |g| is applied, |f| must have reached a fixed point.
+\end{enumerate}
+
+These properties allow us to not worry about overlapping the application sites between |f| and |g|, as |f| is always guaranteed to apply. It also removes the need to determine when the operations have finished, as by the end they will be sorted.
+
+The operator is left associative, meaning that the code can be rewritten with explicit bracketing as:
+
+\begin{code}
+firstify = ((lambdas +|+ simplify) +|+ inline) +|+ specialise
+\end{code}
+
+Within this chain we guarantee that the end result will be idempotent with respect to any of the functions, and before any function is invoked, all those to the left of it will be idempotent.
+
+The operator |(+|+)| is written for clarity, not for speed. If the first argument is idempotent on its own, then additional unnecessary work is performed. In the case of chaining operators, the left function is guaranteed to be idempotent in all but the first case, so much computation is duplicated. The |(+|+)| operator also checks for global equality, when typically operations will only operate within some locality, which could be exploited.
 
 
 \section{Argument Specialisation}
