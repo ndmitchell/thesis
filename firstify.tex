@@ -246,7 +246,7 @@ The operator |(+||+)| is written for clarity, not for speed. If the first argume
 
 We now describe each of the stages in the algorithm separately.
 
-\section{Lambda Insertion (|lambdas|)}
+\subsection{Lambda Insertion (|lambdas|)}
 
 The first stage removes all occurrences of partial application, replacing them with explicit lambda expressions.
 
@@ -260,7 +260,7 @@ Here the |even| function, which previously had three instances of partial applic
 
 For each partially applied function, a lambda expression is inserted to ensure that the function is now given at least as many arguments as its associated arity. This step trades one form of function creation for another form, but has the advantage of making functional values more explicit.
 
-\section{Simplification (|simplify|)}
+\subsection{Simplification (|simplify|)}
 
 \begin{figure}
 \renewcommand{\f}[2]{\vspace{-7mm} #2 & (#1) \\}
@@ -317,51 +317,68 @@ The loss of sharing is not purely theoretical, the Uniplate library makes use of
 
 \subsection{Inlining (|inline|)}
 
-The second cause of residual unsaturated expressions is at function and let bindings. If we are willing to ignore the problem of sharing, we can simply inline all let bindings, or all those which bind to unsaturated expressions. We can remove all unsaturated expressions bound at the top-level by inlining them. Returning to the example where specialisation failed:
+After inserting additional lambda expressions, and performing simplification, there may still be residual lambda expressions which are not at the top level of a function. The simplification rules will promote lambda expressions up above let expressions and case expressions. With the additional rules, the only residual lambda expressions will be as arguments to either a constructor, or a function. The inline stage deals with lambda expressions which are residual to a constructor at the top level, the specialise stage deals with all remaining lambda expressions.
+
+\begin{example}
+Given a program making use of type class dictionaries, as detailed in \S\ref{sec:dictionary_transformation}, we may end up with the following code:
+
+\begin{code}
+eqInt = (\x y -> primEqInt x y, \x y -> primNeqInt x y)
+(==) d x y = d x y
+
+main = (==) eqInt 1 2
+\end{code}
+
+Here the lambda expression including |primEqInt| is an argument to the constructor |(,)| in the top-level of |eqInt|. The inline stage will inline the |eqInt| function anywhere it occurs, resulting in:
+
+\begin{code}
+(==) (a,b) x y = a x y
+
+main = (==) (\x y -> primEqInt x y, \x y -> primNeqInt x y) 1 2
+\end{code}
+
+The lambda expressions are still present, but hopefully can be removed using other techniques.
+\end{example}
+
+The general rule is to inline all functions containing a subexpression |alpha|, where: |alpha| is a constructor application with one argument which is a lambda expression; and |alpha| is not a subexpression of any argument to a function application.
 
 \begin{example}
 \begin{code}
-id x = x
-same = id
-
-main = same 2
+yes0 = [\x -> x]
+yes1 = Maybe [\x -> x]
+yes2 = let y = 1 in [\x -> x]
+no0 = \x -> id x
+no1 = [id (\x -> x)]
+no2 = id [\x -> x]
 \end{code}
 
-Here |same| is bound to the unsaturated expression |id|, and can be inlined to give:
+In this example, we would inline the |yes| functions, but none of the others. In |no0| there is no constructor, so the first condition does not apply. In |no1| there is a constructor, but the lambda expression is not an argument to the constructor. In |no2| there is a lambda expression as an argument to a constructor, but that subexpression is an argument to a function application.
 
-\begin{code}
-id x = x
-
-main = id 2
-\end{code}
-\end{example}
-
-As with specialisation, the inlining of functions until a fixed point can give rise to non-termination:
-
-\begin{example}
-\begin{code}
-f = if condition then f else id
-\end{code}
-
-The expression bound to |f| will repeatedly grow in size as inlining is applied, and will remain unsaturated. We stop this problem by inlining a function at all application sites, but only once. In this example we would end up with:
-
-\begin{code}
-f = if condition then (if condition then f else id) else id
-\end{code}
-
-At this stage we have inlined |f| once, so do not inline |f| again.
-\end{example}
+The |inline| rule deals with situations where functions evaluate to a data structure containing functional values. This situation occurs regularly with the standard dictionary implementation, but rarely in other situations. The inline rule does not actually remove functional values, but can bring their use and creation closer together, and thus helps them be removed.
 
 
 \subsection{Specialisation (|special|)}
 
-The Catch tool presented in \cite{me:catch_tfp} uses specialisation to remove higher-order functions. For each application of a function to unsaturated arguments, a specialised variant is created, and used where applicable. The process follows the same pattern as constructor specialised \cite{spj:specconstr}, but applied to unsaturated expressions rather than known constructors. Examples of common functions whose applications can usually be made first-order include |map|, |filter|, |foldr| and |foldl|. When a function is specialised, the expression passed as the unsaturated argument has all its free variables passed as extra arguments, and is expanded in the specialised version. The specialisation proceeds in three steps:
+The original Catch tool \cite{me:catch_tfp} uses specialisation to remove higher-order functions. For each application of a function to functional arguments, a specialised variant is created, and used where applicable. The process follows the same pattern as constructor specialisation \cite{spj:specconstr}, but applied where function arguments are partially applied functions, rather than known constructors. Examples of common functions whose applications can usually be made first-order include |map|, |filter|, |foldr| and |foldl|.
+
+The specialisation transformation makes use of the notion of templates.
 
 \begin{enumerate}
-\item Find all function calls with unsaturated arguments.
+\item From 
 \item Generate specialised variants.
 \item Replace calls with the specialised variants.
 \end{enumerate}
+
+
+
+\
+
+
+
+
+
+ When a function is specialised, the expression passed as the unsaturated argument has all its free variables passed as extra arguments, and is expanded in the specialised version. The specialisation proceeds in three steps:
+
 
 \begin{example}
 \begin{code}
@@ -453,6 +470,25 @@ Using homeomorphic embedding on the previous example, we would generate the foll
 
 \section{Proof of Termination}
 
+
+
+
+
+As with specialisation, the inlining of functions until a fixed point can give rise to non-termination:
+
+\begin{example}
+\begin{code}
+f = if condition then f else id
+\end{code}
+
+The expression bound to |f| will repeatedly grow in size as inlining is applied, and will remain unsaturated. We stop this problem by inlining a function at all application sites, but only once. In this example we would end up with:
+
+\begin{code}
+f = if condition then (if condition then f else id) else id
+\end{code}
+
+At this stage we have inlined |f| once, so do not inline |f| again.
+\end{example}
 
 
 
