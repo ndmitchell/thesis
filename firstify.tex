@@ -353,6 +353,7 @@ no2 = id [\x -> x]
 \end{code}
 
 In this example, we would inline the |yes| functions, but none of the others. In |no0| there is no constructor, so the first condition does not apply. In |no1| there is a constructor, but the lambda expression is not an argument to the constructor. In |no2| there is a lambda expression as an argument to a constructor, but that subexpression is an argument to a function application.
+\end{example}
 
 The |inline| rule deals with situations where functions evaluate to a data structure containing functional values. This situation occurs regularly with the standard dictionary implementation, but rarely in other situations. The inline rule does not actually remove functional values, but can bring their use and creation closer together, and thus helps them be removed.
 
@@ -364,7 +365,7 @@ The original Catch tool \cite{me:catch_tfp} uses specialisation to remove higher
 The specialisation transformation makes use of the notion of templates.
 
 \begin{enumerate}
-\item From 
+\item From
 \item Generate specialised variants.
 \item Replace calls with the specialised variants.
 \end{enumerate}
