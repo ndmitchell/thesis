@@ -453,10 +453,29 @@ map_id v_1 =  let  xs = v_1
 We have now eliminated all the functional values from within this operation.
 
 
+\section{Proof of Completeness}
+
+The algorithm we have present is complete, in the sense that if it terminates, there will be no remaining lambda expressions within the program, other than those identified as impossible to remove. We have already shown that it is impossible to have both completeness and not introduce data structures (which our algorithm does not), therefore it follows that our algorithm is \textit{not} terminating. We shall return to the issue of termination in \S\ref{sec:firstify_terminate}, but assuming that our algorithm does terminate, it is possible to show that there are no remaining functional values.
+
+Lemma: There is no partial application in the resultant code. Proof: After our algorithm terminates, the resultant code must be idempotent with respect to each of the four stages presented. The |lambdas| stage ensures there will be no partial application by inserting explicit lambda expressions.
+
+Lemma: The root expression of each top-level function is not a lambda. Proof: If a top-level function is bound to a lambda expression, then the arity of the function is increased and the lambda is no longer the root expression.
+
+Lemma: The parent of a lambda expression must not be a let expression. Proof: The rules (bind-lam) and (let-lam) applied as part of |simplify| ensure this condition.
+
+Lemma: The parent of a lambda expression must not be a case expression. Proof: The (case-lam) rule ensures that an alternative in a case expression is not a lambda expression. The static typing in the original Core language ensures that a lambda cannot be the scrutinee of a case expression.
+
+Lemma: If the parent of a lambda expression is an application, then it must be applied to a top-level function, a constructor or a variable. Proof: The (lam-app)
+
+
+
+
+
 \section{Proof of Correctness}
 
 
 \section{Proof of Termination}
+\label{sec:firstify_terminate}
 
 
 
