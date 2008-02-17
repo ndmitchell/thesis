@@ -362,83 +362,123 @@ The |inline| rule deals with situations where functions evaluate to a data struc
 
 The original Catch tool \cite{me:catch_tfp} uses specialisation to remove higher-order functions. For each application of a function to functional arguments, a specialised variant is created, and used where applicable. The process follows the same pattern as constructor specialisation \cite{spj:specconstr}, but applied where function arguments are partially applied functions, rather than known constructors. Examples of common functions whose applications can usually be made first-order include |map|, |filter|, |foldr| and |foldl|.
 
-The specialisation transformation makes use of the notion of templates.
+The specialisation transformation makes use of \textit{templates}. A template is an expression where some sub-expressions are omitted, denoted by an underscore. The process of specialisation proceeds as follows:
 
 \begin{enumerate}
-\item From
-\item Generate specialised variants.
-\item Replace calls with the specialised variants.
+\item Find all functions which have functional arguments, and generate templates, omitting first-order components.
+\item For each template, generate an associated function, specialised to the template.
+\item For each subexpression matching a template, replace it with the associated function.
 \end{enumerate}
-
-
-
-\
-
-
-
-
-
- When a function is specialised, the expression passed as the unsaturated argument has all its free variables passed as extra arguments, and is expanded in the specialised version. The specialisation proceeds in three steps:
-
 
 \begin{example}
 \begin{code}
-adds x n = map ((+) n) x
+main xs = map (\x -> x) xs
 
 map f xs = case  xs of
                  []    -> []
                  y:ys  -> f y : map f ys
 \end{code}
 
-\noindent The function |map| is called with the argument |((+) n)|, which is unsaturated. We generate the new function |map_adds| with the rule that |map_adds n x == map ((+) n) x|. We then convert all suitable applications to use |map_adds|.
+The specialisation first finds the application of |map| within |main|, and generates the template |map (\x -> x) _| -- omitting the |xs| which is not obviously a functional value. It then generates the name |map_id| for the template, and generates an appropriate function body. Next all calls matching the template are replaced with calls to |map_id|, including in the call to |map| within the freshly generated |map_id|.
 
 \begin{code}
-adds x n = map_adds n x
+main xs = map_id xs
 
-map_adds n xs = case  xs of
-                      []    -> []
-                      y:ys  -> (+) n y : map_adds n ys
+map_id xs = case  xs of
+                  []    -> []
+                  y:ys  -> y : map_id ys
 \end{code}
 
-An important point is that the transformation has also been made in the recursive call, making the entire fragment first-order.
+The resulting code has no functional values within it.
 \end{example}
 
-The method used in \cite{me:catch_tfp} first identifies all invariant arguments, then generates specialised variants. If a specialised variant then invokes further functions with unsaturated arguments, they are not specialised -- the process is not repeated. Specialisation alone is sufficient for many examples, but fails in some cases. Two particular cases where it is insufficient are when unsaturated values are the result of a computation, and when a specialised variant only appears after inlining.
+\subsubsection{Generating Templates}
+
+A template is generated if an expression is an application to a top-level function, whose arguments include a sub-expression which is a lambda expression. The template includes all sub-expressions whose removal would lead to higher-order elements, or which have free variables from a bound variable.
 
 \begin{example}
 \begin{code}
-id x = x
-same = id
-
-main = same 2
+id (\x -> x)              => id (\x -> x)
+id (Maybe (\x -> x))      => id (Maybe (\x -> x))
+id (Maybe (\x -> x + 3))  => id (Maybe (\x -> x + _))
+id (Maybe (\x -> x + y))  => id (Maybe (\x -> x + _))
 \end{code}
 
-Here |same| is a higher-order function, but it is not passed to a function, so is not specialised.
+In all three examples, the |id| function has an argument which has a lambda expression as a subexpression. In the final two cases, the |3| and |y| are not dependent on variables bound within the lambda, and are left as unspecified.  The |Maybe| and |+| functions are also not dependent on the bound variables, however their removal would require a functional argument as a parameter, so are left as part of the template.
 \end{example}
+
+\subsubsection{Generating Functions}
+
+Given a template, to generate an associated function, a unique function name is allocated to the template. Each |_| within the template is assigned a free variable, as an argument to the new function, then the body is produced by unfolding the outer function symbol in the template once.
+
+\begin{example}
+\label{ex:map_id}
+Following the |map (\x -> x) _| template from above, we can generate |v_1| as the unique free variable for the single |_| placeholder, and |map_id| as the function name:
+
+\begin{code}
+map_id v_1 = map (\x -> x) v_1
+\end{code}
+
+In the next step, we unfold the definition of map once:
+
+\begin{code}
+map_id v_1 = let  f   = \x -> x
+                  xs  = v_1
+             in   case  xs of
+                        []    -> []
+                        y:ys  -> f y : map f ys
+\end{code}
+
+Now the generation of the specialised variant is complete. To give an idea of how the final function is calculated, after the simplification rules introduced in Figure \ref{fig:lambda_simplify}, we end up with:
+
+\begin{code}
+map_id v_1 =  let  xs = v_1
+              in   case  xs of
+                         []    -> []
+                         y:ys  -> y : map (\x -> x) ys
+\end{code}
+\end{example}
+
+\subsubsection{Using Templates}
+
+After a function has been generated for each template, every expression matching a template can be replaced by a call to the new function. Every subexpression corresponding to an undecided element is passed as an argument. Continuing with the generated code from Example \ref{ex:map_id}, we end up with:
+
+\begin{code}
+map_id v_1 =  let  xs = v_1
+              in   case  xs of
+                         []    -> []
+                         y:ys  -> y : map_id ys
+\end{code}
+
+We have now eliminated all the functional values from within this operation.
+
+
+\section{Proof of Correctness}
+
+
+\section{Proof of Termination}
+
+
+
+\subsection{Termination of Inlining}
+
+As with specialisation, the inlining of functions until a fixed point can give rise to non-termination:
 
 \begin{example}
 \begin{code}
-apply2 f x = f x
-apply f x = apply2 f x
-
-main = apply id 2
+f = if condition then f else id
 \end{code}
 
-Here the only function applied with unsaturated arguments is |apply|, which is called with |id|. We specialise this application to give:
+The expression bound to |f| will repeatedly grow in size as inlining is applied, and will remain unsaturated. We stop this problem by inlining a function at all application sites, but only once. In this example we would end up with:
 
 \begin{code}
-apply2 f x = f x
-apply_id x = apply2 id x
-
-main = apply_id 2
+f = if condition then (if condition then f else id) else id
 \end{code}
 
-Because we only apply specialisation once, we are still left with the unsaturated |id| function in the |apply2| function.
+At this stage we have inlined |f| once, so do not inline |f| again.
 \end{example}
 
-In the following sections we will see how to reduce the impact of each of the above problems.
-
-\section{Fixed Point of Specialisation}
+\subsection{Termination of Specialisation}
 
 A natural extension of specialisation is to take the fixed point, eliminating unsaturated expressions in generated functions. Unfortunately, such an algorithm would not terminate.
 
@@ -459,37 +499,6 @@ One simple way to prevent such non-termination is to have a bound on the number 
 Using homeomorphic embedding on the previous example, we would generate the following specialised variants of |f (Value head)| and |f (Wrap (Value head))|. Upon attempting to generate the specialised variant |f (Wrap (Wrap (Value head)))| we would abort, with an embedding of |f (Wrap (Value head))|.
 
 
-\subsection{Comparison to Catch 05}
-
-
-
-\subsection{Reachability Analysis}
-
-
-\section{Proof of Correctness}
-
-
-\section{Proof of Termination}
-
-
-
-
-
-As with specialisation, the inlining of functions until a fixed point can give rise to non-termination:
-
-\begin{example}
-\begin{code}
-f = if condition then f else id
-\end{code}
-
-The expression bound to |f| will repeatedly grow in size as inlining is applied, and will remain unsaturated. We stop this problem by inlining a function at all application sites, but only once. In this example we would end up with:
-
-\begin{code}
-f = if condition then (if condition then f else id) else id
-\end{code}
-
-At this stage we have inlined |f| once, so do not inline |f| again.
-\end{example}
 
 
 
