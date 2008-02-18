@@ -357,6 +357,7 @@ In this example, we would inline the |yes| functions, but none of the others. In
 
 The |inline| rule deals with situations where functions evaluate to a data structure containing functional values. This situation occurs regularly with the standard dictionary implementation, but rarely in other situations. The inline rule does not actually remove functional values, but can bring their use and creation closer together, and thus helps them be removed.
 
+There may be some loss of sharing with the inline rule, if a CAF is inlined.
 
 \subsection{Specialisation (|special|)}
 
@@ -457,21 +458,60 @@ We have now eliminated all the functional values from within this operation.
 
 The algorithm we have present is complete, in the sense that if it terminates, there will be no remaining lambda expressions within the program, other than those identified as impossible to remove. We have already shown that it is impossible to have both completeness and not introduce data structures (which our algorithm does not), therefore it follows that our algorithm is \textit{not} terminating. We shall return to the issue of termination in \S\ref{sec:firstify_terminate}, but assuming that our algorithm does terminate, it is possible to show that there are no remaining functional values.
 
-Lemma: There is no partial application in the resultant code. Proof: After our algorithm terminates, the resultant code must be idempotent with respect to each of the four stages presented. The |lambdas| stage ensures there will be no partial application by inserting explicit lambda expressions.
+We identify the following causes of incompleteness:
 
-Lemma: The root expression of each top-level function is not a lambda. Proof: If a top-level function is bound to a lambda expression, then the arity of the function is increased and the lambda is no longer the root expression.
+\begin{enumerate}
+\item Passing a lambda expression to a primitive function.
+\item Returning a lambda within a constructor box.
+\item Passing a lambda expression to a functional value passed in to the root function.
+\item Passing a lambda expression to a value that evaluates to |undefined|.
+\end{enumerate}
 
-Lemma: The parent of a lambda expression must not be a let expression. Proof: The rules (bind-lam) and (let-lam) applied as part of |simplify| ensure this condition.
+We can prove that these are the only remaining causes of incompleteness.
 
-Lemma: The parent of a lambda expression must not be a case expression. Proof: The (case-lam) rule ensures that an alternative in a case expression is not a lambda expression. The static typing in the original Core language ensures that a lambda cannot be the scrutinee of a case expression.
+\newenvironment{lemma}[1]
+    {\paragraph{Lemma:} #1 \textbf{Proof:} }
+    {\hfill$\Box$}
 
-Lemma: If the parent of a lambda expression is an application, then it must be applied to a top-level function, a constructor or a variable. Proof: The (lam-app)
+\begin{lemma}{There is no partial application in the resultant code.}
+After our algorithm terminates, the resultant code must be idempotent with respect to each of the four stages presented. The |lambdas| stage ensures there will be no partial application by inserting explicit lambda expressions.
+\end{lemma}
+
+\begin{lemma}{The root expression of each top-level function is not a lambda.}
+If a top-level function is bound to a lambda expression, then the arity of the function is increased and the lambda is no longer the root expression.
+\end{lemma}
+
+\begin{lemma}{The parent of a lambda expression must not be a let expression.}
+The rules (bind-lam) and (let-lam) applied as part of |simplify| ensure this condition.
+\end{lemma}
+
+\begin{lemma}{The parent of a lambda expression must not be a case expression.}
+The (case-lam) rule ensures that an alternative in a case expression is not a lambda expression. The static typing in the original Core language ensures that a lambda cannot be the scrutinee of a case expression.
+\end{lemma}
+
+\begin{lemma}{The parent of a lambda expression must not be a lambda expression.}
+Using the desugaring rule, and vector lambda expressions, nested lambda expressions can be transformed away.
+\end{lemma}
+
+\begin{lemma}{The parent of a lambda must be an application, applied to a function, constructor or variable.}
+The (lam-app), (let-app) and (case-app) rules, plus the combination of successive applications, will transform away all other applications.
+\end{lemma}
+
+\begin{lemma}{A lambda may not be an argument to a function.}
+The |special| rule will transform away all lambda expressions which are arguments to functions.
+\end{lemma}
+
+Argument: functions and constructors will be specialised away. If the parent 
 
 
 
 
 
 \section{Proof of Correctness}
+
+To prove the correctness of the whole argument it is sufficient to show the correctness of each step.
+
+
 
 
 \section{Proof of Termination}
