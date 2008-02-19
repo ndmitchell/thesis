@@ -454,9 +454,9 @@ map_id v_1 =  let  xs = v_1
 We have now eliminated all the functional values from within this operation.
 
 
-\section{Proof of Completeness}
+\section{Completeness}
 
-The algorithm we have present is complete, in the sense that if it terminates, there will be no remaining lambda expressions within the program, other than those identified as impossible to remove. We have already shown that it is impossible to have both completeness and not introduce data structures (which our algorithm does not), therefore it follows that our algorithm is \textit{not} terminating. We shall return to the issue of termination in \S\ref{sec:firstify_terminate}, but assuming that our algorithm does terminate, it is possible to show that there are no remaining functional values.
+The algorithm we have present is complete, in the sense that if it terminates, there will be no remaining lambda expressions within the program, other than those identified bellow. We have already shown that it is impossible to have both completeness and not introduce data structures (which our algorithm does not), therefore it follows that our algorithm is \textit{not} terminating. We shall return to the issue of termination in \S\ref{sec:firstify_terminate}, but assuming that our algorithm does terminate, it is possible to show that there are no remaining functional values.
 
 We identify the following causes of incompleteness:
 
@@ -501,7 +501,7 @@ The (lam-app), (let-app) and (case-app) rules, plus the combination of successiv
 The |special| rule will transform away all lambda expressions which are arguments to functions.
 \end{lemma}
 
-Argument: functions and constructors will be specialised away. If the parent 
+Argument: functions and constructors will be specialised away. If the parent
 
 
 
@@ -511,11 +511,40 @@ Argument: functions and constructors will be specialised away. If the parent
 
 To prove the correctness of the whole argument it is sufficient to show the correctness of each step.
 
+\subsection{Lambda Insertion}
+
+The rule for lambda insertion expands all partially applied functions so they are given sufficiently many arguments. Given a function |f| of arity $n$, if an application of |f| has fewer than $n$ arguments, an application and a lambda is inserted with $n$ arguments. In general, the insertion of a lambda and application is not semantics preserving:
+
+\begin{code}
+x => \v -> x v
+\end{code}
+
+However, a closely allied operation that is semantics preserving is:
+
+\begin{code}
+\v -> x => \v' -> (\v -> x) v'
+\end{code}
+
+The lambda insertion phase can be seen as first transforming the function |f| using the lambda insertion rule, then inlining the outer lambda into the application site. These operations are semantics preserving.
+
+\subsection{Simplification}
+
+Each rule is individually correct with respect to semantics.
+
+\subsection{Inline}
+
+The inlining of functions is safe.
+
+\subsection{Specialisation}
+
 
 
 
 \section{Proof of Termination}
 \label{sec:firstify_terminate}
+
+To prove termination, each stage must be individually terminating, and there must be no program 
+
 
 
 
