@@ -79,10 +79,11 @@ Here the |error| primitive is being given two arguments, even though at first gl
 
 
 \subsection{First-Order Core}
+\label{sec:first_order_restrictions}
 
 We define a program to be first-order if it contains no expressions of the two types identified as creating functional values. In order to allow the property to be calculated statically, we ignore the issue of dead code.
 
-There exist programs, or fragments of code, which cannot be reduced to first-order. We present several examples in turn, explaining why a first-order reduction is not possible.
+There exist programs, or fragments of code, which cannot be reduced to first-order. We present several examples in turn, explaining why first-order reduction is not possible.
 
 \begin{example}
 \begin{code}
@@ -114,9 +115,17 @@ Here a functional value (|id|) is passed to the primitive |seq|. As we are not a
 Another primitive which permits functional values is |primCatch :: alpha -> (beta -> alpha) -> alpha|. While |seq| merely permits functional values, |primCatch| actually \textit{requires} that the second argument is a functional value.
 \end{example}
 
-In both these examples, a functional value must be created as it is required by either the interface to a primitive, or the interface to the root function. In a similar manner, the root function may have a functional argument, or a primitive may return a functional value, resulting in a functional application.
+\begin{example}
+\begin{code}
+main f = f id
+\end{code}
 
-If neither of the above cases occurs, then it is always possible to remove all function values from a Core program. One method for removing higher-order functions is Reynolds style defunctionalisation, which we detail first. Next we detail our method, which has some important differences from Reynold's method.
+In this example, the |main| function takes a functional argument |f|, which is applied to |id| -- a functional value. Since the interface to |f| is outside the control of the code we are specialising, we cannot change its interface.
+\end{example}
+
+In all these examples, a functional value must be created as it is required by either the interface to a primitive, or the interface to the root function. In a similar manner, the root function may have a functional argument, or a primitive may return a functional value, resulting in a functional application.
+
+If none of the above cases occurs, then it is always possible to remove all function values from a Core program. In the following sections we will assume that The root function returns a first-order value, and takes no parameters. Within these assumptions, then only necessary residual lambda expressions occur within primitive functions. One method for removing higher-order functions is Reynolds style defunctionalisation, which we detail first. Next we detail our method, which has some important differences from Reynold's method.
 
 
 \section{Reynolds style defunctionalization}
@@ -185,7 +194,7 @@ test = get "foo" (Add3 "bar" 4 (Add3 "baz" 2 New))
 Here we use the constructor |Add3| to represent the |add| function with three arguments pre-applied. Note that the |Function| data type now serves to store a linked-list of the values with |New| serving a similar role to |[]|, and |Add3| storing one key/value pair along with the remainder of the list.
 \end{example}
 
-Defunctionalized code is still type safe, but type checking would require a dependently typed language. The method is complete, removing all possible higher-order functions, and preserves space behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The flow control is complicated by the extra level of indirection.
+We are unaware of any simple method for extending Reynold's style defunctionalisation to primitives, without changes the primitives to be aware of the |Ap| data type. Defunctionalized code is still type safe, but type checking would require a dependently typed language. The method is complete, removing all possible higher-order functions, and preserves space behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The flow control is complicated by the extra level of indirection.
 
 Some uses of Reynold's method include as preprocessing step in a whole-program analysis \cite{grin,jhc} and as a step in a program transformation \cite{graham_hutton_calculating_an_exceptional_machine}.
 
@@ -454,20 +463,13 @@ map_id v_1 =  let  xs = v_1
 We have now eliminated all the functional values from within this operation.
 
 
-\section{Completeness}
+\section{Proof of Completeness}
 
-The algorithm we have present is complete, in the sense that if it terminates, there will be no remaining lambda expressions within the program, other than those identified bellow. We have already shown that it is impossible to have both completeness and not introduce data structures (which our algorithm does not), therefore it follows that our algorithm is \textit{not} terminating. We shall return to the issue of termination in \S\ref{sec:firstify_terminate}, but assuming that our algorithm does terminate, it is possible to show that there are no remaining functional values.
+The algorithm we have presented is complete, in the sense that if it terminates, there will be no remaining lambda expressions within the program, other than those identified bellow. We have already shown that it is impossible to have both completeness and not introduce data structures (which our algorithm does not), therefore it follows that our algorithm is \textit{not} terminating. We shall return to the issue of termination in \S\ref{sec:firstify_terminate}, but assuming that our algorithm does terminate, it is possible to show that there are no remaining functional values.
 
-We identify the following causes of incompleteness:
+We originally identified three causes of incompleteness when converting a program to first-order, detailed in \S\ref{sec:first_order_restrictions}. Two of those can be removed by restricting the root function to take no functional arguments and return a first-order value. The only remaining necessary cause is passing a lambda expression to a primitive function. Our method introduces one final instance of incompleteness -- passing a lambda to an expression that evaluates to |undefined|, caused by either a call to the |error| primitive, or by non-termination.
 
-\begin{enumerate}
-\item Passing a lambda expression to a primitive function.
-\item Returning a lambda within a constructor box.
-\item Passing a lambda expression to a functional value passed in to the root function.
-\item Passing a lambda expression to a value that evaluates to |undefined|.
-\end{enumerate}
-
-We can prove that these are the only remaining causes of incompleteness.
+We can prove that, other than the restrictions introduced above, there are no resultant functional values created. We assume for the purposes of this proof that all functions are non-primitive.
 
 \newenvironment{lemma}[1]
     {\paragraph{Lemma:} #1 \textbf{Proof:} }
@@ -478,33 +480,32 @@ After our algorithm terminates, the resultant code must be idempotent with respe
 \end{lemma}
 
 \begin{lemma}{The root expression of each top-level function is not a lambda.}
-If a top-level function is bound to a lambda expression, then the arity of the function is increased and the lambda is no longer the root expression.
+If a top-level function is bound to a lambda expression, then the arity of the function is increased and the lambda is no longer the root expression. Another way of expressing this property is that all lambda expressions must have a parent expression.
 \end{lemma}
 
-\begin{lemma}{The parent of a lambda expression must not be a let expression.}
-The rules (bind-lam) and (let-lam) applied as part of |simplify| ensure this condition.
+\begin{lemma}{The parent of a lambda expression must be an application, applied to a variable.}
+In all other cases, one of the rules will transform the expression. To enumerate the possible parent expressions:
+
+\begin{enumerate}
+\item[lambda abstraction:] the desugaring rule for lambda abstractions would combine them to one lambda abstraction.
+\item[let binding:] the (let-lam) and (bind-lam) rules applied as part of |simplify| ensure these expressions are removed.
+\item[case expression:] the (case-lam) rule will remove any lambda abstractions from the alternatives of a case expression. The static typing in the original Core language ensures that a lambda cannot be the scrutinee of a case expression.
+\item[application:] the (lam-app) rule ensures that the lambda abstraction must be one of the arguments to the application. We now enumerate all the possible applied values within the application:
+    \begin{enumerate}
+    \item[constructor:] Either the expression is the child of a function application, in which case the |special| stage will remove it, or it is not, in which case the |inline| stage will remove it.
+    \item[function:] The |special| stage will specialise the function with respect to the lambda abstraction.
+    \item[application:] The application desugaring rules will combine the application with the current one, removing this situation.
+    \item[let binding:] The (let-app) rule applies.
+    \item[case expression:] The (case-app) rule applies.
+    \end{enumerate}
+
+    The only possibility not covered is that there is an application whose applied expression is a variable.
+\end{enumerate}
 \end{lemma}
 
-\begin{lemma}{The parent of a lambda expression must not be a case expression.}
-The (case-lam) rule ensures that an alternative in a case expression is not a lambda expression. The static typing in the original Core language ensures that a lambda cannot be the scrutinee of a case expression.
+\begin{lemma}{All applications of a variable to a lambda expression evaluate to |undefined|}
+Given an expression |v (\v' -> x)|, the variable |v| must evaluate to |undefined|. First assume that there exists a lambda expression within the program that has not been removed, it must be the...
 \end{lemma}
-
-\begin{lemma}{The parent of a lambda expression must not be a lambda expression.}
-Using the desugaring rule, and vector lambda expressions, nested lambda expressions can be transformed away.
-\end{lemma}
-
-\begin{lemma}{The parent of a lambda must be an application, applied to a function, constructor or variable.}
-The (lam-app), (let-app) and (case-app) rules, plus the combination of successive applications, will transform away all other applications.
-\end{lemma}
-
-\begin{lemma}{A lambda may not be an argument to a function.}
-The |special| rule will transform away all lambda expressions which are arguments to functions.
-\end{lemma}
-
-Argument: functions and constructors will be specialised away. If the parent
-
-
-
 
 
 \section{Proof of Correctness}
@@ -543,7 +544,7 @@ The inlining of functions is safe.
 \section{Proof of Termination}
 \label{sec:firstify_terminate}
 
-To prove termination, each stage must be individually terminating, and there must be no program 
+To prove termination, each stage must be individually terminating, and there must be no program
 
 
 
