@@ -486,33 +486,31 @@ If a top-level function is bound to a lambda expression, then the arity of the f
 \begin{lemma}{The parent of a lambda expression must be an application, applied to a variable.}
 In all other cases, one of the rules will transform the expression. To enumerate the possible parent expressions:
 
-\begin{enumerate}
+\begin{description}
 \item[lambda abstraction:] the desugaring rule for lambda abstractions would combine them to one lambda abstraction.
 \item[let binding:] the (let-lam) and (bind-lam) rules applied as part of |simplify| ensure these expressions are removed.
 \item[case expression:] the (case-lam) rule will remove any lambda abstractions from the alternatives of a case expression. The static typing in the original Core language ensures that a lambda cannot be the scrutinee of a case expression.
 \item[application:] the (lam-app) rule ensures that the lambda abstraction must be one of the arguments to the application. We now enumerate all the possible applied values within the application:
-    \begin{enumerate}
+    \begin{description}
     \item[constructor:] Either the expression is the child of a function application, in which case the |special| stage will remove it, or it is not, in which case the |inline| stage will remove it.
     \item[function:] The |special| stage will specialise the function with respect to the lambda abstraction.
     \item[application:] The application desugaring rules will combine the application with the current one, removing this situation.
     \item[let binding:] The (let-app) rule applies.
     \item[case expression:] The (case-app) rule applies.
-    \end{enumerate}
+    \end{description}
 
     The only possibility not covered is that there is an application whose applied expression is a variable.
-\end{enumerate}
+\end{description}
 \end{lemma}
 
-\begin{lemma}{All applications of a variable to a lambda expression evaluate to |undefined|}
-Given an expression |v (\v' -> x)|, the variable |v| must evaluate to |undefined|. First assume that there exists a lambda expression within the program that has not been removed, it must be the...
+\begin{lemma}{All applications of a variable to a lambda expression evaluate to |undefined|.}
+Given an expression |v (\v' -> x)|, the variable |v| must evaluate to |undefined|. It is clear from the type rules of our Core language that the variable |v| must either evaluate to |undefined|, or to a lambda expression. If it evaluates to a lambda expression, there must be a lambda expression within the program, since we are assuming no primitive functions or functional arguments to the root function. If such a lambda exists, it must be itself under an application to a variable, since all other possibilities have been eliminated. Given many such enclosing |v| variables, we must evaluate one first. The first one we evaluate cannot evaluate to a lambda expression, as all lambda expressions must result from first evaluating a variable, and since this is the first variable to be evaluated, that is not possible. The only other case is that the variable evaluates to |undefined|.
 \end{lemma}
 
 
 \section{Proof of Correctness}
 
-To prove the correctness of the whole argument it is sufficient to show the correctness of each step.
-
-\subsection{Lambda Insertion}
+To prove the correctness of the whole argument it is sufficient to show the correctness of each step. The simplification rules are all standard within lazy Core languages. The inlining and specialisation stages are also based on well accepted transformations. the only interesting case, from a correctness perspective, is lambda insertion.
 
 The rule for lambda insertion expands all partially applied functions so they are given sufficiently many arguments. Given a function |f| of arity $n$, if an application of |f| has fewer than $n$ arguments, an application and a lambda is inserted with $n$ arguments. In general, the insertion of a lambda and application is not semantics preserving:
 
@@ -520,54 +518,45 @@ The rule for lambda insertion expands all partially applied functions so they ar
 x => \v -> x v
 \end{code}
 
-However, a closely allied operation that is semantics preserving is:
+Consider for instance |undefined `seq` 1|, which evaluates to |undefined|. Applying the lambda introduction rule we can replace the code with |(\v -> undefined v) `seq` 1|, which evaluates to |1|. However, a closely allied operation that is semantics preserving is:
 
 \begin{code}
 \v -> x => \v' -> (\v -> x) v'
 \end{code}
 
-The lambda insertion phase can be seen as first transforming the function |f| using the lambda insertion rule, then inlining the outer lambda into the application site. These operations are semantics preserving.
-
-\subsection{Simplification}
-
-Each rule is individually correct with respect to semantics.
-
-\subsection{Inline}
-
-The inlining of functions is safe.
-
-\subsection{Specialisation}
-
-
+The lambda insertion phase can be seen as first transforming the function |f| using the lambda insertion rule, then inlining the outer lambda into the application site. These operations are semantics preserving, and relatively standard.
 
 
 \section{Proof of Termination}
 \label{sec:firstify_terminate}
 
-To prove termination, each stage must be individually terminating, and there must be no program
-
-
+Our algorithm, as it stands, is not terminating. In order to ensure termination, it is necessary to bound both the inlining and specialisation stages. In this section we develop the termination criteria, by first looking at how non-termination may arise.
 
 
 \subsection{Termination of Inlining}
 
-As with specialisation, the inlining of functions until a fixed point can give rise to non-termination:
+The standard technique for dealing with the termination of inlining is to refuse to inline recursive functions \cite{spj:inlining}. In practice, for first order reduction, the non-recursive restriction is overly cautious and leaves residual lambda expressions. We first present a program which causes our method to non-terminate, then our criteria for ensuring termination.
 
 \begin{example}
 \begin{code}
-f = if condition then f else id
+f = (\x -> x) : f
 \end{code}
 
-The expression bound to |f| will repeatedly grow in size as inlining is applied, and will remain unsaturated. We stop this problem by inlining a function at all application sites, but only once. In this example we would end up with:
-
-\begin{code}
-f = if condition then (if condition then f else id) else id
-\end{code}
-
-At this stage we have inlined |f| once, so do not inline |f| again.
+The expression bound to |f| will repeatedly grow in size as inlining is applied, and will remain a candidate for inlining.
 \end{example}
 
+Our termination criteria permits inlining a function |f|, at all application sites within a function |g|, but only once per pair |(f,g)|. In the above example we would be permitted to inline |f| within the function |f| at all application sites (only one in this example), once. The resultant code would be:
+
+\begin{code}
+f = (\x -> x) : (\x -> x) : f
+\end{code}
+
+Any future attempts to inline |f| within this function would be disallowed, although |f| could be inlined within other functions. This termination criteria is sound, assuming all expressions are finite and there are a finite number of function symbols. Each inlining will occur at only a finite number of application sites, and prohibit that pair of function inlinings occurring in future. Given $n$ functions, there can only be $n^2$ possible inlining steps, each for possibly many application sites.
+
+
 \subsection{Termination of Specialisation}
+
+The termination of specialisation is more tricky than inlining. We permit the inlining 
 
 A natural extension of specialisation is to take the fixed point, eliminating unsaturated expressions in generated functions. Unfortunately, such an algorithm would not terminate.
 
