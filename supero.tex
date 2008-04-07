@@ -1,5 +1,7 @@
 %include paper.fmt
 
+\newcommand{\generalise}{\bowtie}
+
 \chapter{A Supercompiler for Core Haskell}
 
 To add: Notes on copy analysis. If a function is simply a copy (say map id or append with nil as the second argument), then skip the copying entirely. Can provide a speed boost in certain circumstances, and much more common after supercompilation.
