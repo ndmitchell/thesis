@@ -17,3 +17,19 @@ There is scope for further speed improvements: for example, use of continuation 
 
 The use of boilerplate reduction strategies in Haskell is not yet ubiquitous, as we feel it should be. We have focused on simplicity throughout our design, working within the natural typed design of Haskell, rather than trying to extend it. Hopefully the removal of complicated language features (particularly `scary' types) will allow a wider base of users to enjoy the benefits of boilerplate-free programming.
 
+
+
+\section{Supero}
+
+Our supercompiler is simple -- the Core transformation is expressed in just 300 lines of Haskell. Yet it replicates many of the performance enhancements of GHC in a more general way. We have modified some of the techniques from supercompilation, particularly with respect to let bindings and generalisation. Our initial results are promising, but incomplete. Using our supercompiler in conjunction with GHC we obtain an average runtime improvement of 16\% for the imaginary section of the nofib suite. To quote Simon Peyton Jones, ``an average runtime improvement of 10\%, against the baseline of an already well-optimised compiler, is an excellent result'' \cite{spj:specconstr}.
+
+There are three main areas for future work:
+
+\begin{description}
+\item[More Benchmarks] The fifteen benchmarks presented in this chapter are not enough. We would like to obtain results for larger programs, including all the remaining benchmarks in the nofib suite.
+\item[Runtime Performance] Earlier versions of Supero \cite{me:supero_ifl} managed to obtain substantial speed ups on benchmarks such as exp3\_8. The Bernouilli benchmark is currently problematic. There is still scope for improvement.
+\item[Compilation Speed] The compilation times are tolerable for benchmarking and a final optimised release, but not for general use. Basic profiling shows that over 90\% of supercompilation time is spent testing for a homeomorphic embedding, which is currently done in a na\"{i}ve manner -- dramatic speedups should be possible.
+\end{description}
+
+The Programming Language Shootout\footnote{\url{http://shootout.alioth.debian.org/}} has shown that low-level Haskell can compete with low-level imperative languages such as C. Our goal is that Haskell programs can be written in a high-level declarative style, yet still perform competitively.
+
