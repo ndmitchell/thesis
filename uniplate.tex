@@ -9,9 +9,6 @@
 %format ||+ = "\mathsf{\hspace{1mm}||\hspace{-0.5mm}\hbox{\small{+}}\;}"
 
 
-
-\newcommand{\derive}{\textsc{Derive}}
-
 \begin{comment}
 % extra code needed for tex2hs
 \begin{code}
@@ -453,7 +450,7 @@ instance Uniplate Expr where
 
 We define a |Uniplate| instance for the |Expr| type in Figure \ref{fig:play_expr}.
 
-The distinguishing feature of our library is that the children are defined in terms of their type. While this feature keeps the traversals simple, it does mean that rules for \textit{deriving} instance definitions are not purely syntactic, but depend on the types of the constructors. We now describe the derivation rules, followed by information on the \derive{} tool that performs this task automatically. (If we are willing to make use of Multi-Parameter Type Classes, simpler derivation rules can be used: see \S\ref{sec:implement_playex}.)
+The distinguishing feature of our library is that the children are defined in terms of their type. While this feature keeps the traversals simple, it does mean that rules for \textit{deriving} instance definitions are not purely syntactic, but depend on the types of the constructors. We now describe the derivation rules, followed by information on the Derive tool that performs this task automatically. (If we are willing to make use of Multi-Parameter Type Classes, simpler derivation rules can be used: see \S\ref{sec:implement_playex}.)
 
 
 \subsection{Derivation Rules}
@@ -623,7 +620,7 @@ target  x  (n:ns)  c  = c n ns
 
 Applying these derivation rules is a form of boilerplate coding! The DrIFT tool \citep{drift} derives instances automatically given rules depending only on the information contained in a type definition. However DrIFT is unable to operate with certain Haskell extensions ({\TeX} style literate Haskell, C pre processor), and requires a separate pre-processing stage.
 
-In collaboration with Stefan O'Rear we have developed the \derive{} tool \citep{derive}. \derive{} is based on Template Haskell \citep{template_haskell} and has predefined rules for derivation of |Uniplate| instances. It has special rules to remove redundant patterns to produce simpler and more efficient instances.
+In collaboration with Stefan O'Rear we have developed the Derive tool \citep{derive}. Derive is based on Template Haskell \citep{template_haskell} and has predefined rules for derivation of |Uniplate| instances. It has special rules to remove redundant patterns to produce simpler and more efficient instances.
 
 \begin{example}
 \begin{code}
@@ -632,7 +629,7 @@ data Term  =  Name String
               deriving ( {-! \textsf{Uniplate} !-} )
 \end{code}
 
-Running the \derive{} tool over this file, the generated code is:
+Running the Derive tool over this file, the generated code is:
 
 \begin{code}
 instance Uniplate Term where
@@ -788,7 +785,7 @@ The complicating feature of |biplate| is that when defining |Biplate| where \ign
 \item The |Data| class can be used, providing fully automatic instances with GHC, but requiring the use of rank-2 types, and giving the worst performance.
 \end{enumerate}
 
-All three methods can be fully automated using \derive{}, and all provide a simplified method for writing |Uniplate| instances. The first two methods require the user to define instances of auxiliary classes, |PlateAll| and |PlateOne|, on top of which the library defines the |Uniplate| and |Biplate| classes. The |Biplate| class definition itself is independent of the method used to implement its instances. This abstraction allows the user to start with the simplest instance scheme available to them, then move to alternative schemes to gain increased performance or compatibility.
+All three methods can be fully automated using the Derive tool, and all provide a simplified method for writing |Uniplate| instances. The first two methods require the user to define instances of auxiliary classes, |PlateAll| and |PlateOne|, on top of which the library defines the |Uniplate| and |Biplate| classes. The |Biplate| class definition itself is independent of the method used to implement its instances. This abstraction allows the user to start with the simplest instance scheme available to them, then move to alternative schemes to gain increased performance or compatibility.
 
 
 \subsection{Direct instances}
