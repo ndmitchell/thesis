@@ -394,49 +394,6 @@ We describe each of the stages in the algorithm separately. In all subsequent st
     => f xs_ ys_
 \end{code}}
 
-\simp{lam-app}{
-\ignore\begin{code}
-(\v -> x) y
-    => let v = y in x
-\end{code}}
-
-\simp{let-app}{
-\ignore\begin{code}
-(let v = x in y) z
-    => let v = x in y z
-\end{code}}
-
-\simp{case-app}{
-\ignore\begin{code}
-(case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) z
-    => case x of {p_1 -> y_1 z ; ... ; p_n -> y_n z}
-\end{code}}
-
-\simp{case-con}{
-\ignore\begin{code}
-case c xs_ of {... ; c vs_ -> y ; ...}
-    => let vs_ = xs_ in y
-\end{code}}
-
-\simp{case-let}{
-\ignore\begin{code}
-case (let v = x in y) of alts_
-    => let v = x in (case y of alts_)
-\end{code}}
-
-\simp{case-case}{
-\ignore\begin{code}
-case (case x of {... ; c vs_ -> y ; ...}) of alts_
-    => case x of {... ; c vs_ -> case y of alts_ ; ...}
-\end{code}}
-
-\simp{case-lam}{
-\ignore\begin{code}
-case x of {... ; c vs_ -> \v -> y ; ...}
-    => \z -> case  x of
-                   {... z ; c vs_ -> (\v -> y) z ; ... z}
-\end{code}}
-
 \simp{eta}{
 \ignore\begin{code}
 f xs_

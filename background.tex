@@ -3,7 +3,7 @@
 \chapter{Background}
 \label{chp:background}
 
-In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, including its sharing properties in \S\ref{sec:sharing}.
+In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, including its sharing properties in \S\ref{sec:sharing}. We then cover the homeomorphic embedding operator in \S\ref{sec:homeomorphic}, particularly applied to this Core language.
 
 \section{Core Language}
 \label{sec:core}
@@ -131,27 +131,6 @@ The variables in the patterns of case expressions, the arguments of lambda abstr
 
 In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and afterwards any repeated bound variables can be assigned fresh names.
 
-\begin{comment}
-\subsubsection{The |split| operation}
-
-\begin{figure}
-\begin{tabular}{rcl}
-|split(v)| & |=| & |(v, [])| \\
-|split(c)| & |=| & |(c, [])| \\
-|split(f)| & |=| & |(f, [])| \\
-|split(x ys_)| & |=| & |(bullet {-"\text{ } \overline{\bullet} "-}, x:ys_)| \\
-|split(\vs_ -> x)| & |=| & |(\vs_ -> bullet, x)| \\
-|split(let v = x in y)| & |=| & |(let v = bullet in bullet, [x,y])| \\
-|split(case x of {p_1 \! -> \! y_1 ; ... ; p_n \! -> \! y_n})| & |=| & |(case {-"\hspace{-1mm}"-} bullet {-"\hspace{-1mm}"-} of {p_1 \! -> \! bullet ; ... ; p_n \! -> \! bullet}, [x, y_1, ... ,y_n])|
-\end{tabular}
-\caption{The |split| function, returning a spine and all subexpressions.}
-\label{fig:split}
-\end{figure}
-
-We define the |split| function in Figure \ref{fig:split}, which splits an expression into a pair of its spine and its immediate subexpressions. The $\bullet$ markers in the spine indicate the positions from which subexpressions have been removed. We define the |join| operation to be the inverse of |split|, taking a spine and a list of expressions, and producing an expression.
-\end{comment}
-
-
 \section{Semantics}
 \label{sec:semantics}
 
@@ -168,7 +147,7 @@ The grammar for expression in NF is:
 \begin{code}
 n  =  c \< ns_ \>  {-" \text{  constructor} "-}
    |  \v -> x      {-" \text{  lambda} "-}
-   |  undefined    {-" \text{  bottom/undefined} "-}
+   |  bottom       {-" \text{  bottom/undefined} "-}
 \end{code}
 
 \newcommand{\sem}[1]
@@ -189,8 +168,8 @@ n  =  c \< ns_ \>  {-" \text{  constructor} "-}
     {|x => r|}
     {|f => r|}
 \\ \semm
-    {|x => undefined|}
-    {|x y => undefined|}
+    {|x => bottom|}
+    {|x y => bottom|}
 \\ \semm
     {|x => c \< xs_ \>|}
     {|x y => c \< xs_ y \>|}
@@ -206,8 +185,8 @@ n  =  c \< ns_ \>  {-" \text{  constructor} "-}
     {|y[vs_ / xs_] => r|}
     {|case x of {... ; c vs_ -> y ; ...} => r|}
 \\ \semm
-    {|x => undefined|}
-    {|case x of alts_ => undefined|}
+    {|x => bottom|}
+    {|case x of alts_ => bottom|}
 \end{eqnarray}
 \caption{Reduction to weak-head normal form, |(=>)|.}
 \label{fig:whnf}
@@ -216,8 +195,8 @@ n  =  c \< ns_ \>  {-" \text{  constructor} "-}
 \begin{figure}
 \begin{eqnarray}
 \semm
-    {|x => undefined|}
-    {|x =>* undefined|}
+    {|x => bottom|}
+    {|x =>* bottom|}
 \\ \semm
     {|x => \v -> y|}
     {|x =>* \v -> y|}
@@ -234,7 +213,7 @@ Our semantics does not respect sharing, this topic is dealt with in \S\ref{sec:s
 
 We never descend below a bound variable without replacing that variable, therefore any remaining variable would have to be free in the definition of the program, which is not permitted. Consequently, there is no rule for a variable. We choose not evaluate inside a lambda, even on |=>*|, as this would generate a free variable. The |_F| mapping never crashes, as it is checked statically that all mentioned function names exist in the mapping.
 
-The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. |_F(error) = undefined|. If a computation forces a |undefined| value, in the scrutinee of a case or the first argument of an application, the |undefined| is propagated.
+The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. |_F(error) = bottom|. If a computation forces a |bottom| value, in the scrutinee of a case or the first argument of an application, the |bottom| is propagated.
 
 There is no rule for case of a lambda abstraction, as this situation is not permitted by the type system. Similarly, the type system plus the exhaustiveness of case branches means that if the scrutinee successfully evaluates, it will match exactly one alternative.
 
@@ -278,12 +257,25 @@ let v = x in (case y of {p_1 -> y_1 ; ... ; p_n -> y_n})
     where v {-" \hbox{is not used in } "-} y
 \end{code}}
 
+\f{case-let}{
+\ignore\begin{code}
+case (let v = x in y) of alts_
+    => let v = x in (case y of alts_)
+\end{code}}
+
 \f{case-case}{
 \begin{code}
 case (case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) of alts_
     => case x of  {  p_1  -> case y_1 of alts_
                   ;  ...
                   ;  p_n  -> case y_n of alts_ }
+\end{code}}
+
+\f{case-lam}{
+\begin{code}
+case x of {... ; c vs_ -> \v -> y ; ...}
+    => \z -> case  x of
+                   {... z ; c vs_ -> (\v -> y) z ; ... z}
 \end{code}}
 
 \f{let}{
@@ -300,7 +292,7 @@ let v = x in y
 
 We present several simplification rules in Figure \ref{fig:simplify}, which can be applied to our Core language. These rules are standard and would be applied by any optimising compiler. All the rules preserve both the semantics and the sharing behaviour of an expression.
 
-The case-con and lam-app rules simply follow the semantics, using let expressions to preserve the sharing. The case-app, let-case and case-case rules move outer expressions over an inner case expression, duplicating the outer expression in each alternative. The let-app rule moves an application over an inner let expression. The let rule substitutes let expressions where the bound variable is used only once, and therefore no loss of sharing is possible.
+The (case-con) and (lam-app) rules simply follow the semantics, using let expressions to preserve the sharing. The (case-app), (let-case) and (case-case) rules move outer expressions over an inner case expression, duplicating the outer expression in each alternative. The (case-lam) rule promotes a lambda from inside a case alternative outwards. The (let-app) and (let-case) rules move an expression over an inner let expression. The (let) rule substitutes let expressions where the bound variable is used only once, and therefore no loss of sharing is possible.
 
 
 \section{Sharing}
@@ -444,7 +436,41 @@ Now |caf| is no longer a CAF, and will be recomputed each time. The |dummy| valu
 
 
 
-\subsection{Common Subexpression Elimination}
+\section{Homeomorphic Embedding}
 
-\cite{chitil:cse}
 
+We use the termination criterion suggested by S{\o}rensen and Gl{\"u}ck \cite{sorensen:supercompilation} -- homeomorphic embedding. An expression $x$ is an embedding of $y$, written $x \unlhd y$, if the relationship can be inferred by the rules:
+
+\noindent\begin{tabular}{p{5cm}p{5cm}}
+\[\frac{\text{dive}(x,y)}{x \unlhd y}\] \vspace{-8mm}
+&
+\[\frac{\text{couple}(x,y)}{x \unlhd y}\] \vspace{-8mm}
+\\
+\[\frac{s \unlhd t_i \text{ for some } |i|}{\text{dive}(s, \sigma(t_1,\ldots,t_n))} \]
+&
+\[\frac{\sigma_1 \sim \sigma_2,
+        s_1 \unlhd t_1, \ldots , s_n \unlhd t_n}
+       {\text{couple}(\sigma_1 (s_1,\ldots,s_n), \sigma_2 (t_1,\ldots,t_n))}
+\]
+\end{tabular}
+
+The homeomorphic embedding uses the relations dive and couple. The dive relation checks if the first term is contained as a child of the second term, while the couple relation checks if both terms have the same outer shell. We use $\sigma$ to denote the spine of an expression, with $s_1,\ldots,s_n$ being its subexpressions. We test for equivalence of $\sigma_1$ and $\sigma_2$ using the $\sim$ relation, a weakened form of equality where all variables are considered equal. We terminate the supercompilation of an expression |y| if on the chain of reductions from |main| to |y| we have encountered an expression |x| such that $x \unlhd y$.
+
+In addition to using the homeomorphic embedding, we also terminate if further unfolding cannot yield any improvement to the root of the expression. For example, if the root of an expression is a constructor application, no further unfolding will change the root constructor. When terminating for this reason, we always residuate the outer spine of the expression, without applying any generalisation.
+
+\begin{figure}
+\[\frac{s \unlhd t_i \text{ for some } i}{s \unlhd \sigma(t_1,\ldots,t_n)} \]
+
+\[\frac{\sigma_1 \equiv \sigma_2,
+        s_1 \unlhd t_1, \ldots , s_n \unlhd t_n}
+       {\sigma_1 (s_1,\ldots,s_n) \unlhd \sigma_2 (t_1,\ldots,t_n)} \]
+
+\caption{Homeomorphic embedding relation.}
+\label{fig:homeomorphic}
+\end{figure}
+
+To ensure we only specialise a finite number of times we use a homeomorphic embedding \cite{leuschel:homeomorphic}, given in Figure \ref{fig:homeomorphic}. The homeomorphic embedding $\unlhd$ is a well-binary relation, meaning there are no infinite admissible sequences. A sequence $s_1,s_2 \ldots$ is admissible if there are no $i < j$ such that $s_i \unlhd s_j$. This property only holds provided all elements are expressions over a finite alphabet.
+
+For each function, we associate a set $S$, of expressions. After generating a template $t$, we only specialise with that template if $\forall s \in S \bullet \neg(s \unlhd t)$. If $S$ is already admissible, then the sequence $S$ with $t$ added at the end is still admissible. After specialising with a template we add that template to the set $S$ associated with that expression. When we create a new function based on a template, we copy the $S$ associated with the function in which the specialisation is performed.
+
+One of the conditions for termination of homeomorphic embedding is that there is only a finite alphabet. To ensure this condition, we first consider all variables and literals to be equivalent. However, this is not sufficient. During the process of specialisation we create new functions, and these new functions are new symbols in our language. So we only use function names from the original input program. Every template has a correspondence with an expression in the original program. We perform the homeomorphic embedding test only after transforming all templates into their original equivalent expression.
