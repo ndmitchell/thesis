@@ -2,9 +2,6 @@
 
 \newcommand{\derive}{\textsc{Derive}}
 
-\chapter{Uniform Boilerplate and List Processing}
-
-
 \begin{comment}
 % extra code needed for tex2hs
 \begin{code}
@@ -24,12 +21,13 @@ context = undefined
 \end{comment}
 
 
+\chapter{Boilerplate Removal}
+
+Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. This chapter describes the Uniplate library, which offers a way to abstract several common forms of boilerplate code. \S\ref{sec:uniplate_example} gives an example problem, and our solution. \S\ref{sec:use_play} introduces the traversal combinators that we propose, along with short examples. \S\ref{sec:implement_play} discusses how these combinators are implemented in terms of a single primitive. \S\ref{sec:use_playex} extends this approach to multi-type traversals, and \S\ref{sec:implement_playex} covers the extended implementation. \S\ref{sec:performance} investigates some performance optimisations. \S\ref{sec:results} gives comparisons with other approaches, using examples such as the ``paradise'' benchmark. \S\ref{sec:related} presents related work.
 
 
-
-\section{Introduction}
-
-Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. The definitions of functions involving such traversals may repeat very similar patterns, but with variations for different data types and different functionality. Libraries of operations abstracting away boilerplate code typically rely on elaborate types to make operations generic. The motivating observation for this paper is that \textit{most traversals have value-specific behaviour for just one type}. We present the design of a new library exploiting this assumption. Our library allows concise expression of traversals with competitive performance.
+\section{Introductory Example}
+\label{sec:uniplate_introduction}
 
 Take a simple example of a recursive data type:
 
@@ -53,7 +51,7 @@ variables (Mul  x y  ) = variables x ++ variables y
 variables (Div  x y  ) = variables x ++ variables y
 \end{code}
 
-This definition has the following undesirable characteristics: (1) adding a new constructor would require an additional equation; (2) the code is repetitive, the last four right-hand sides are identical; (3) the code cannot be shared with other similar operations. This problem is referred to as the \textit{boilerplate} problem. Using the library developed in this paper, the above example can be rewritten as:
+This definition has the following undesirable characteristics: (1) adding a new constructor would require an additional equation; (2) the code is repetitive, the last four right-hand sides are identical; (3) the code cannot be shared with other similar operations. This problem is referred to as the \textit{boilerplate} problem. Using the Uniplate library, the above example can be rewritten as:
 
 \begin{code}
 variables :: Expr -> [String]
@@ -76,15 +74,6 @@ Ours is far from the first technique for `scrapping boilerplate'. The area has b
 \item We \textit{compare the conciseness} of operations using our library, by counting lexemes, showing our approach leads to less boilerplate.
 \item We \textit{compare the performance} of traversal mechanisms, something that has been neglected in previous papers.
 \end{itemize}
-
-The ideas behind the Uniplate library have been used extensively, in projects including the Yhc compiler \citep{me:yhc_core}, the Catch tool \citep{me:catch_tfp} and the Reach tool \cite{naylor:reach}. In Catch there are over 100 Uniplate traversals.
-
-We have implemented all the techniques reported here. We encourage readers to download the Uniplate library and try it out. It can be obtained from the website at \url{http://www.cs.york.ac.uk/~ndm/uniplate/}. A copy of the library has also been released, and is available on Hackage\footnote{\url{http://hackage.haskell.org/}}.
-
-\subsection{Road map}
-
-\S\ref{sec:use_play} introduces the traversal combinators that we propose, along with short examples. \S\ref{sec:implement_play} discusses how these combinators are implemented in terms of a single primitive. \S\ref{sec:use_playex} extends this approach to multi-type traversals, and \S\ref{sec:implement_playex} covers the extended implementation. \S\ref{sec:performance} investigates some performance optimisations. \S\ref{sec:results} gives comparisons with other approaches, using examples such as the ``paradise'' benchmark. \S\ref{sec:related} presents related work, \S\ref{sec:conclusion} makes concluding remarks and suggests directions for future work.
-
 
 \section{Queries and Transformations}
 \label{sec:use_play}
@@ -299,105 +288,6 @@ f x                   = x
 \end{code}\codeexample
 \end{examplerevisit}
 
-\begin{comment}
- We can start by defining a more abstract representation of a rewrite rule:
-
-\todo{Do we want this? Perhaps just informally stating the answer is the best policy}
-
-\begin{code}
-type Rewrite  = [(Tree,Tree)]
-data Tree     = Branch String [Tree] | Leaf
-
-f (Sub x y) = Add x (Neg y)
--- is represented by
-fRep =  [(Branch "Sub" [Leaf,Leaf]
-	    ,Branch "Add" [Leaf, Branch "Neg" [Leaf]])]
-\end{code}
-
-We can imagine |f| as a set of tree rewrite rules, where the tree on the left corresponds to the pattern matching, and the tree on the right corresponds to the generated value. We can now define the |equalBottomUp| function which returns True if a rewrite rule satisfies the property that |rewrite| and |transform| give the same result:
-
-\begin{code}
-treeEq (Branch s1 t1) (Branch s2 t2) =
-    s1 == s2 && and (zipWith treeEq t1 t2)
-treeEq _ _ = True
-
-equalBottomUp :: Rewrite -> Bool
-equalBottomUp rs =  not $ or [treeEq a b | a <- map fst rs,
-    b <- concatMap (universe . snd) rs]
-\end{code}
-
-If any of the generated values at any level overlaps with the root of any pattern match, then the transformation may not be a rewrite. Taking the |simplify| transformation from from the previous section:
-
-\begin{code}
-f (Sub x y)           = Just $ Add x (Neg y)
-f (Add x y) | x == y  = Just $ Mul (Val 2) x
-f _                   = Nothing
-\end{code}
-
-Here |Add| occurs on the right-hand side of the first line, and on the left-hand side of the second. From this we can construct a value where the two alternatives differ:
-
-\ignore\begin{code}
-let x = Sub (Neg (Var "q")) (Var "q")
-
-rewrite    f   x == Mul (Val 2) (Var "q")
-transform  f'  x == Add (Var "q") (Neg (Var "q"))
-\end{code}
-
-So is it possible to remedy this situation? Yes. Whenever the right-hand side introduces a new constructor, an additional onward call can be made:
-
-\begin{code}
-f' (Sub x y)           = f' $ Add x (f' $ Neg y)
-f' (Add x y) | x == y  = f' $ Mul (f' $ Val 2) x
-f' x                   = x
-\end{code}
-
-This approach guarantees that the transformation is a rewrite. In fact, only one |f'| application is necessary, the one attached to the construction of an |Add| value.
-
-
-\subsubsection{Rewrite as Top-Down}
-
-Now we pose the question: under what circumstances is a \textit{top-down} transformation a rewrite, and what modifications can be made to ensure it becomes so?
-
-Before we can answer this question, we must first reflect on what a top-down transformation means. The usual answer \citep{lammel:syb} is that an operation is first applied at the root. The traversal is then applied recursively to each child of the (possibly transformed) root.
-
-We can define the |equalTopDown| operation to test these the rewrite and top-down transformation for equivalence:
-
-\begin{code}
-equalTopDown rs =  not $ or  [treeEq a b | a <- map snd rs,
-    b <- concatMap (universe . fst) rs]
-\end{code}
-
-The only change from |equalBottomUp| is that the |fst| and |snd| applications have been switched. Root values constructed on the right must not match anywhere on the left. Note that this restriction is neither more nor less severe than the one imposed on bottom-up traversals. For the |simplify| example, both produce the same result.
-
-Is it possible to modify |f| minimally to permit a rewrite traversal? Yes. But the result is an encoding of bottom-up traversal. To see the full effect of the translation, we need a more complex example:
-
-\begin{code}
-f (Add (Val x) (Val y)  ) = Val (x+y)
-f (Mul (Val 1) y        ) = y
-\end{code}
-
-\noindent becomes:
-
-\begin{code}
-f (Add x y) = case  (f x     , f y     ) of
-                    (Val x'  , Val y'  ) -> Val (x'+y')
-                    _ -> Add x y
-f (Mul x y) = case  f x of
-                    Val 1 -> f y
-                    _ -> Mul x y
-\end{code}
-
-\noindent Or alternatively, making use of GHC's pattern-guards:
-
-\ignore\begin{code}
-f (Add  x y) | Val x'  <- f x, Val y' <- f y = Val (x'+y')
-f (Mul  x y) | Val 1   <- f x = f y
-\end{code}
-
-We have both explicitly continued the execution \textit{before} performing a pattern match, and in the last branch where a leaf is returned, we explicitly continue \textit{afterwards}.
-
-We consider top-down transformations to be more complex and less useful than bottom-up traversals, and we do not include them in our library. A previous version of our library did include top-down traversals, but we found they were rarely the correct choice. We discovered that most uses of top-down traversals were to model rewrites where information was pushed down, and it was easy to get the definition wrong in corner cases. This experience lead us to the decision that top-down traversals do not deserve library support. We include |rewrite| but suspect that most users would be better off using |transform|, modified as described above.
-\end{comment}
 
 \subsection{Action Transformations}
 
@@ -1437,16 +1327,4 @@ The SYB library is, however, more powerful than Uniplate. If you wish to visit v
 \paragraph{The Applicative library} \citep{mcbride:applicative} works by threading an Applicative operation through a data structure, in a similar way to threading a Monad through the structure. There is additionally a notion of |Traversable| functor, which can be used to provide generic programming. While the Applicative library can be used for generic programming, this task was not its original purpose, and the authors note they have ``barely begun to explore'' its power as a generic toolkit.
 
 \paragraph{Generic Programming} There are a number of other libraries which deal with generic programming, aimed more at writing \textit{type generic} (or \textit{polytypic}) functions, but which can be used for boilerplate removal. The \textit{Haskell generics suite}\footnote{\url{http://darcs.haskell.org/generics/}} showcases several approaches \citep{weirich:replib,hinze:generics_masses,hinze:generic_haskell}.
-
-
-\section{Conclusions and Future Work}
-\label{sec:conclusion}
-
-We have presented the Uniplate library. It defines the classes |Uniplate| and |Biplate|, along with a small set of operations to perform queries and transformations. We have illustrated by example that the boilerplate required in our system is less than in others (\S\ref{sec:results_boilerplate}), and that we can achieve these results without sacrificing speed (\S\ref{sec:results_speed}). Our library is both practical and portable, finding use in a number of applications, and using fewer extensions to the Haskell language than alternatives.
-
-The restriction to a uniformly typed value set in a traversal allows the power of well-developed techniques for list processing such as list-comprehensions to be exploited. We feel this decision plays to Haskell's strengths, without being limiting in practice.
-
-There is scope for further speed improvements: for example, use of continuation passing style may eliminate tuple construction and consumption, and list fusion may be able to eliminate some of the intermediate lists in |uniplate|. We have made extensive practical use of the Uniplate library, but there may be other traversals which deserve to be added.
-
-The use of boilerplate reduction strategies in Haskell is not yet ubiquitous, as we feel it should be. We have focused on simplicity throughout our design, working within the natural typed design of Haskell, rather than trying to extend it. Hopefully the removal of complicated language features (particularly `scary' types) will allow a wider base of users to enjoy the benefits of boilerplate-free programming.
 

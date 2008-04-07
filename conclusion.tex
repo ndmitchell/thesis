@@ -1,3 +1,19 @@
 %include paper.fmt
 
 \chapter{Conclusion}
+
+
+\section{Uniplate}
+
+
+\section{Conclusions and Future Work}
+\label{sec:conclusion}
+
+We have presented the Uniplate library. It defines the classes |Uniplate| and |Biplate|, along with a small set of operations to perform queries and transformations. We have illustrated by example that the boilerplate required in our system is less than in others (\S\ref{sec:results_boilerplate}), and that we can achieve these results without sacrificing speed (\S\ref{sec:results_speed}). Our library is both practical and portable, finding use in a number of applications, and using fewer extensions to the Haskell language than alternatives.
+
+The restriction to a uniformly typed value set in a traversal allows the power of well-developed techniques for list processing such as list-comprehensions to be exploited. We feel this decision plays to Haskell's strengths, without being limiting in practice.
+
+There is scope for further speed improvements: for example, use of continuation passing style may eliminate tuple construction and consumption, and list fusion may be able to eliminate some of the intermediate lists in |uniplate|. We have made extensive practical use of the Uniplate library, but there may be other traversals which deserve to be added.
+
+The use of boilerplate reduction strategies in Haskell is not yet ubiquitous, as we feel it should be. We have focused on simplicity throughout our design, working within the natural typed design of Haskell, rather than trying to extend it. Hopefully the removal of complicated language features (particularly `scary' types) will allow a wider base of users to enjoy the benefits of boilerplate-free programming.
+
