@@ -587,9 +587,9 @@ target :: alpha -> Cont alpha alpha
 target x (n:ns) = (n,ns)
 
 (<>) :: Cont (a->b) alpha -> Cont a alpha -> Cont b alpha
-(<>) a b ns1 =  let  (a'  ,ns2  ) = a  ns1
-                     (b'  ,ns3  ) = b  ns2
-                in   (a' b',ns3)
+(<>) a b ns_1 =  let  (a'  ,ns_2  ) = a  ns_1
+                      (b'  ,ns_3  ) = b  ns_2
+                 in   (a' b',ns_3)
 
 context x ns = fst (_N $| Type |$ \? x ns)
 \end{code}
@@ -1020,7 +1020,7 @@ As test operations we have taken the first three examples from this chapter, thr
 
 \subsubsection{Examples from this Chapter}
 
-\begin{exampleany}{Example from \S\ref{sec:uniplate_introduction} (revisited)}
+\begin{exampleany}{from \S\ref{sec:uniplate_introduction} (revisited)}
 
 \ignore\begin{code}
 uni_variables x = [y | Var y <- universe x]
