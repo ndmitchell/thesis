@@ -239,8 +239,8 @@ unfold x = head (filter (not . terminate) xs ++ xs ++ [x])
     where xs = unfolds x
 
 unfolds f | f {-" \text{ is a function} "-} = [inline f]
-unfolds x =  [join spine (sub |+ (i, y))
-             |let (spine, sub) = split x
+unfolds x =  [gen (cs |+ (i, y))
+             |let (cs, gen) = uniplate x
              ,i <- [0..length sub], y <- unfolds (sub !! i) ]
     where xs |+ (i,x) = zipWith (\j y -> if i == j then x else y) [0..] xs
 \end{code}
