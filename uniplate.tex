@@ -646,12 +646,14 @@ instance Uniplate Term where
 
 We have introduced the |Uniplate| class and an instance of it for type |Expr|. Now let us imagine that |Expr| is merely the expression type in a language with statements:
 
+\begin{onepage}
 \begin{code}
 data Stmt  =  Assign    String  Expr
            |  Sequence  [Stmt]
            |  If        Expr    Stmt Stmt
            |  While     Expr    Stmt
 \end{code}
+\end{onepage}
 
 We could define a |Uniplate| instance for |Stmt|, and so perform traversals upon statements too. However, we may run into limitations. Consider the task of finding all literals in a |Stmt| -- this requires boilerplate to find not just inner statements of type |Stmt|, but inner expressions of type |Expr|.
 

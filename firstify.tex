@@ -1276,7 +1276,7 @@ Many analysis methods, in fields such as strictness analysis and termination ana
 
 The following script can be supplied to the AProVe system \cite{aprove} to check termination of our simplification rules, as described in \S\ref{sec:termination_simplification}.
 
-\noindent\begin{minipage}{\linewidth}
+\begin{onepage}
 \noindent\begin{verbatim}
 [x,y,z]
 app(lam(x),y)    -> let(y,x)
@@ -1287,4 +1287,4 @@ case(con(x),y)   -> let(x,y)
 case(x,lam(y))   -> lam(case(x,app(lam(y),var)))
 let(lam(x),y)    -> lam(let(x,y))
 \end{verbatim}
-\end{minipage}
+\end{onepage}

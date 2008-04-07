@@ -628,7 +628,7 @@ end loop
 
 The semantics of a constraint are determined by which values satisfy it. We can implement a |satisfies| function using the |<||| operator:
 
-\noindent\begin{minipage}{\linewidth}
+\begin{onepage}
 \begin{code}
 satisfies :: Value -> Constraint -> Bool
 satisfies Bottom        k = True
@@ -638,7 +638,7 @@ satisfiesP :: Prop (Sat Value) -> Bool
 satisfiesP x =  (propTrue :: Prop ()) ==
                 propMap (\(Sat v k) -> propBool $ satisfies v k) x
 \end{code}
-\end{minipage}
+\end{onepage}
 
 The first equation returns |True| given a value of type |Bottom|, as if a value contains $\bot{}$ then any constraint is true. In order to be consistent with |<|||, the other operations must respect certain properties, here expressed as boolean-valued functions that should always return True.
 
@@ -921,14 +921,14 @@ A big advantage of MP-constraints is that if two constraints on the same express
 
 \noindent in uncurried form becomes:
 
-\noindent\begin{minipage}{\linewidth}
+\begin{onepage}
 \begin{code}
 (||) a = case  a of
                (x,y) -> case  x of
                               True    -> True
                               False   -> y
 \end{code}
-\end{minipage}
+\end{onepage}
 \end{example}
 
 Combining MP-constraint reduction rules with the uncurrying transformation makes \ignore|Sat ArgPos| equivalent in power to \ignore|Prop (Sat ArgPos)|. This simplification reduces the number of different propositional constraints, making fixed-point computations faster. In the RE-constraint system uncurrying would do no harm, but it would be of no use, as no additional simplification rules would apply.
