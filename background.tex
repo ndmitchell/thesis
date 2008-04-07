@@ -3,37 +3,43 @@
 \chapter{Background}
 \label{chp:background}
 
-In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, including its sharing properties in \S\ref{sec:sharing}. We then cover the homeomorphic embedding operator in \S\ref{sec:homeomorphic}, particularly applied to this Core language.
+In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, including its sharing properties in \S\ref{sec:sharing}. We then cover the homeomorphic embedding operator in \S\ref{sec:homeomorphic}, particularly applied to the expression type of this Core language.
 
 \section{Core Language}
 \label{sec:core}
 
+\todo{Unify Core language}
+
 \begin{figure}
+\renewcommand{\f}[1]{\text{\hspace{1cm}#1}}
 \begin{code}
-prog  =  f |--> x
+prog  ::=  fs_                 {-"\f{program}"-}
 
-expr  =  v                                          {-" \text{  variable} "-}
-      |  c                                          {-" \text{  constructor} "-}
-      |  f                                          {-" \text{  function} "-}
-      |  x y                                        {-" \text{  application} "-}
-      |  \v -> x                                    {-" \text{  lambda abstraction} "-}
-      |  let v = x in y                             {-" \text{  let binding} "-}
-      |  case x of {p_1 -> y_1 ; ... ; p_n -> y_n}  {-" \text{  case expression} "-}
+func  ::=  f vs_ = x           {-"\f{function}"-}
 
-pat   =  c vs_
+expr  ::=  v                   {-"\f{variable}"-}
+      |    c xs_               {-"\f{constructor application}"-}
+      |    f xs_               {-"\f{function application}"-}
+      |    x xs_               {-"\f{general application}"-}
+      |    \v -> x             {-"\f{lambda abstraction}"-}
+      |    let v = x in y      {-"\f{let binding}"-}
+      |    case x of as_       {-"\f{case expression}"-}
+
+alt   ::=  c vs_ -> x          {-"\f{case alternative}"-}
 \end{code}
 
-Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over function names, |x| and |y| range over expressions and |p| ranges over patterns.
+Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over function names, |x| and |y| range over expressions and |a| ranges over case alternatives.
 \caption{Core syntax}
 \label{fig:core}
 \end{figure}
 
-The expression type of our Core language is given in Figure \ref{fig:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. A program is a mapping of function names to expressions. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary.
+The expression type of our Core language is given in Figure \ref{fig:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. During the future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation. A program is a list of functions. A function is a name, a list of arguments and a body expression. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary.
+
+We also do not have single functions, but have functions with lists of expressions. The variable, case, let, application and lambda expressions are much as they would be in any Core language. The constructor expression consists of a constructor and a list of expressions, exactly matching the arity of the constructor. (Any partially applied constructor can be represented as a lambda expression.) A function application consists of a function name and a possibly empty list of argument expressions. If a function is given fewer arguments than its arity we refer to it as \textit{partially-applied}, matching the arity is \textit{fully-applied}, and more than the arity is \textit{over-applied}. We use the meta functions |arity f|, |body f| and |args f| to denote the arity, body and arguments of |f|. We use the function |rhs| to extract the expression on the right of a case alternative.
 
 We allow a list of variables to appear in a lambda abstraction, a list of expressions to appear as the second argument of an application and a list of bindings to appear in a let. When a top-level function is bound to a lambda, we allow the variables to be moved to the left of the equals. The arity of a top-level function is the number of arguments in an associated lambda expressions. This syntactic sugar can be translated away using the following rules:
 
 \begin{code}
-x y ys_                  => (x y) ys_
 \v vs_ -> x              => \v -> (\vs_ -> x)
 let v = x ; binds_ in y  => let v = x in (let binds_ in y)
 let v vs_ = x xs_ in y   => let v = x in (let vs_ = xs_ in y)
@@ -277,6 +283,24 @@ case (case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) of alts_
 case x of {... ; c vs_ -> \v -> y ; ...}
     => \z -> case  x of
                    {... z ; c vs_ -> (\v -> y) z ; ... z}
+\end{code}}
+
+\f{app-app}{
+\ignore\begin{code}
+(x xs_) ys_
+    => x xs_ ys_
+\end{code}}
+
+\f{fun-app}{
+\ignore\begin{code}
+(f xs_) ys_
+    => f xs_ ys_
+\end{code}}
+
+\f{con-app}{
+\ignore\begin{code}
+(c xs_) ys_
+    => c xs_ ys_
 \end{code}}
 
 \f{let}{
