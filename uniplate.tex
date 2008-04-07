@@ -275,8 +275,8 @@ Here |Add| occurs on the right-hand side of the first line, and on the left-hand
 \ignore\begin{code}
 let x = Sub (Neg (Var "q")) (Var "q")
 
-rewrite    r           x == Mul (Val 2) (Var "q")
-transform  (always r)  x == Add (Var "q") (Neg (Var "q"))
+rewrite    r           x == Mul (Val 2) (Neg (Var "q"))
+transform  (always r)  x == Add (Neg (Var "q")) (Neg (Var "q"))
 \end{code}
 
 To remedy this situation in the original |simplify| transformation, whenever the right-hand side introduces a new constructor, |f| may need to be reapplied. Here only one additional |f| application is necessary, the one attached to the construction of an |Add| value.
