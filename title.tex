@@ -15,13 +15,17 @@
 \setcounter{page}{2}
 
 \chapter*{Abstract}
-this thesis deals with functional programs.
 
-we can write them with uniplate, making them shorter.
+This thesis deals the transformation and analysis of functional programs. All the work operates over a core lazy functional language, to which Haskell programs can be reduced. We first show how to manipulate such a language in a concise and simple manner, by abstracting over common traversal programs. We then describe how to decrease the execution time of functional programs. Next we describe a transformation which removes functional values from a program. Finally, we describe an analysis to check for safety on first-order programs.
 
-once we have written them, we have the option of making them faster using supero.
+Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. The definitions of functions involving such traversals may repeat very similar patterns, but with variations for different data types and different functionality. Libraries of operations abstracting away boilerplate code typically rely on elaborate types to make operations generic. Our motivating observation is that \textit{most traversals have value-specific behaviour for just one type}. We present the design of a new library exploiting this assumption. Our library allows concise expression of traversals with competitive performance.
 
-we can then prove they don't crash with Catch.
+High-level features such as such as higher order functions and lazy evaluation present many challenges for optimising compilers. We report practical experiments using novel variants of \textit{supercompilation}, with special attention to let bindings and the generalisation technique.
+
+We describe an automated transformation which takes a higher-order program, and a produces an equivalent first-order program. Unlike Reynolds style defunctionalisation, it does not introduce any new data types, and the results are more amenable to subsequent analysis operations. Our method cannot always succeed in removing \textit{all} functional values, but in practice it is remarkably successful.
+
+We describe an automated analysis of a first-order functional language to check statically that, despite the possible use of partial (or non-exhaustive) pattern matching, no pattern-match failure can occur.  Our method is an iterative backward analysis using a novel form of pattern-constraint to represent sets of data values. Our analysis tool has been successfully applied to a range of programs, and our techniques seem to scale well.
+
 
 \tableofcontents
 \listoffigures
@@ -40,4 +44,6 @@ We would like to thank Simon Peyton Jones, Simon Marlow and Tim Chevalier for he
 All of the research presented in this document has been produced in collaboration with Colin Runciman.
 
 Portions of the material presented in ... appeared previously in the paper Supercompilation Haskell, written with Colin Runciman. This paper was presented to the ..., and is published in the associated proceedings, ....
+
+Some of the material presented in this thesis has previously been published in []. Expect for the above cases and where stated, all of the work contained within this thesis represents the original contribution of the author.
 
