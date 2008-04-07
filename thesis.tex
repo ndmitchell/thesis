@@ -1,9 +1,18 @@
 \documentclass{book}
 
-%include thesis.fmt
+\usepackage{natbib}
+% \newcommand{\only}{firstify}
 
-\newcommand{\only}{firstify}
-\include{commands}
+\include{paper}
+%include paper.fmt
+
+% custom things, to eliminate
+\newcommand{\generalise}{\bowtie}
+\newcommand{\derive}{\textsc{Derive}}
+\newcommand{\catch}{\textsc{Catch}}
+\newcommand{\newtool}{\catch07}
+\newcommand{\oldtool}{\catch05}
+
 
 \begin{document}
 
@@ -17,6 +26,6 @@
 \include{conclusion}
 
 \bibliographystyle{plainnat}
-\bibliography{thesis}
+\bibliography
 
 \end{document}
