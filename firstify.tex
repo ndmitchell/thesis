@@ -16,10 +16,6 @@
 %format (ECase a b) = "\ll{}\!\!" case a of b "\rr{}"
 %format (ELet a b c) = "\ll{}\!\!" let a = b in c "\rr{}"
 
-\chapter{First-Order Reduction}
-
-This chapter deals with the reduction from a higher-order Core language to a primarily first-order Core language. Our motivation is that the Catch analysis tool (see Chapter \ref{chp:catch}) is designed to work only upon a first-order language, but our method may have use for other analysis tools, particularly termination checking \cite{serini:term,someone_else,someone_else}. The transformations presented in this chapter are all semantics preserving, but do \textit{not} all preserve sharing. As such, these transformations may not be suitable for optimisation, but are perfectly acceptable for analysis methods.
-
 \renewcommand{\ll}{[\![}
 \newcommand{\rr}{]\!]}
 
@@ -50,13 +46,16 @@ primNeqInt, primEqInt :: Int -> Int -> Bool
 \end{comment}
 
 
-\section*{Abstract}
-We describe an automated transformation which takes a higher-order program, and a produces an equivalent first-order program. Unlike Reynolds style defunctionalisation, it does not introduce any new data types, and the results are more amenable to subsequent analysis operations. Our transformation is implemented, and works on a Core language to which Haskell programs can be reduced. Our method cannot always succeed in removing \textit{all} functional values, but in practice it is remarkably successful.
 
+\chapter{First-Order Reduction}
 
-\section{Introduction}
+This chapter deals with the reduction from a higher-order Core language to a primarily first-order Core language. Unlike Reynolds style defunctionalisation, it does not introduce any new data types, and the results are more amenable to subsequent analysis operations. Our motivation is that the Catch analysis tool (see Chapter \ref{chp:catch}) is designed to work only upon a first-order language, but our method may have wider applicability such as termination checking \cite{sereni:higher_order_termination}.
+ 
+The sections begin with an introductory example (\S\ref{sec:firstify_intro}), followed by definitions related to our Core language (\S\ref{sec:core}), including what we consider to be a first-order program. Next we present an overview of our method (\S\ref{sec:overview}), followed by a more detailed account (\S\ref{sec:detailed}), along with a number of examples (\S\ref{sec:examples}). We classify where functional values may remain in a resultant program (\S\ref{sec:completeness}) and show how to modify our method to guarantee termination (\S\ref{sec:termination}). Finally we give results (\S\ref{sec:results}) and review related work (\S\ref{sec:related}).
 
-Higher-order functions are widely used in functional programming languages.  Having functions as first-class values leads to more concise code, but it often complicates analysis methods, such as those for checking pattern-match safety \cite{me:catch_icfp} or termination \cite{sereni:higher_order_termination}.
+\section{Introductory Example}
+
+Higher-order functions are widely used in functional programming languages.  Having functions as first-class values leads to more concise code, but it often complicates analysis methods.
 
 \begin{example}
 \label{ex:incList}
@@ -86,11 +85,10 @@ Although this first-order variant of |incList| is much longer, it is also more a
 
 Our defunctionalisation method processes the whole program to remove functional values, without changing the semantics of the program. This idea is not new. As far back as 1972 Reynolds gave a solution, now known as \textit{Reynolds style defunctionalisation} \cite{reynolds:defunc}. Unfortunately, Reynolds method effectively introduces a mini-interpreter, which causes problems for analysis tools. Our method produces a program closer to what a human might have written, if denied the use of functional values.
 
-Our method has been implemented in Haskell \cite{haskell}, and operates over the Core language from the York Haskell Compiler \cite{me:yhc_core}. We have used our transformation within the Catch analysis tool \cite{me:catch_icfp}, which checks for potential pattern-match errors in Haskell. We have made our defunctionalisation method available as a library on Hackage\footnote{\url{http://hackage.haskell.org/}, under ``firstify''}.
 
 \subsection{Contributions}
 
-Our paper makes the following contributions:
+This chapter makes the following contributions:
 
 \begin{itemize}
 \item We define a defunctionalisation method which, unlike some previous work, does not introduce new data types.
@@ -100,18 +98,14 @@ Our paper makes the following contributions:
 \item We have implemented our method, and present measured results for much of the nofib benchmark suite.
 \end{itemize}
 
-\subsection{Roadmap}
-
-The sections following begin with a definition of our Core language (\S\ref{sec:core}), including what we consider to be a first-order program. Next we present an overview of our method (\S\ref{sec:overview}), followed by a more detailed account (\S\ref{sec:detailed}), along with a number of examples (\S\ref{sec:examples}). We classify where functional values may remain in a resultant program (\S\ref{sec:completeness}) and show how to modify our method to guarantee termination (\S\ref{sec:termination}). Finally we give results (\S\ref{sec:results}), review related work (\S\ref{sec:related}) and conclude (\S\ref{sec:conclusion}).
-
 \section{Core Language}
 \label{sec:core}
 
+\todo{Make this closer to the Core language in the background section. In particular, define alts in terms of patterns, move the description of arity etc into the background, define as a modification on the existing one.}
+
 \begin{figure}
 \ignore\begin{code}
-prog   =  [func]           {-"\text{\hspace{1cm}program definition}"-}
-
-func   =  f vs_ expr       {-"\text{\hspace{1cm}function definition}"-}
+prog   =  f |--> (vs_,expr){-"\text{\hspace{1cm}program definition}"-}
 
 expr   =  \v -> x          {-"\text{\hspace{1cm}lambda abstraction}"-}
        |  f xs_            {-"\text{\hspace{1cm}function application}"-}
@@ -965,7 +959,22 @@ Our algorithm, as it stands, may not terminate. In order to ensure termination, 
 \subsection{Termination of Simplification}
 \label{sec:termination_simplification}
 
-In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. A simple encoding of our rules is given in Appendix A. We have proven termination using both this simple formulation, which considers all constructors to have one alternative of exactly arity one, and a more complex encoding. In both cases, the system is able to report success.
+\begin{figure}
+\noindent\begin{verbatim}
+[x,y,z]
+app(lam(x),y)    -> let(y,x)
+app(case(x,y),z) -> case(x,app(y,z))
+app(let(x,y),z)  -> let(x,app(y,z))
+case(let(x,y),z) -> let(x,case(y,z))
+case(con(x),y)   -> let(x,y)
+case(x,lam(y))   -> lam(case(x,app(lam(y),var)))
+let(lam(x),y)    -> lam(let(x,y))
+\end{verbatim}
+\caption{Encoding of termination simplification.}
+\label{fig:term_simplification}
+\end{figure}
+
+In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. A simple encoding of our rules is given in Figure \ref{fig:term_simplification}. We have proven termination using both this simple formulation, which considers all constructors to have one alternative of exactly arity one, and a more complex encoding. In both cases, the system is able to report success.
 
 The encoding of the (bind-box) and (bind-lam) rules is excluded. Given these rules, there are non terminating sequences. For example:
 
@@ -1030,22 +1039,9 @@ main = f (Value head)
 In the first iteration, the specialiser generates a version of |f| specialised for the argument |Value head|. In the second iteration it would specialise for |Wrap (Value head)|, then in the third with |Wrap (Wrap (Value head))|. Specialisation would generate an infinite number of specialisations of |f|.
 \end{example}
 
-\begin{figure}
-\[\frac{s \unlhd t_i \text{ for some } i}{s \unlhd \sigma(t_1,\ldots,t_n)} \]
+To ensure we only specialise a finite number of times we use a homeomorphic embedding, from \S\ref{sec:homeomorphic}. We associate a set $S$ with each function. After specialising with a template we add that template to the set $S$ of the function associated with that expression. When we create a new function based on a template, we copy the $S$ associated with the function in which the specialisation is performed.
 
-\[\frac{\sigma_1 \equiv \sigma_2,
-        s_1 \unlhd t_1, \ldots , s_n \unlhd t_n}
-       {\sigma_1 (s_1,\ldots,s_n) \unlhd \sigma_2 (t_1,\ldots,t_n)} \]
-
-\caption{Homeomorphic embedding relation.}
-\label{fig:homeomorphic}
-\end{figure}
-
-To ensure we only specialise a finite number of times we use a homeomorphic embedding \cite{leuschel:homeomorphic}, given in Figure \ref{fig:homeomorphic}. The homeomorphic embedding $\unlhd$ is a well-binary relation, meaning there are no infinite admissible sequences. A sequence $s_1,s_2 \ldots$ is admissible if there are no $i < j$ such that $s_i \unlhd s_j$. This property only holds provided all elements are expressions over a finite alphabet.
-
-For each function, we associate a set $S$, of expressions. After generating a template $t$, we only specialise with that template if $\forall s \in S \bullet \neg(s \unlhd t)$. If $S$ is already admissible, then the sequence $S$ with $t$ added at the end is still admissible. After specialising with a template we add that template to the set $S$ associated with that expression. When we create a new function based on a template, we copy the $S$ associated with the function in which the specialisation is performed.
-
-One of the conditions for termination of homeomorphic embedding is that there is only a finite alphabet. To ensure this condition, we first consider all variables and literals to be equivalent. However, this is not sufficient. During the process of specialisation we create new functions, and these new functions are new symbols in our language. So we only use function names from the original input program. Every template has a correspondence with an expression in the original program. We perform the homeomorphic embedding test only after transforming all templates into their original equivalent expression.
+One of the conditions for termination of homeomorphic embedding is that there is only a finite alphabet. During the process of specialisation we create new functions, and these new functions are new symbols in our language. So we only use function names from the original input program. Every template has a correspondence with an expression in the original program. We perform the homeomorphic embedding test only after transforming all templates into their original equivalent expression.
 
 \begin{examplerevisit}{\ref{ex:wrap}}
 Using homeomorphic embedding, we again generate the specialised variant of |f (Value head)|. Next we would generate the template |f (Wrap (Value head))|. However, |f (Value head)| $\unlhd{}$ |f (Wrap (Value head))|, so the new template would not be used.
@@ -1257,34 +1253,3 @@ In addition, functional programs now use monads, IO continuations and type class
 
 The specialisation and inlining steps are taken from existing program optimisers, as is the termination strategy of homeomorphic embedding. A lot of program optimisers include some form of specialisation and so remove some higher-order functions, such as partial evaluation \cite{jones:partial_evaluation} and supercompilation \cite{supercompilation}. We have certainly benefited from ideas in both these areas in developing our algorithms. Our initial attempt at removing functional values involved modifying a supercompiler \cite{me:supero}. But the optimiser is not attempting to preserve correspondence to the original program, so will optimise all aspects of the program equally, instead of focusing on the higher-order elements. Overall, the results were poor.
 
-\section{Conclusions and Future Work}
-\label{sec:conclusion}
-
-Higher-order functions are very useful, but may pose difficulties for certain types of analysis. Using the method we have described, it is possible to remove most functional values from most programs. A user can still write higher-order programs, but an analysis tool can work on equivalent first-order programs.
-
-Our method has already found practical use within the Catch tool, and we hope it can be of benefit to others. We have released our tool, both as a command line program, and as a library that analysis programs can invoke. Currently the implementation is based around the core language from the Yhc compiler, which restricts our input programs to the Haskell 98 language. By making use of the GHC front end, we could deal with many language extensions.
-
-Our method is whole program, requiring sources for all function definitions. This requirement both increases transformation time, and precludes the use of closed source libraries. We may be able to relax this requirement, precomputing first-order variants of libraries, or permitting some components of the program to be ignored.
-
-We have developed our method for analysis, not performance. However, for many simple examples, the resultant program performs better than the original. By restricting rules that reduce sharing, our defunctionalisation method may be appropriate for integration into an optimising compiler.
-
-The use of a numeric termination bound in the homeomorphic embedding is regrettable, but practically motivated. We need further research to determine if such a numeric bound is necessary, or if other measures could be used.
-
-Many analysis methods, in fields such as strictness analysis and termination analysis, start out first-order and are gradually extended to work in a higher-order language. Defunctionalisation offers an alternative approach, instead of extending the analysis method, we transform the functional values away, enabling more analysis methods to work on a greater range of programs.
-
-\section*{Appendix A}
-
-The following script can be supplied to the AProVe system \cite{aprove} to check termination of our simplification rules, as described in \S\ref{sec:termination_simplification}.
-
-\begin{onepage}
-\noindent\begin{verbatim}
-[x,y,z]
-app(lam(x),y)    -> let(y,x)
-app(case(x,y),z) -> case(x,app(y,z))
-app(let(x,y),z)  -> let(x,app(y,z))
-case(let(x,y),z) -> let(x,case(y,z))
-case(con(x),y)   -> let(x,y)
-case(x,lam(y))   -> lam(case(x,app(lam(y),var)))
-let(lam(x),y)    -> lam(let(x,y))
-\end{verbatim}
-\end{onepage}

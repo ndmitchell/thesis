@@ -4,10 +4,20 @@
 
 
 
-\cite{haskell} 
+\cite{haskell}
 
+\section{Uniplate}
 
 The ideas behind the Uniplate library have been used extensively, in projects including the Yhc compiler \citep{me:yhc_core}, the Catch tool \citep{me:catch_tfp}, the Reach tool \cite{naylor:reach} and the Reduceron \cite{naylor:reduceron}. In Catch there are over 100 Uniplate traversals.
 
 We have implemented all the techniques reported here. We encourage readers to download the Uniplate library and try it out. It can be obtained from the website at \url{http://www.cs.york.ac.uk/~ndm/uniplate/}. A copy of the library has also been released, and is available on Hackage\footnote{\url{http://hackage.haskell.org/}}.
+
+\section{Firstify}
+
+Our method has been implemented in Haskell \cite{haskell}, and operates over the Core language from the York Haskell Compiler \cite{me:yhc_core}. We have used our transformation within the Catch analysis tool \cite{me:catch_icfp}, which checks for potential pattern-match errors in Haskell. We have made our defunctionalisation method available as a library on Hackage\footnote{\url{http://hackage.haskell.org/}, under ``firstify''}.
+
+\section{Catch}
+
+
+We have implemented all the techniques reported here. We encourage readers to download the Catch tool and try it out. It can be obtained from the website at \url{http://www.cs.york.ac.uk/~ndm/catch/}. A copy of the tool has also been released, and is available on Hackage\footnote{\url{http://hackage.haskell.org/}}.
 

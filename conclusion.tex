@@ -1,13 +1,9 @@
 %include paper.fmt
 
-\chapter{Conclusion}
+\chapter{Conclusions and Future Work}
 
 
 \section{Uniplate}
-
-
-\section{Conclusions and Future Work}
-\label{sec:conclusion}
 
 We have presented the Uniplate library. It defines the classes |Uniplate| and |Biplate|, along with a small set of operations to perform queries and transformations. We have illustrated by example that the boilerplate required in our system is less than in others (\S\ref{sec:results_boilerplate}), and that we can achieve these results without sacrificing speed (\S\ref{sec:results_speed}). Our library is both practical and portable, finding use in a number of applications, and using fewer extensions to the Haskell language than alternatives.
 
@@ -33,3 +29,53 @@ There are three main areas for future work:
 
 The Programming Language Shootout\footnote{\url{http://shootout.alioth.debian.org/}} has shown that low-level Haskell can compete with low-level imperative languages such as C. Our goal is that Haskell programs can be written in a high-level declarative style, yet still perform competitively.
 
+
+\section{Firstify}
+
+Higher-order functions are very useful, but may pose difficulties for certain types of analysis. Using the method we have described, it is possible to remove most functional values from most programs. A user can still write higher-order programs, but an analysis tool can work on equivalent first-order programs.
+
+Our method has already found practical use within the Catch tool, and we hope it can be of benefit to others. We have released our tool, both as a command line program, and as a library that analysis programs can invoke. Currently the implementation is based around the core language from the Yhc compiler, which restricts our input programs to the Haskell 98 language. By making use of the GHC front end, we could deal with many language extensions.
+
+Our method is whole program, requiring sources for all function definitions. This requirement both increases transformation time, and precludes the use of closed source libraries. We may be able to relax this requirement, precomputing first-order variants of libraries, or permitting some components of the program to be ignored.
+
+We have developed our method for analysis, not performance. However, for many simple examples, the resultant program performs better than the original. By restricting rules that reduce sharing, our defunctionalisation method may be appropriate for integration into an optimising compiler.
+
+The use of a numeric termination bound in the homeomorphic embedding is regrettable, but practically motivated. We need further research to determine if such a numeric bound is necessary, or if other measures could be used.
+
+Many analysis methods, in fields such as strictness analysis and termination analysis, start out first-order and are gradually extended to work in a higher-order language. Defunctionalisation offers an alternative approach, instead of extending the analysis method, we transform the functional values away, enabling more analysis methods to work on a greater range of programs.
+
+
+\section{Catch}
+
+We have described the design, implementation and application of Catch,
+an analysis tool for safe pattern-matching in Haskell 98.  Two key
+design decisions in Catch simplify the analysis and make it scalable:
+(1) the target of analysis is a very small, first-order core language;
+(2) there are finitely many value-set-defining constraints per type.
+Decision (1) requires a translation from the full language that avoids
+the introduction of analysis bottlenecks such as a mini-interpreter.
+Decision (2) inevitably limits the expressive power of
+constraints; yet it does not prevent the expression of uniform recursive
+constraints on the deep structure of values, as in MP-constraints.
+
+Practical evaluation, using Catch to analyse widely distributed examples
+in Haskell 98, confirms our claim to give results for programs of moderate
+size written in the full language. But it does also reveal a frequent need
+to modify programs, widening definitions or narrowing applications,
+before Catch can verify pattern-match safety.
+
+Outcomes of example applications could drive the exploration of more
+powerful variants of MP-constraints, with a greater (but still finite)
+number of expressible constraints per type.  More demanding tests of
+scalability could include the application of Catch to a Haskell compiler,
+or indeed to Catch itself.
+
+A tool such as Catch might do more harm than good if it sometimes wrongly
+declares that a program cannot fail.  We claim that the Catch analysis
+is sound, but we have not formally proved soundness with respect to a
+suitable semantics for the core language.
+
+Like many researchers, we are interested in narrowing the gap between the
+exactness of constructive mathematics and the scalability of practical
+programming systems.  We hope that Catch or its successors can provide
+a small but useful bridge crossing part of that gap.
