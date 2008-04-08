@@ -4,10 +4,22 @@
 \usepackage{setspace} \onehalfspacing
 \usepackage{parskip}
 
-\newcommand{\only}{introduction}
+\newcommand{\only}{background}
 
 \include{paper}
 %include paper.fmt
+
+% add horizontal lines above and below figures
+\let\oldfigure\figure
+\let\oldendfigure\endfigure
+\let\oldcaption\caption
+\newcommand{\newcaption}[1]{\hrule\oldcaption{#1}}
+\renewenvironment{figure}
+    {\let\caption\newcaption
+     \oldfigure\hrule}
+    {\let\caption\oldcaption
+     \oldendfigure}
+
 
 % margins
 \addtolength{\topmargin}{-5mm}
