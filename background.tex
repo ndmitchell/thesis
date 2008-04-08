@@ -3,12 +3,10 @@
 \chapter{Background}
 \label{chp:background}
 
-In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, including its sharing properties in \S\ref{sec:sharing}. We then cover the homeomorphic embedding operator in \S\ref{sec:homeomorphic}, particularly applied to the expression type of this Core language.
+In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, its sharing properties in \S\ref{sec:sharing} and how we generate Core in \S\ref{sec:generating_core}. We then cover the homeomorphic embedding operator in \S\ref{sec:homeomorphic}, particularly applied to the expression type of our Core language.
 
 \section{Core Language}
 \label{sec:core}
-
-\todo{Unify Core language}
 
 \begin{figure}
 \renewcommand{\f}[1]{\text{\hspace{1cm}#1}}
@@ -33,18 +31,25 @@ Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over f
 \label{fig:core}
 \end{figure}
 
-The expression type of our Core language is given in Figure \ref{fig:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. During the future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation. A program is a list of functions. A function is a name, a list of arguments and a body expression. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary.
+The expression type of our Core language is given in Figure \ref{fig:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. During future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation.
 
-We also do not have single functions, but have functions with lists of expressions. The variable, case, let, application and lambda expressions are much as they would be in any Core language. The constructor expression consists of a constructor and a list of expressions, exactly matching the arity of the constructor. (Any partially applied constructor can be represented as a lambda expression.) A function application consists of a function name and a possibly empty list of argument expressions. If a function is given fewer arguments than its arity we refer to it as \textit{partially-applied}, matching the arity is \textit{fully-applied}, and more than the arity is \textit{over-applied}. We use the meta functions |arity f|, |body f| and |args f| to denote the arity, body and arguments of |f|. We use the function |rhs| to extract the expression on the right of a case alternative.
+A program is a list of functions. A function is a name, a list of arguments and a body expression. Variables and lambda abstractions are much as they would be in any Core language.  Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary. We have three forms of application, all of which take two values: the first value may be either a constructor, a top-level named function, or any arbitrary expression; the second value is a list of arguments, which may be empty. These forms of application give rise to three equivalences:
 
-We allow a list of variables to appear in a lambda abstraction, a list of expressions to appear as the second argument of an application and a list of bindings to appear in a let. When a top-level function is bound to a lambda, we allow the variables to be moved to the left of the equals. The arity of a top-level function is the number of arguments in an associated lambda expressions. This syntactic sugar can be translated away using the following rules:
+\begin{code}
+(x xs_) ys_ = x xs_ ys_
+(f xs_) ys_ = f xs_ ys_
+(c xs_) ys_ = c xs_ ys_
+\end{code}
+
+We allow a list of variables to appear in a lambda abstraction, a list of expressions to appear as the second argument of an application and a list of bindings to appear in a let. This syntactic sugar can be translated away using the following rules:
 
 \begin{code}
 \v vs_ -> x              => \v -> (\vs_ -> x)
 let v = x ; binds_ in y  => let v = x in (let binds_ in y)
 let v vs_ = x xs_ in y   => let v = x in (let vs_ = xs_ in y)
-f vs_ = x                => f = \vs_ -> x
 \end{code}
+
+The arity of a top-level function is the number of arguments in its associated definition. If a function is given fewer arguments than its arity we refer to it as \textit{partially-applied}, matching the arity is \textit{fully-applied}, and more than the arity is \textit{over-applied}.
 
 Some functions are used but lack corresponding definitions in the program. These are defined to be \textit{primitive}. They have some meaning to an underlying runtime system, but are not available for transformation. A primitive function may perform an action such as outputting a character to the screen, or may manipulate primitive numbers such as addition.
 
@@ -56,53 +61,31 @@ data List alpha = Nil | Cons alpha (List alpha)
 
 A list is either an empty list, or a cons cell which contains an element of the list type and the tail of the list. For example the list of 1,2,3 would be written |(Cons 1 (Cons 2 (Cons 3 Nil)))|. We allow the syntactic sugar of representing |Cons| as a right-associative infix application of |(:)| and |Nil| as |[]| -- allowing us to write |(1:2:3:[])|. We also permit |[1,2,3]|.
 
-We allow |if| expressions, with the translation:
-
-\begin{code}
-if x then y else z => case x of {True -> y; False -> z}
-\end{code}
-
-\subsection{Generating Core}
-
-In order to generate our Core language from the full Haskell language, we use the Yhc compiler \cite{yhc}, a fork of nhc \cite{nhc}.
-
-The internal Core language of Yhc is PosLambda -- a simple variant of lambda calculus without types, but with source position information. Yhc works by applying basic desugaring transformations, without optimisation. This simplicity ensures the generated PosLambda is close to the original Haskell in its structure. Each top-level function in a source file maps to a top-level function in the generated PosLambda, retaining the same name. However, PosLambda has constructs that have no direct representation in Haskell. For example, there is a FatBar construct \cite{spj:implementation}, used for compiling pattern matches which require fall through behaviour. We have therefore introduced a new Core language to Yhc, to which PosLambda can easily be translated \cite{me:yhc_core}.
-
-The Yhc compiler can generate the Core for a single source file. Yhc can also link in all definitions from all required libraries, producing a single Core file representing a whole program. All function and constructor names are fully qualified, so the linking process simply involves merging the list of functions from each required Core file.
-
-In the process of generating a Core file, Yhc performs several transformations. Haskell's type classes are removed using the dictionary transformation (see \S\ref{sec:dictionary_transformation}). All local functions are lambda lifted, leaving only top-level functions -- ensuring Yhc generated Core does \textit{not} contain any lambda expressions. All constructor applications and primitive applications are fully saturated.
-
-
-\subsection{The Dictionary Transformation}
-\label{sec:dictionary_transformation}
-
-Most transformations in Yhc operate within a single function definition. The only phases which require information about more than one function are type checking and the transformation used to implement type classes \citep{wadler:type_classes}. The dictionary transformation introduces tuples (or \textit{dictionaries}) of methods passed as additional arguments to class-polymorphic functions. Haskell also allows subclassing. For example, |Ord| requires |Eq| for the same type. In such cases the dictionary transformation generates a nested tuple: the |Eq| dictionary is a component of the |Ord| dictionary.
-
-\begin{example}
-\label{ex:dictionary}
-\begin{code}
-f :: Eq alpha => alpha -> alpha -> Bool
-f x y = x == y || x /= y
-\end{code}
-
-\noindent is translated by Yhc into
-
-\begin{code}
-f :: (alpha -> alpha -> Bool, alpha -> alpha -> Bool) -> alpha -> alpha -> Bool
-f dict x y = (||) (((==) dict) x y) (((/=) dict) x y)
-
-(==) (a,b) = a
-(/=) (a,b) = b
-\end{code}
-
-The |Eq| class is implemented as two selector functions, |(==)| and |(/=)|, acting on a method table. For different types of |alpha|, different method tables are provided.
-\end{example}
-
-The dictionary transformation is a global transformation. In Example \ref{ex:dictionary} the |Eq| context in |f| not only requires a dictionary to be accepted by |f|; it requires all the callers of |f| to pass a dictionary as first argument. There are alternative approaches to implementing type classes, such as \citet{jones:dictionary_free}, which does not create a tuple of higher order functions. We use the dictionary transformation for simplicity, as it is already implemented within Yhc.
 
 \subsection{Operations on Core}
 
-There are several operations that can be defined on our Core expressions type. We present some of the most useful, which are used later on.
+There are several operations that can be defined on our Core expressions type. We present some of the most useful, which are used in future chapters.
+
+\subsubsection{General Operations}
+
+\begin{figure}
+\begin{code}
+type CtorName  = String
+type VarName   = String
+type FuncName  = String
+
+body   :: FuncName  -> Expr
+args   :: FuncName  -> [VarName]
+rhs    :: Alt       -> Expr
+arity  :: String    -> Int
+ctors  :: CtorName  -> [CtorName]
+\end{code}
+\caption{Operations on Core.}
+\label{fig:core_operations}
+\end{figure}
+
+Figure \ref{fig:core_operations} gives the signatures for helper functions over the core data types. We use the functions |body f| and |args f| to denote the body and arguments of |f|. We use the function |rhs| to extract the expression on the right of a case alternative. Every function and constructor has an arity, which can be obtained with the |arity| function. To determine alternative constructors the |ctors| function can be used; for example |ctors "True" = ["False", "True"]| and |ctors "[]" = ["[]",":"]|.
+
 
 \subsubsection{Substitution}
 
@@ -121,13 +104,15 @@ We define |e[x / y]| to be the capture free substitution of the variable |x| for
 \begin{code}
 fv :: Expr -> [FreeVar]
 fv (v                ) = [v]
-fv (c                ) = []
-fv (f                ) = []
-fv (x ys_            ) = fv x `union` unions (map fv ys_)
+fv (c ys_            ) = fvs xs_
+fv (f ys_            ) = fvs xs_
+fv (x ys_            ) = fv x `union` fvs xs_
 fv (\vs_ -> x        ) = fv x \\ vs_
 fv (let v = x in y   ) = fv x `union` (fv y \\ v)
 fv (case x of alts_  ) = fv x `union` unions (map f alts)
     where f (c vs_ -> y) = fv y \\ vs_
+
+fvs xs_ = unions (map fv xs_)
 \end{code}
 \caption{Free variables of an expression.}
 \label{fig:free_variables}
@@ -140,12 +125,12 @@ In order to avoid accidental variable name clashes while performing transformati
 \section{Semantics}
 \label{sec:semantics}
 
-The evaluation strategy of our Core language is lazy. We specify a reduction to weak-head normal form (WHNF) in Figure \ref{fig:whnf} and a reduction to normal form (NF) in \ref{fig:nf}. The grammar for expressions in WHNF is:
+The evaluation strategy of our Core language is lazy. We specify a reduction to weak-head normal form (WHNF) in Figure \ref{fig:whnf} and a reduction to normal form (NF) in \ref{fig:nf}. We have assumed that all applications are translated to general applications where the second value is a 1-element list. The |_F| function translates a function name to an associate expression incorporating the program arguments as variables in a lambda, and the body as the body of that lambda. The grammar for expressions in WHNF is:
 
 \begin{code}
 r  =  c \< xs_ \>  {-" \text{  constructor} "-}
    |  \v -> x      {-" \text{  lambda} "-}
-   |  undefined    {-" \text{  bottom/undefined} "-}
+   |  bottom       {-" \text{  bottom/undefined} "-}
 \end{code}
 
 The grammar for expression in NF is:
@@ -219,7 +204,7 @@ Our semantics does not respect sharing, this topic is dealt with in \S\ref{sec:s
 
 We never descend below a bound variable without replacing that variable, therefore any remaining variable would have to be free in the definition of the program, which is not permitted. Consequently, there is no rule for a variable. We choose not evaluate inside a lambda, even on |=>*|, as this would generate a free variable. The |_F| mapping never crashes, as it is checked statically that all mentioned function names exist in the mapping.
 
-The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. |_F(error) = bottom|. If a computation forces a |bottom| value, in the scrutinee of a case or the first argument of an application, the |bottom| is propagated.
+The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. |_F(error) = \v -> bottom|. If a computation forces a |bottom| value, in the scrutinee of a case or the first argument of an application, the |bottom| is propagated.
 
 There is no rule for case of a lambda abstraction, as this situation is not permitted by the type system. Similarly, the type system plus the exhaustiveness of case branches means that if the scrutinee successfully evaluates, it will match exactly one alternative.
 
@@ -227,10 +212,9 @@ There is no rule for case of a lambda abstraction, as this situation is not perm
 \label{sec:core_simplify}
 
 \begin{figure}
-\renewcommand{\f}[2]{\vspace{-7mm} #2 & (#1) \\}
+\renewcommand{\f}[2]{\vspace{-7mm} #2 & (#1) \\[-5mm]}
 
-\begin{flushright}
-\begin{tabular}{p{8cm}r}
+\begin{tabular}{p{10cm}r}
 \f{case-con}{
 \begin{code}
 case c xs_ of {... ; c vs_ -> y ; ...}
@@ -310,7 +294,6 @@ let v = x in y
     where x {-" \hbox{is used once in } "-} y
 \end{code}}
 \end{tabular}
-\end{flushright}
 \caption{Simplification rules.}
 \label{fig:simplify}
 \end{figure}
@@ -434,6 +417,46 @@ While the semantics presented will lookup the expression bound to |caf| twice, a
 \end{example}
 
 If a general function is inlined, this will not dramatically change the runtime behaviour of a program. If a CAF is inlined, this may have adverse effects on the performance.
+
+
+\section{Generating Core}
+\label{sec:generating_core}
+
+In order to generate our Core language from the full Haskell language, we use the Yhc compiler \cite{yhc}, a fork of nhc \cite{nhc}.
+
+The internal Core language of Yhc is PosLambda -- a simple variant of lambda calculus without types, but with source position information. Yhc works by applying basic desugaring transformations, without optimisation. This simplicity ensures the generated PosLambda is close to the original Haskell in its structure. Each top-level function in a source file maps to a top-level function in the generated PosLambda, retaining the same name. However, PosLambda has constructs that have no direct representation in Haskell. For example, there is a FatBar construct \cite{spj:implementation}, used for compiling pattern matches which require fall through behaviour. We have therefore introduced a new Core language to Yhc, to which PosLambda can easily be translated \cite{me:yhc_core}.
+
+The Yhc compiler can generate the Core for a single source file. Yhc can also link in all definitions from all required libraries, producing a single Core file representing a whole program. All function and constructor names are fully qualified, so the linking process simply involves merging the list of functions from each required Core file.
+
+In the process of generating a Core file, Yhc performs several transformations. Haskell's type classes are removed using the dictionary transformation (see \S\ref{sec:dictionary_transformation}). All local functions are lambda lifted, leaving only top-level functions -- ensuring Yhc generated Core does \textit{not} contain any lambda expressions. All constructor applications and primitive applications are fully saturated.
+
+
+\subsection{The Dictionary Transformation}
+\label{sec:dictionary_transformation}
+
+Most transformations in Yhc operate within a single function definition. The only phases which require information about more than one function are type checking and the transformation used to implement type classes \citep{wadler:type_classes}. The dictionary transformation introduces tuples (or \textit{dictionaries}) of methods passed as additional arguments to class-polymorphic functions. Haskell also allows subclassing. For example, |Ord| requires |Eq| for the same type. In such cases the dictionary transformation generates a nested tuple: the |Eq| dictionary is a component of the |Ord| dictionary.
+
+\begin{example}
+\label{ex:dictionary}
+\begin{code}
+f :: Eq alpha => alpha -> alpha -> Bool
+f x y = x == y || x /= y
+\end{code}
+
+\noindent is translated by Yhc into
+
+\begin{code}
+f :: (alpha -> alpha -> Bool, alpha -> alpha -> Bool) -> alpha -> alpha -> Bool
+f dict x y = (||) (((==) dict) x y) (((/=) dict) x y)
+
+(==) (a,b) = a
+(/=) (a,b) = b
+\end{code}
+
+The |Eq| class is implemented as two selector functions, |(==)| and |(/=)|, acting on a method table. For different types of |alpha|, different method tables are provided.
+\end{example}
+
+The dictionary transformation is a global transformation. In Example \ref{ex:dictionary} the |Eq| context in |f| not only requires a dictionary to be accepted by |f|; it requires all the callers of |f| to pass a dictionary as first argument. There are alternative approaches to implementing type classes, such as \citet{jones:dictionary_free}, which does not create a tuple of higher order functions. We use the dictionary transformation for simplicity, as it is already implemented within Yhc.
 
 
 \section{Homeomorphic Embedding}
