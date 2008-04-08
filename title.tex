@@ -16,15 +16,13 @@
 
 \chapter*{Abstract}
 
-This thesis deals the transformation and analysis of functional programs. All the work operates over a core lazy functional language, to which Haskell programs can be reduced. We first show how to manipulate such a language in a concise and simple manner, by abstracting over common traversal programs. We then describe how to decrease the execution time of functional programs. Next we describe a transformation which removes functional values from a program. Finally, we describe an analysis to check for safety on first-order programs.
+This thesis deals with the transformation and analysis of functional programs. We show how to make functional programs shorter, faster and safer. Throughout, we work on a core lazy functional language, to which Haskell programs can be reduced. We present examples, develop prototype tools and show detailed results for sample program.
 
-Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. The definitions of functions involving such traversals may repeat very similar patterns, but with variations for different data types and different functionality. Libraries of operations abstracting away boilerplate code typically rely on elaborate types to make operations generic. Our motivating observation is that \textit{most traversals have value-specific behaviour for just one type}. We present the design of a new library exploiting this assumption. Our library allows concise expression of traversals with competitive performance.
+We make programs \textit{shorter} by defining a library which abstracts over common data traversal patterns, removing \textit{boilerplate} code. Our library restricts traversals to have value-specific behaviour for just one type, allowing a simpler programming model. Our library allows concise expression of traversals with competitive performance.
 
-High-level features such as such as higher order functions and lazy evaluation present many challenges for optimising compilers. We report practical experiments using novel variants of \textit{supercompilation}, with special attention to let bindings and the generalisation technique.
+We make programs \textit{faster} by applying a variant of \textit{supercompilation} to core programs. We have implemented a supercompiler, and test it using standard Haskell benchmarks. As a result of our practical experiments, we have identified modifications to the standard supercompilation techniques -- particularly with respect to let bindings and the generalisation technique.
 
-We describe an automated transformation which takes a higher-order program, and a produces an equivalent first-order program. Unlike Reynolds style defunctionalisation, it does not introduce any new data types, and the results are more amenable to subsequent analysis operations. Our method cannot always succeed in removing \textit{all} functional values, but in practice it is remarkably successful.
-
-We describe an automated analysis of a first-order functional language to check statically that, despite the possible use of partial (or non-exhaustive) pattern matching, no pattern-match failure can occur.  Our method is an iterative backward analysis using a novel form of pattern-constraint to represent sets of data values. Our analysis tool has been successfully applied to a range of programs, and our techniques seem to scale well.
+We make programs \textit{safer} by automatically checking for potential pattern-match errors. We define a transformation that takes a higher-order program and produces an equivalent program with fewer functional values, typically a first-order program. We then define an analysis on a first-order language which checks statically that, despite the possible use of partial (or non-exhaustive) pattern matching, no pattern-match failure can occur.
 
 
 \tableofcontents
@@ -33,6 +31,7 @@ We describe an automated analysis of a first-order functional language to check 
 
 \chapter*{Acknowledgements}
 
+\todo{Acknowledgements here}
 
 The first author is a supported by an EPSRC PhD studentship. Thanks to Bj\"{o}rn Bringert, Jules Bean and the anonymous reviewers for feedback on an earlier drafts of this paper; Eric Mertens for helpful ideas; and Stefan O'Rear for work on the Derive tool.
 
