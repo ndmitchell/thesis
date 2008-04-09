@@ -9,7 +9,3 @@
 %format (ELet a b c) = "\ll{}\!\!" let a = b in c "\rr{}"
 
 %format (EAlt a b c) = "\ll{}" a \? b -> c "\rr{}"
-
-\renewcommand{\ll}{[\![}
-\newcommand{\rr}{]\!]}
-

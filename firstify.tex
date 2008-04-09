@@ -16,9 +16,6 @@
 %format (ECase a b) = "\ll{}\!\!" case a of b "\rr{}"
 %format (ELet a b c) = "\ll{}\!\!" let a = b in c "\rr{}"
 
-\renewcommand{\ll}{[\![}
-\newcommand{\rr}{]\!]}
-
 \newcommand{\simp}[2]{\vspace{-7mm} #2 & (#1) \\}
 \newenvironment{simplify}
     {\noindent
