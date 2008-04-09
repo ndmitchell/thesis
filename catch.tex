@@ -985,21 +985,7 @@ In the following sections, where modifications are required, we prefer to make t
 \label{sec:imaginary}
 
 \begin{table}
-\caption{Table of results}
-\label{tab:results}
-
 \smallskip
-
-\textbf{Name} is the name of the checked program (a starred name indicates that changes were needed before safe pattern-matching could be verified);
-\textbf{Src} is the number of lines in the original source code;
-\textbf{Core} is the number of lines of first-order Core, \textit{including all needed Prelude and library definitions}, just before analysis;
-\textbf{Err} is the number of calls to |error| (missing pattern cases);
-\textbf{Pre} is the number of functions which have a precondition which is not simply `True';
-\textbf{Sec} is the time taken for transformations and analysis;
-\textbf{Mb} is the maximum residency of Catch at garbage-collection time.
-
-\smallskip\smallskip
-
 \begin{tabular*}{\linewidth}{@@{}lrrrrrrlll}
 \textbf{Name} & \textbf{Src} & \textbf{Core} & \textbf{Err} & \textbf{Pre} & \textbf{Sec} & \textbf{Mb} \\
 \vspace{-1ex} \\
@@ -1020,8 +1006,20 @@ X2n1           & 10 &  331 & 2 &  5 & 1.8 & 1.9 \\
 \vspace{-1ex} \\
 FiniteMap*     & 670 & 1829 & 13 & 17 & 1.6 & 1.0 \\
 HsColour*      & 823 & 5060 &  4 &  9 & 2.1 & 2.7 \\
-\hline
 \end{tabular*}
+
+\bigskip
+\textbf{Name} is the name of the checked program (a starred name indicates that changes were needed before safe pattern-matching could be verified);
+\textbf{Src} is the number of lines in the original source code;
+\textbf{Core} is the number of lines of first-order Core, \textit{including all needed Prelude and library definitions}, just before analysis;
+\textbf{Err} is the number of calls to |error| (missing pattern cases);
+\textbf{Pre} is the number of functions which have a precondition which is not simply `True';
+\textbf{Sec} is the time taken for transformations and analysis;
+\textbf{Mb} is the maximum residency of Catch at garbage-collection time.
+\bigskip
+
+\caption{Results of Catch checking}
+\label{tab:results}
 \end{table}
 
 The entire Nofib suite \cite{nofib} is large. We concentrate on the `Imaginary' section. These programs are all under a page of text, excluding any Prelude or library definitions used, and particularly stress list operations and numeric computations.
@@ -1237,6 +1235,7 @@ One method for specifying properties about functional programs is to use the typ
 \begin{code}
 data Cons
 data Unknown
+
 newtype List alpha tau = List [alpha]
 
 cons :: alpha -> [alpha] -> List alpha Cons

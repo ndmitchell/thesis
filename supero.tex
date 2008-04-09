@@ -344,10 +344,12 @@ All the C versions are implemented following a similar pattern to Figure \ref{fi
 We performed all benchmarks on a machine running Windows XP, with a 3GHz processor and 1Gb RAM. All benchmarks were run over a 50Mb log file, repeated 10 times, and the lowest value was taken. The C versions used GCC\footnote{\url{http://gcc.gnu.org/}} version 3.4.2 with -O3. The Haskell version used GHC 6.8.1 with -O2. The Supero version was compiled using our optimiser, then written back as a Haskell file, and compiled once more with GHC 6.8.1 and -O2.
 
 \begin{figure}
+\bigskip
 \begin{center}
 % http://csdl.ics.hawaii.edu/FAQ/chart-ps.html
 \includegraphics[scale=0.75,angle=270]{graphics/supero-wc.eps}
 \end{center}
+\bigskip
 \caption{Benchmarks with C, Supero+GHC and GHC alone.}
 \label{fig:c_results}
 \end{figure}
@@ -416,21 +418,20 @@ The standard set of Haskell benchmarks is the nofib suite \cite{nofib}. It is di
 We exclude two benchmarks, paraffins and gen\_regexps. The paraffins benchmark makes substantial use of arrays, and we have not yet mapped the array primitives of Yhc onto those of GHC, which is necessary to run the transformed result. The gen\_regexps benchmark tests character processing: for some reason (as yet unknown) the supercompiled executable fails.
 
 \begin{figure}
+\smallskip
 \begin{center}
 % http://csdl.ics.hawaii.edu/FAQ/chart-ps.html
 \includegraphics[scale=0.75,angle=270]{graphics/supero-nofib.eps}
 \end{center}
-\vspace{-4mm}
 
-\textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{spine} applies no generalisation operation; \textbf{none} never performs any inlining.
+\textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{spine} applies no generalisation operation; \textbf{none} never performs any inlining. \bigskip
 
-\vspace{2mm}
 \caption{Runtime, relative to GHC being 1.}
 \label{fig:haskell_results}
 \end{figure}
 
 \begin{table}
-
+\smallskip
 \begin{tabular}{@@{}lrrrrrr}
 \textbf{Program} & \textbf{Supero} & \textbf{msg} & \textbf{spine} & \textbf{none} & \textbf{Size} & \textbf{Memory} \\
 bernouilli 		& 1.41 & 1.53 & 1.58 & 1.18 & 1.10 & 0.97 \\
@@ -446,13 +447,11 @@ wheel-sieve1 	& 0.98 & 1.11 & 1.42 & 5.23 & 1.19 & 2.79 \\
 wheel-sieve2 	& 0.87 & 0.63 & 0.89 & 0.63 & 1.49 & 2.30 \\
 x2n1 			& 0.58 & 0.64 & 1.61 & 3.04 & 1.09 & 0.33 \\
 \end{tabular}
-\vspace{2mm}
+\bigskip
 
 \textbf{Program} is the name of the program; \textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{spine} applies no generalisation operation; \textbf{none} never performs any inlining; \textbf{Size} is the size of the Supero generated executable; \textbf{Memory} is the amount of memory allocated on the heap by the Supero executable.
+\bigskip
 
-\vspace{4mm}
-\hrule
-\vspace{2mm}
 \caption{Runtime, relative to GHC being 1.}
 \label{tab:haskell_results}
 \end{table}

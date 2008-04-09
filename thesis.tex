@@ -4,21 +4,22 @@
 \usepackage{setspace} \onehalfspacing
 \usepackage{parskip}
 
-\newcommand{\only}{background}
+\newcommand{\only}{catch}
 
 \include{paper}
 %include paper.fmt
 
 % add horizontal lines above and below figures
-\let\oldfigure\figure
-\let\oldendfigure\endfigure
+\let\oldfigure\figure\let\oldendfigure\endfigure
+\let\oldtable\table\let\oldendtable\endtable
 \let\oldcaption\caption
 \newcommand{\newcaption}[1]{\hrule\oldcaption{#1}}
 \renewenvironment{figure}
-    {\let\caption\newcaption
-     \oldfigure\hrule}
-    {\let\caption\oldcaption
-     \oldendfigure}
+    {\let\caption\newcaption\oldfigure\hrule}
+    {\let\caption\oldcaption\oldendfigure}
+\renewenvironment{table}
+    {\let\caption\newcaption\oldtable\hrule}
+    {\let\caption\oldcaption\oldendtable}
 
 
 % margins

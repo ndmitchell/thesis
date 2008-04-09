@@ -50,7 +50,7 @@ primNeqInt, primEqInt :: Int -> Int -> Bool
 \chapter{First-Order Reduction}
 
 This chapter deals with the reduction from a higher-order Core language to a primarily first-order Core language. Unlike Reynolds style defunctionalisation, it does not introduce any new data types, and the results are more amenable to subsequent analysis operations. Our motivation is that the Catch analysis tool (see Chapter \ref{chp:catch}) is designed to work only upon a first-order language, but our method may have wider applicability such as termination checking \cite{sereni:higher_order_termination}.
- 
+
 The sections begin with an introductory example (\S\ref{sec:firstify_intro}), followed by definitions related to our Core language (\S\ref{sec:core}), including what we consider to be a first-order program. Next we present an overview of our method (\S\ref{sec:overview}), followed by a more detailed account (\S\ref{sec:detailed}), along with a number of examples (\S\ref{sec:examples}). We classify where functional values may remain in a resultant program (\S\ref{sec:completeness}) and show how to modify our method to guarantee termination (\S\ref{sec:termination}). Finally we give results (\S\ref{sec:results}) and review related work (\S\ref{sec:related}).
 
 \section{Introductory Example}
@@ -137,7 +137,8 @@ rhs :: Alt -> Expr
 \end{code}
 \end{comment}
 
-We let |v| range over variables, |x| and |y| over expressions, |f| over function names and |c| over constructors.
+We let |v| range over variables, |x| and |y| over expressions, |f| over function names and |c| over constructors. \bigskip
+
 \caption{Core Language.}
 \label{fig:core}
 \end{figure}
@@ -1073,21 +1074,7 @@ Given an initial program, the arity raising, inlining and specialisation stages 
 \subsection{Benchmark Tests}
 
 \begin{table}
-\caption{Results of defunctionalisation on the nofib suite.}
-\label{tab:results}
-
 \smallskip
-
-\textbf{Name} is the name of the program;
-\textbf{Bound} is the numeric bound used for termination (see \S\ref{sec:termination_specialisation});
-\textbf{HO Create} the number of lambda expressions and under-applied functions, first in the input program and then in the output program;
-\textbf{HO Use} the number of application expressions and over-applied functions;
-\textbf{Time} the execution time of our method in seconds;
-\textbf{Size} the change in the program size measured as the number of nodes in the abstract syntax tree.
-
-\smallskip\smallskip
-
-%\begin{tabular*}{\linewidth}{@@{}l@@{\!\!}rrrrrrrrr}
 \begin{tabular*}{\linewidth}{@@{}l@@{$\!\!$}rrrrrrrrr}
 \textbf{Name} & \textbf{Bound} & \multicolumn{2}{c}{\textbf{HO Create}} & \multicolumn{2}{c}{\textbf{HO Use}} & \textbf{Time} & \textbf{Size} \\
 \vspace{-1ex} \\
@@ -1109,8 +1096,19 @@ x2n1            & 4 & 345 & 0 & 385 & 2 & 0.8 & -57\% \\
 Minimum         & 2 & 60 & 0 & 46 & 0 & 0.1  & -78\% \\
 Maximum         & 14 & 437 & 1 & 449 & 100 & 1.0  & 15\% \\
 Average         & 4.8 & 237 & 0.06 & 202 & 3.6 & 0.4  & -33\% \\
-\hline
 \end{tabular*}
+
+\bigskip
+\textbf{Name} is the name of the program;
+\textbf{Bound} is the numeric bound used for termination (see \S\ref{sec:termination_specialisation});
+\textbf{HO Create} the number of lambda expressions and under-applied functions, first in the input program and then in the output program;
+\textbf{HO Use} the number of application expressions and over-applied functions;
+\textbf{Time} the execution time of our method in seconds;
+\textbf{Size} the change in the program size measured as the number of nodes in the abstract syntax tree.
+\bigskip
+
+\caption{Results of defunctionalisation on the nofib suite.}
+\label{tab:results}
 \end{table}
 
 We have tested our method with programs drawn from the nofib benchmark suite, and the results are given in Table \ref{tab:results}. Looking at the input Core programs, we see many sources of functional values.
