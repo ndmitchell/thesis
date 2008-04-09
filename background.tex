@@ -1,9 +1,9 @@
-%include paper.fmt
+%include thesis.fmt
 
 \chapter{Background}
 \label{chp:background}
 
-In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, its sharing properties in \S\ref{sec:sharing} and how we generate Core in \S\ref{sec:generating_core}. We then cover the homeomorphic embedding operator in \S\ref{sec:homeomorphic}, particularly applied to the expression type of our Core language.
+In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, its sharing properties in \S\ref{sec:sharing} and how we generate Core in \S\ref{sec:generating_core}. We then cover the homeomorphic embedding relation in \S\ref{sec:homeomorphic}, particularly applied to the expression type of our Core language.
 
 \section{Core Language}
 \label{sec:core}
@@ -26,22 +26,22 @@ expr  ::=  v                   {-"\f{variable}"-}
 alt   ::=  c vs_ -> x          {-"\f{case alternative}"-}
 \end{code}
 
-Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over function names, |x| and |y| range over expressions and |a| ranges over case alternatives.
+Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over function names, |x| and |y| range over expressions and |a| ranges over case alternatives. \\
 \caption{Core syntax}
 \label{fig:core}
 \end{figure}
 
-The expression type of our Core language is given in Figure \ref{fig:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. During future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation.
+The syntax of our Core language is given in Figure \ref{fig:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. During future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation.
 
 A program is a list of functions. A function is a name, a list of arguments and a body expression. Variables and lambda abstractions are much as they would be in any Core language.  Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary. We have three forms of application, all of which take two values: the first value may be either a constructor, a top-level named function, or any arbitrary expression; the second value is a list of arguments, which may be empty. These forms of application give rise to three equivalences:
 
 \begin{code}
-(x xs_) ys_ = x xs_ ys_
-(f xs_) ys_ = f xs_ ys_
-(c xs_) ys_ = c xs_ ys_
+(x xs_) ys_ == x xs_ ys_
+(f xs_) ys_ == f xs_ ys_
+(c xs_) ys_ == c xs_ ys_
 \end{code}
 
-We allow a list of variables to appear in a lambda abstraction, a list of expressions to appear as the second argument of an application and a list of bindings to appear in a let. This syntactic sugar can be translated away using the following rules:
+We allow a list of variables to appear in a lambda abstraction and a list of bindings to appear in a let. This syntactic sugar can be translated away using the following rules:
 
 \begin{code}
 \v vs_ -> x              => \v -> (\vs_ -> x)
@@ -53,7 +53,7 @@ The arity of a top-level function is the number of arguments in its associated d
 
 Some functions are used but lack corresponding definitions in the program. These are defined to be \textit{primitive}. They have some meaning to an underlying runtime system, but are not available for transformation. A primitive function may perform an action such as outputting a character to the screen, or may manipulate primitive numbers such as addition.
 
-The primary difference between our Core language and GHC-Core \cite{ghc_core} is that our Core language is untyped. The Core is generated from well-typed Haskell, and is guaranteed not to fail with a type error. All the work we do could be implemented equally well in a typed Core language, but we prefer to work in an untyped language for simplicity of implementation. For describing data types we use the same notation as Haskell 98. One of the most common data types is the list, which can be defined as:
+The largest difference between our Core language and GHC-Core \cite{ghc_core} is that our Core language is untyped. The Core is generated from well-typed Haskell, and is guaranteed not to fail with a type error. All our algorithms could be implemented equally well in a typed Core language, but we prefer to work in an untyped language for simplicity of implementation. For describing data types we use the same notation as Haskell 98. One of the most common data types is the list, which can be defined as:
 
 \begin{code}
 data List alpha = Nil | Cons alpha (List alpha)
@@ -89,7 +89,7 @@ Figure \ref{fig:core_operations} gives the signatures for helper functions over 
 
 \subsubsection{Substitution}
 
-We define |e[x / y]| to be the capture free substitution of the variable |x| for the expression |y| within the expression |e|. We define |e[x_1,...,x_n / y_1,...,y_n]| to be the simultaneous substitution of each variable |x_i| for each expression |y_i| in |e|.
+We define |e[v / x]| to be the capture free substitution of the variable |v| for the expression |x| within the expression |e|. We define |e[v_1,...,v_n / x_1,...,x_n]| to be the simultaneous substitution of each variable |v_i| for each expression |x_i| in |e|.
 
 \begin{example}
 \begin{code}
@@ -102,15 +102,15 @@ We define |e[x / y]| to be the capture free substitution of the variable |x| for
 
 \begin{figure}
 \begin{code}
-fv :: Expr -> [FreeVar]
-fv (v                ) = [v]
-fv (c ys_            ) = fvs xs_
-fv (f ys_            ) = fvs xs_
-fv (x ys_            ) = fv x `union` fvs xs_
-fv (\vs_ -> x        ) = fv x \\ vs_
-fv (let v = x in y   ) = fv x `union` (fv y \\ v)
-fv (case x of alts_  ) = fv x `union` unions (map f alts)
-    where f (c vs_ -> y) = fv y \\ vs_
+fv :: Expr -> [VarName]
+fv (EVar v       ) = [v]
+fv (ECon c xs_   ) = fvs xs_
+fv (EFun f xs_   ) = fvs xs_
+fv (EApp x xs_   ) = fv x `union` fvs xs_
+fv (ELam v x     ) = fv x \\ [v]
+fv (ELet v x y   ) = fv x `union` (fv y \\ [v])
+fv (ECase x as_  ) = fv x `union` unions (map f as_)
+    where f (EAlt c vs_ y) = fv y \\ vs_
 
 fvs xs_ = unions (map fv xs_)
 \end{code}
@@ -212,63 +212,10 @@ There is no rule for case of a lambda abstraction, as this situation is not perm
 \label{sec:core_simplify}
 
 \begin{figure}
+\bigskip
 \renewcommand{\f}[2]{\vspace{-7mm} #2 & (#1) \\[-5mm]}
 
 \begin{tabular}{p{10cm}r}
-\f{case-con}{
-\begin{code}
-case c xs_ of {... ; c vs_ -> y ; ...}
-    => let vs_ = xs_ in y
-\end{code}}
-
-\f{lam-app}{
-\begin{code}
-(\v -> x) y
-    => let v = y in x
-\end{code}}
-
-\f{case-app}{
-\begin{code}
-(case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) z
-    => case x of {p_1 -> y_1 z ; ... ; p_n -> y_n z}
-\end{code}}
-
-\f{let-app}{
-\begin{code}
-(let v = x in y) z
-    => let v = x in y z
-\end{code}}
-
-\f{let-case}{
-\begin{code}
-let v = x in (case y of {p_1 -> y_1 ; ... ; p_n -> y_n})
-    => case y of  {  p_1  -> let v = x in y_1
-                  ;  ...
-                  ;  p_n  -> let v = x in y_n}
-    where v {-" \hbox{is not used in } "-} y
-\end{code}}
-
-\f{case-let}{
-\ignore\begin{code}
-case (let v = x in y) of alts_
-    => let v = x in (case y of alts_)
-\end{code}}
-
-\f{case-case}{
-\begin{code}
-case (case x of {p_1 -> y_1 ; ... ; p_n -> y_n}) of alts_
-    => case x of  {  p_1  -> case y_1 of alts_
-                  ;  ...
-                  ;  p_n  -> case y_n of alts_ }
-\end{code}}
-
-\f{case-lam}{
-\begin{code}
-case x of {... ; c vs_ -> \v -> y ; ...}
-    => \z -> case  x of
-                   {... z ; c vs_ -> (\v -> y) z ; ... z}
-\end{code}}
-
 \f{app-app}{
 \ignore\begin{code}
 (x xs_) ys_
@@ -287,6 +234,60 @@ case x of {... ; c vs_ -> \v -> y ; ...}
     => c xs_ ys_
 \end{code}}
 
+\f{case-con}{
+\begin{code}
+case c xs_ of {... ; c vs_ -> y ; ...}
+    => let vs_ = xs_ in y
+\end{code}}
+
+\f{lam-app}{
+\begin{code}
+(\v -> x) y
+    => let v = y in x
+\end{code}}
+
+\f{case-app}{
+\begin{code}
+(case x of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n}) z
+    => case x of {c_1 vs__1 -> y_1 z ; ... ; c_n vs__n -> y_n z}
+\end{code}}
+
+\f{let-app}{
+\begin{code}
+(let v = x in y) z
+    => let v = x in y z
+\end{code}}
+
+\f{let-case}{
+\begin{code}
+let v = x in (case y of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n})
+    => case y of  {  c_1 vs__1  -> let v = x in y_1
+                  ;  ...
+                  ;  c_n vs__n  -> let v = x in y_n}
+    where v {-" \hbox{is not used in } "-} y
+\end{code}}
+
+\f{case-let}{
+\ignore\begin{code}
+case (let v = x in y) of as_
+    => let v = x in (case y of as_)
+\end{code}}
+
+\f{case-case}{
+\begin{code}
+case (case x of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n}) of as_
+    => case x of  {  c_1 vs__1  -> case y_1 of as_
+                  ;  ...
+                  ;  c_n vs__n  -> case y_n of as_ }
+\end{code}}
+
+\f{case-lam}{
+\begin{code}
+case x of {... ; c vs_ -> \v -> y ; ...}
+    => \z -> case  x of
+                   {... z ; c vs_ -> (\v -> y) z ; ... z}
+\end{code}}
+
 \f{let}{
 \begin{code}
 let v = x in y
@@ -298,15 +299,15 @@ let v = x in y
 \label{fig:simplify}
 \end{figure}
 
-We present several simplification rules in Figure \ref{fig:simplify}, which can be applied to our Core language. These rules are standard and would be applied by any optimising compiler. All the rules preserve both the semantics and the sharing behaviour of an expression.
+We present several simplification rules in Figure \ref{fig:simplify}, which can be applied to our Core language. These rules are standard and would be applied by any optimising compiler \cite{spj:transformation}. All the rules preserve both the semantics and the sharing behaviour of an expression.
 
-The (case-con) and (lam-app) rules simply follow the semantics, using let expressions to preserve the sharing. The (case-app), (let-case) and (case-case) rules move outer expressions over an inner case expression, duplicating the outer expression in each alternative. The (case-lam) rule promotes a lambda from inside a case alternative outwards. The (let-app) and (let-case) rules move an expression over an inner let expression. The (let) rule substitutes let expressions where the bound variable is used only once, and therefore no loss of sharing is possible.
+The (app-app), (fun-app) and (con-app) rules normalise applications. The (case-con) and (lam-app) rules simply follow the semantics, using let expressions to preserve the sharing. The (case-app), (let-case) and (case-case) rules move outer expressions over an inner case expression, duplicating the outer expression in each alternative. The (case-lam) rule promotes a lambda from inside a case alternative outwards. The (let-app) and (let-case) rules move an expression over an inner let expression. The (let) rule substitutes let expressions where the bound variable is used only once, and therefore no loss of sharing is possible.
 
 
 \section{Sharing}
 \label{sec:sharing}
 
-The semantics presented in \S\ref{sec:semantics} model both values and laziness correctly, but do not model the sharing present in Haskell. This section informally discusses the relevant sharing properties of Haskell. In general, any optimisation must take account of sharing, but semantic analysis can sometimes ignore the effects of sharing. The sharing present in Haskell is not specified in the Haskell Report \cite{haskell}, but is covered in other papers \todo{cite here}.
+The semantics presented in \S\ref{sec:semantics} model both values and laziness correctly, but do not model the sharing present in Haskell. This section informally discusses the relevant sharing properties of Haskell. In general, any optimisation must take account of sharing, but semantic analysis can sometimes ignore the effects of sharing. The sharing present in Haskell is not specified in the Haskell Report \cite{haskell}, but is defined elsewhere \cite{bakewell:space_semantics}.
 
 \subsection{Let bindings}
 
@@ -331,14 +332,16 @@ In the semantics, the expression |f 1| will be reduced twice. However, the a com
 \begin{figure}
 \begin{code}
 occurs :: VarName -> Expr -> Int
-occurs v (v'                ) = if v == v' then 1 else 0
-occurs v (c                 ) = 0
-occurs v (f                 ) = 0
-occurs v (x ys_             ) = occurs v x + sum (map (occurs v) ys_)
-occurs v (\vs_ -> x         ) = occurs v x
-occurs v (let v' = x in y   ) = if v == v' then 0 else occurs v x + occurs v y
-occurs v (case x of alts_   ) = occurs v x + maximum (map f alts_)
-    where f (c vs_ -> y) = if v `elem` vs_ then 0 else occurs v y
+occurs v (EVar v'      ) = if v == v' then 1 else 0
+occurs v (ECon c xs_   ) = occurss v xs_
+occurs v (EFun f xs_   ) = occurss v xs_
+occurs v (EApp x xs_   ) = occurss v (x:xs_)
+occurs v (ELam v x     ) = occurs v x
+occurs v (ELet v' x y  ) = if v == v' then 0 else occurss v [x,y]
+occurs v (ECase x as_  ) = occurs v x + maximum (map f as_)
+    where f (EAlt c vs_ y) = if v `elem` vs_ then 0 else occurs v y
+
+occurss v = sum . map (occurs v)
 
 linear :: VarName -> Expr -> Bool
 linear v x = occurs v x <= 1
@@ -462,8 +465,6 @@ The dictionary transformation is a global transformation. In Example \ref{ex:dic
 \section{Homeomorphic Embedding}
 \label{sec:homeomorphic}
 
-\todo{cite fast homeomorphic embedding, give performance measurements}
-
 \begin{figure}
 \noindent\begin{tabular}{p{5cm}p{5cm}}
 \[\frac{\text{dive}(x,y)}{x \unlhd y}\] \vspace{-8mm}
@@ -486,3 +487,12 @@ The homeomorphic embedding relation \cite{leuschel:homeomorphic} has recently be
 The homeomorphic embedding uses the relations dive and couple. The dive relation checks if the first term is contained as a child of the second term, while the couple relation checks if both terms have the same outer shell. The homeomorphic embedding $\unlhd$ is a well-binary relation, meaning there are no infinite admissible sequences. A sequence $s_1,s_2 \ldots$ is admissible if there are no $i < j$ such that $s_i \unlhd s_j$. Given a set $S$, we permit the insertion of an element $t$ if $\forall s \in S \bullet \neg(s \unlhd t)$. Following this restriction, the set $S$ will remain finite.
 
 The homeomorphic embedding assumes all elements are expressions over a finite alphabet. To ensure this condition, we weaken the $\sim$ relation to consider all variables and literals to be equivalent.
+
+\subsection{Fast Homeomorphic Embedding}
+
+To compute $s \unlhd t$, using the algorithm presented in Figure \ref{fig:homeomorphic}, takes greater than polynomial time in the size of the expressions. Fortunately, there exists an algorithm \cite{stillman:computational_problems,stillman:homeomorphic} which takes $O(\text{size}(s) \cdot \text{size}(t) \cdot a)$, where $a$ is the maximum arity of any subexpression in $s$ or $t$.
+
+The faster algorithm first constructs a $\text{size}(s)$ by $\text{size}(t)$ table, recording whether each pair of subexpressions within $s$ and $t$ satisfy the homeomorphic embedding. By computing the homeomorphic embedding in a bottom-up manner, making use of the table to cache pre-computed results, much duplicate computation can be eliminated. By first assigning each subexpression a uniquely identifying number, the table can be accessed and modified in $O(1)$ per operation. The result is a polynomial algorithm.
+
+We have implemented both the standard homeomorphic algorithm, and the polynomial algorithm, in Haskell. Haskell is not well-suited to the use of mutable arrays, so we have instead used tree data structures to model the table. In practical experiments, the faster algorithm seems to be around three times faster than the simple algorithm, but does not seem to change the complexity class. We suspect that our implementation could be improved, and that the worst-case behaviour of the simple algorithm occurs infrequently.
+ 
