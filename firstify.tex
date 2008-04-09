@@ -1,4 +1,4 @@
-%include paper.fmt
+%include thesis.fmt
 
 %format +|+ = "\mathbin{\ddagger}"
 %format &+ = "\mathbin{\cup}"
@@ -7,25 +7,6 @@
 
 %format let_ = "\mathsf{let}"
 %format case_ = "\mathsf{case}"
-
-%format (ELam a (b)) = "\ll{}" \a -> b "\rr{}"
-%format (EFun a b) = "\ll{}" a \? b "\rr{}"
-%format (ECon a b) = "\ll{}" a \? b "\rr{}"
-%format (EApp a b) = "\ll{}" a \? b "\rr{}"
-%format (EVar a) = "\ll{}" a "\rr{}"
-%format (ECase a b) = "\ll{}\!\!" case a of b "\rr{}"
-%format (ELet a b c) = "\ll{}\!\!" let a = b in c "\rr{}"
-
-\newcommand{\simp}[2]{\vspace{-7mm} #2 & (#1) \\}
-\newenvironment{simplify}
-    {\noindent
-     \begin{flushright}
-     \begin{tabular}{p{6.5cm}r}
-    }
-    {\end{tabular}
-     \vspace{-7mm}
-     \end{flushright}
-    }
 
 \newenvironment{definition}
     {\smallskip

@@ -212,53 +212,50 @@ There is no rule for case of a lambda abstraction, as this situation is not perm
 \label{sec:core_simplify}
 
 \begin{figure}
-\bigskip
-\renewcommand{\f}[2]{\vspace{-7mm} #2 & (#1) \\[-5mm]}
-
-\begin{tabular}{p{10cm}r}
-\f{app-app}{
+\begin{simplify}
+\simp{app-app}{
 \ignore\begin{code}
 (x xs_) ys_
     => x xs_ ys_
 \end{code}}
 
-\f{fun-app}{
+\simp{fun-app}{
 \ignore\begin{code}
 (f xs_) ys_
     => f xs_ ys_
 \end{code}}
 
-\f{con-app}{
+\simp{con-app}{
 \ignore\begin{code}
 (c xs_) ys_
     => c xs_ ys_
 \end{code}}
 
-\f{case-con}{
+\simp{case-con}{
 \begin{code}
 case c xs_ of {... ; c vs_ -> y ; ...}
     => let vs_ = xs_ in y
 \end{code}}
 
-\f{lam-app}{
+\simp{lam-app}{
 \begin{code}
 (\v -> x) y
     => let v = y in x
 \end{code}}
 
-\f{case-app}{
+\simp{case-app}{
 \begin{code}
 (case x of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n}) z
     => case x of {c_1 vs__1 -> y_1 z ; ... ; c_n vs__n -> y_n z}
 \end{code}}
 
-\f{let-app}{
+\simp{let-app}{
 \begin{code}
 (let v = x in y) z
     => let v = x in y z
 \end{code}}
 
-\f{let-case}{
+\simp{let-case}{
 \begin{code}
 let v = x in (case y of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n})
     => case y of  {  c_1 vs__1  -> let v = x in y_1
@@ -267,13 +264,13 @@ let v = x in (case y of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n})
     where v {-" \hbox{is not used in } "-} y
 \end{code}}
 
-\f{case-let}{
+\simp{case-let}{
 \ignore\begin{code}
 case (let v = x in y) of as_
     => let v = x in (case y of as_)
 \end{code}}
 
-\f{case-case}{
+\simp{case-case}{
 \begin{code}
 case (case x of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n}) of as_
     => case x of  {  c_1 vs__1  -> case y_1 of as_
@@ -281,20 +278,20 @@ case (case x of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n}) of as_
                   ;  c_n vs__n  -> case y_n of as_ }
 \end{code}}
 
-\f{case-lam}{
+\simp{case-lam}{
 \begin{code}
 case x of {... ; c vs_ -> \v -> y ; ...}
     => \z -> case  x of
                    {... z ; c vs_ -> (\v -> y) z ; ... z}
 \end{code}}
 
-\f{let}{
+\simp{let}{
 \begin{code}
 let v = x in y
     => y[v/x]
     where x {-" \hbox{is used once in } "-} y
 \end{code}}
-\end{tabular}
+\end{simplify}
 \caption{Simplification rules.}
 \label{fig:simplify}
 \end{figure}

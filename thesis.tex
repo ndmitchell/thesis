@@ -4,7 +4,7 @@
 \usepackage{setspace} \onehalfspacing
 \usepackage{parskip}
 
-% \newcommand{\only}{background}
+\newcommand{\only}{firstify}
 
 \include{paper}
 %include paper.fmt
@@ -22,6 +22,11 @@
     {\let\caption\newcaption\oldtable\hrule}
     {\let\caption\oldcaption\oldendtable}
 
+% simplify rules
+\newenvironment{simplify}
+    {\bigskip\begin{tabular*}{\textwidth}{@@{}p{10cm}@@{\extracolsep{\fill}}r}}
+    {\end{tabular*}}
+\newcommand{\simp}[2]{\vspace{-7mm} #2 & (#1) \\[-5mm]}
 
 % margins
 \addtolength{\topmargin}{-5mm}
