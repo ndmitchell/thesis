@@ -1,4 +1,4 @@
-%include paper.fmt
+%include thesis.fmt
 
 \chapter{Supercompilation}
 
@@ -79,10 +79,10 @@ tie(rho, x)
 
 drive(rho, x)
     if terminate\!!(rho, x) then
-        (a,b) = split\!!(generalise\!!(x))
-        {-" \textsf{\textbf{return }} "-} join\!!(a, map (tie rho) b)
+        (cs,gen) = uniplate\!!(generalise\!!(x))
+        {-" \textsf{\textbf{return }} "-} gen\!!(map (tie rho) cs)
     else
-        {-" \textsf{\textbf{return }} "-} drive\!!(rho `union` {x}, unfold(x))
+        {-" \textsf{\textbf{return }} "-} drive\!!(rho `union` {x}, unfold\!!(x))
 \end{code}
 
 Where |psi| is a mapping from expressions to function names, and |fv\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decides whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it.
@@ -92,23 +92,6 @@ Where |psi| is a mapping from expressions to function names, and |fv\!!(x)| retu
 \end{figure}
 
 The general method of supercompilation is shown in Figure \ref{fig:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost element in the expression becomes part of the residual program. All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to alpha renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions are then supercompiled as before.
-
-\begin{comment}
-\begin{figure}
-\begin{code}
-_O\<case x of alts_  \> =  case _O\<x\> \? of alts_
-_O\<let v = x in y   \> =  let v = _O\<x\> \? in _O\<y\>
-_O\<x y              \> =  _O\<x\> \? y
-_O\<f                \> =  unfold f  , where f {-" \hbox{ is a non-primitive, non-CAF function} "-}
-                        =  f         , otherwise
-_O\<v                \> =  v
-_O\<c                \> =  c
-_O\< \v -> x         \> =  \v -> x
-\end{code}
-\caption{Optimisation rules.}
-\label{fig:optimise}
-\end{figure}
-\end{comment}
 
 \begin{figure}
 \begin{code}
@@ -238,7 +221,7 @@ Unfortunately these two examples seem to suggest different strategies for unfold
 unfold x = head (filter (not . terminate) xs ++ xs ++ [x])
     where xs = unfolds x
 
-unfolds f | f {-" \text{ is a function} "-} = [inline f]
+unfolds (EFun f xs_) = [ EApp (inline f) xs_ ]
 unfolds x =  [gen (cs |+ (i, y))
              |let (cs, gen) = uniplate x
              ,i <- [0..length sub], y <- unfolds (sub !! i) ]
@@ -277,21 +260,15 @@ The most specific generalisation of two expressions $s$ and $t$, $\text{msg}(s,t
 
 Our generalisation is characterised by $x \bowtie y$, which produces an expression equivalent to $y$, but similar in structure to $x$.
 
-\vspace{-3mm}
-\noindent\begin{tabular}{p{6.5cm}p{5cm}}
 \begin{code}
 {-" x \bowtie \sigma^*(y), \text{if dive}(x,\sigma^*(y)) \wedge \text{couple}(x,y) "-}
-        let f = \vs_ -> x in {-" \sigma^* "-}(f vs)
+        let f = \vs_ -> x in {-" \sigma^* "-}(f vs_)
         {-" \text{where } "-}vs_{-" = \text{fv}(y) \backslash \text{fv}(\sigma^*(y)) "-}
-\end{code}
-&
-\begin{code}
+
 {-" x \bowtie y, \text{if couple}(x,y) "-}
         let {-" \theta_2 "-} in {-" t_g "-}
         {-" \text{where }(t_g,\theta_1,\theta_2) = \text{msg}(x,y) "-}
 \end{code}
-\end{tabular}
-\vspace{-3mm}
 
 The fv function in the first rule calculates the free variables of an expression, and $\sigma^*(y)$ denotes a subexpression $y$ within a containing context $\sigma^*$. The first rule applies if the homeomorphic embedding first applied the dive rule. The idea is to descend to the element which matched, and then promote this to the top-level using a lambda. The second rule applies the most specific generalisation operation if the coupling rule was applied first. We now show an example where most specific generalisation fails to produce the ideal generalised version.
 
