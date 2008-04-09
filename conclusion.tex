@@ -8,76 +8,75 @@ In this thesis we have presented a boilerplate reduction library (Uniplate), an 
 \section{Contributions}
 \label{sec:contributions}
 
-Specific technical contributions have been presented in each chapter. Here we instead try to present the higher-level contributions -- those contributions that may be of benefit to a Haskell programmer.
+Specific technical contributions have been given in each chapter. In this section we instead focus on the higher-level contributions -- the overall results that are of benefit to functional programmers.
 
 \subsection{Shorter Programs}
 
 Some of our work enables programmers to write shorter programs. In particular the Uniplate library defines a small set of operations to perform queries and transformations. We have illustrated by example that the boilerplate required in our system is less than in other systems (\S\ref{sec:results_boilerplate}).
 
-The Supero work has shown that high-level programs in Haskell can be made to perform well. The Programming Language Shootout\footnote{\url{http://shootout.alioth.debian.org/}} has shown that low-level Haskell can compete with low-level imperative languages such as C. Our goal is that Haskell programs can be written in a high-level declarative style, yet still perform competitively.
+The Supero work has shown that high-level programs in Haskell can be made to perform well. The Programming Language Shootout\footnote{\url{http://shootout.alioth.debian.org/}} has shown that low-level Haskell can compete with low-level imperative languages such as C. We hope that our optimiser will allow programs to be written in a high-level declarative style, yet still perform competitively.
 
 \subsection{Faster Programs}
 
-We have also focused on increasing the performance of Haskell programs. The Uniplate library has been optimised, and the results can the conciseness of programs can be achieved without sacrificing speed (\S\ref{sec:results_speed}).
+Some of our work helps programs execute faster. Using Supero in conjunction with GHC we obtain an average runtime improvement of 16\% for the imaginary section of the nofib suite. To quote Simon Peyton Jones, ``an average runtime improvement of 10\%, against the baseline of an already well-optimised compiler, is an excellent result'' \cite{spj:specconstr}.
 
-Using Supero in conjunction with GHC we obtain an average runtime improvement of 16\% for the imaginary section of the nofib suite. To quote Simon Peyton Jones, ``an average runtime improvement of 10\%, against the baseline of an already well-optimised compiler, is an excellent result'' \cite{spj:specconstr}.
+We have also invested effort in optimising the Uniplate library. As a result we can express concise traversals without sacrificing speed (\S\ref{sec:results_speed}). In particular, we show a substantial speed up over the SYB library \cite{lammel:syb}.
 
-We developed Firstify for analysis, not performance. However, for many simple examples, the resultant program performs better than the original. By restricting rules that reduce sharing, our defunctionalisation method may be appropriate for integration into an optimising compiler.
+We developed the Firstify tool for analysis, not performance. However, for many simple examples, the resultant program performs better than the original. If we restricted rules that reduce sharing, our defunctionalisation method may be appropriate for integration into an optimising compiler.
 
 \subsection{Safer Programs}
 
-The Catch tool allows programs to have non-exhaustive patterns, yet still have verifiable pattern-match safety. In practical use the Catch tool has found real bugs in real programs, which have subsequently been fixed. The XMonad developers found that just using the Catch tool encouraged a safer style of programming, paying more attention to partial functions. All these factors hopefully contribute to a safer programming model.
+The Catch tool allows programs to have non-exhaustive patterns, yet still have verifiable pattern-match safety. In practical use the Catch tool has found real bugs in real programs, which have subsequently been fixed (see \S\ref{sec:hscolour}). The XMonad developers found that just using the Catch tool encouraged a safer style of programming, paying more attention to partial functions (see \S\ref{sec:xmonad}).
 
-The Uniplate library also encourages safer programs. By reducing the volume of code, and in particular the repetitive code, bugs become easier to spot. In particular, a programmer must specify what is different, not what stays the same.
+The Uniplate library also encourages a style of programming which can lead to fewer errors. By reducing the volume of code, particularly repetitive code, bugs become easier to spot. Using our library, a programmer focuses on the exceptions to a rule, allowing the other cases to be handled once.
 
 \section{Future Work}
 \label{sec:future_work}
 
 \subsection{Robust Tools}
 
-We currently have implementations of all the tools. Of these, the Uniplate library is robust and widely used. The other tools serve more as prototypes, and have not seen sufficient real-world use to declare them production ready. With the exception of Uniplate, all the other tools are based around the core language from the Yhc compiler. Currently this Core language is generated by the Yhc compiler, as described in \S\ref{sec:generating_core}. Unfortunately, Yhc restricts our input programs to the Haskell 98 language. By making use of the GHC front end, we could deal with many language extensions.
+We have implemented all the tools described in this thesis. Of these, the Uniplate library is already robust and used in real programs. The other tools serve more as prototypes, and have not seen sufficient real-world use to declare them production ready. With the exception of Uniplate, all the other tools are based around the core language from the Yhc compiler. Currently this Core language is generated by the Yhc compiler, as described in \S\ref{sec:generating_core}. Unfortunately, Yhc restricts our input programs to the Haskell 98 language. By making use of the GHC front end, we could deal with many language extensions.
 
-The underlying mechanisms of Supero, Firstify and Catch are all whole program, requiring sources for all function definitions. This requirement both increases the time required, and precludes the use of closed source libraries. We may be able to relax this requirement, precomputing partial results of libraries, or permitting some components of the program to be ignored. In the case of Catch we already supply abstractions of IO functions, this mechanism could be extended.
+Supero, Firstify and Catch all operate on a whole program at a time, requiring sources for all function definitions. This requirement both increases the time required, and precludes the use of closed source libraries. We may be able to relax this requirement, precomputing partial results of libraries, or permitting some components of the program to be ignored. In the case of Catch we already supply abstractions of IO functions, this mechanism could be extended.
 
 \subsection{Uniplate}
 
 The use of boilerplate reduction strategies in Haskell is not yet ubiquitous, as we feel it should be. The ideas behind the Uniplate library have been used extensively, in projects including the Yhc compiler \citep{me:yhc_core}, the Catch tool, the Reach tool \cite{naylor:reach} and the Reduceron \cite{naylor:reduceron}. In Catch there are over 100 Uniplate traversals.
 
-There is scope for further speed improvements: for example, use of continuation passing style may eliminate tuple construction and consumption, and list fusion may be able to eliminate some of the intermediate lists in |uniplate|. We have made extensive practical use of the Uniplate library, but there may be other traversals which deserve to be added.
+There is scope for further speed improvements: for example, use of continuation passing style may eliminate tuple construction and consumption, and list fusion may be able to eliminate some of the intermediate lists in the |uniplate| function. We have made extensive practical use of the Uniplate library, but there may be other traversals which deserve to be added.
 
-Another area of future work, which others have begun to explore, is the implementation of Uniplate in other languages. So far, we are aware of an unreleased version in ML \footnote{http://mlton.org/cgi-bin/viewsvn.cgi/*checkout*/mltonlib/trunk/com/ssh/generic/unstable/public/value/uniplate.sig}, a released version for the Curry language \cite{curry}. People have also proposed slightly different implementations of Uniplate, including merging the Uniplate/Biplate distinction\footnote{http://www-ps.informatik.uni-kiel.de/~sebf/projects/traversal.html}, and using |descend| as the underlying basis for the library\footnote{http://tomschrijvers.blogspot.com/2007/11/extension-proposal-for-uniplate.html}.
+Another area of future work, which others have begun to explore, is the implementation of Uniplate in other languages. So far, we are aware of versions in ML\footnote{\url{http://mlton.org/cgi-bin/viewsvn.cgi/*checkout*/mltonlib/trunk/com/ssh/generic/unstable/public/value/uniplate.sig}} \cite{ML}, and Curry\footnote{\url{http://www.informatik.uni-kiel.de/~pakcs/lib/CDOC/Traversal.html}} \cite{curry}. People have also proposed variations on Uniplate, including merging the Uniplate/Biplate distinction\footnote{\url{http://www-ps.informatik.uni-kiel.de/~sebf/projects/traversal.html}}, and using |descend| as the underlying basis for the library\footnote{\url{http://tomschrijvers.blogspot.com/2007/11/extension-proposal-for-uniplate.html}}.
 
 \subsection{Supero}
 
 Within Supero, there are three main areas for future work:
 
 \begin{description}
-\item[More Benchmarks] The fifteen benchmarks presented so far are not enough. We would like to obtain results for larger programs, including all the remaining benchmarks in the nofib suite.
+\item[More Benchmarks] The fifteen benchmarks in \S\ref{sec:haskell_results} are not enough. We would like to obtain results for larger programs, including all the remaining benchmarks in the nofib suite.
 \item[Runtime Performance] Earlier versions of Supero \cite{me:supero_ifl} managed to obtain substantial speed ups on benchmarks such as exp3\_8. The Bernouilli benchmark is currently problematic. There is still scope for improvement.
-\item[Compilation Speed] The compilation times are tolerable for benchmarking and a final optimised release, but not for general use. Basic profiling shows that over 90\% of supercompilation time is spent testing for a homeomorphic embedding. It is possible that by decreasing the number of times homeomorphic embedding is tested, a substantial speed up will be obtained.
+\item[Compilation Speed] The compilation times are tolerable for benchmarking and a final optimised release, but not for general use. Basic profiling shows that over 90\% of supercompilation time is spent testing for a homeomorphic embedding. It is possible that by decreasing the number of times homeomorphic embedding is tested, a substantial speed up can be obtained.
 \end{description}
 
 \subsection{Firstify}
 
-The Firstify library is currently sufficient for its use in the Catch tool. The use of a numeric termination bound in the homeomorphic embedding is regrettable, but practically motivated. We need further research to determine if such a numeric bound is necessary, or if other measures could be used.
+The Firstify library currently meets all the needs of the Catch tool. Within the algorithm, the use of a numeric termination bound in the homeomorphic embedding is regrettable, but practically motivated. We need further research to determine if such a numeric bound is necessary, or if other measures could be used.
 
 \subsection{Catch}
 
-The Catch tool has been applied to a range of benchmarks, and has shown promising results so far. However, there are obviously safe programs which cannot be proven using MP-constraints. In addition to having insufficient power for some examples, MP-constraints also lack a normal form, requiring additional simplification rules. While MP-constraints are useful, we suspect there exist better constraint models which still fit into the Catch framework. One option would be to combine constraint models, allowing different constraints to check different error calls, each playing to particular strengths.
+The Catch tool has been applied to a range of benchmarks, and has shown promising results. However, there are obviously safe programs (for example Bernouilli in \S\ref{sec:imaginary}) which cannot be proven safe using MP-constraints. In addition to having insufficient power for some examples, MP-constraints also lack a normal form, requiring simplification rules. While MP-constraints are useful, we suspect there exist better constraint models which still fit into the Catch framework. One option would be to combine constraint models, allowing different constraints to check different error calls, each playing to particular strengths.
 
-The tests so far have not included particularly large applications, such as a Haskell compiler, or indeed of Catch itself. Further evaluation on large programs in real use would give a better idea of what limits within the system are most pressing.
+The tests so far have not included any particularly large applications, such as a the darcs program, a Haskell compiler, or even Catch itself. Further evaluation on large programs would give a better idea of what limits within Catch are most pressing. While we have released the Catch tool, it has not seen much use outside of our evaluation -- end users are likely to have additional requests.
 
 \section{Concluding Remarks}
+\label{sec:the_end}
 
-Throughout the thesis we have attempted to keep our methods simple. None of our tools require any annotations from the programmer.
+Throughout the thesis we have been motivated by the idea of simplicity. We have attempted to reduce the complexity of our methods, both for the implementation, and for end users. In particular, none of our tools require any annotations on existing programs.
 
-The Uniplate library restriction to a uniformly typed value set in a traversal allows the power of well-developed techniques for list processing such as list-comprehensions to be exploited. We feel this decision plays to Haskell's strengths, without being limiting in practice. We have focused on simplicity throughout our design, working within the natural typed design of Haskell, rather than trying to extend it. Hopefully the removal of complicated language features (particularly `scary' types) will allow a wider base of users to enjoy the benefits of boilerplate-free programming.
+The Uniplate library restricts traversals to a uniformly typed value set, allowing the power of well-developed techniques for list processing such as list-comprehensions to be exploited. We feel this decision plays to Haskell's strengths, without being limiting in practice. Hopefully by not requiring complicated language features (particularly `scary' types) we will allow a wider base of users to enjoy the benefits of boilerplate-free programming.
 
 Our supercompiler is simple -- the Core transformation is expressed in just 300 lines of Haskell. Yet it replicates many of the performance enhancements of GHC in a more general way. By simplifying the design, we are able to reduce the unintended interactions between optimisations, a problem that has been referred to as ``swings and roundabouts'' \cite{marlow:fast_curry}.
 
-Many analysis methods, in fields such as strictness analysis and termination analysis, start out first-order and are gradually extended to work in a higher-order language. Defunctionalisation offers an alternative approach, instead of extending the analysis method, we transform the functional values away, enabling more analysis methods to work on a greater range of programs. This enables the analysis methods to remain simple.
+Many analysis methods, in fields such as strictness analysis and termination analysis, start out first-order and are gradually extended to work on a higher-order language. Defunctionalisation offers an alternative approach, instead of extending the analysis method, we transform the functional values away. The analysis method can remain simple, yet work on a greater range of programs.
 
-For the Catch tool we have made two decisions that significantly simplify the design: (1) the target of analysis is a very small, first-order core language; (2) there are finitely many value-set-defining constraints per type. Decision (1) requires a translation from the full language that avoids the introduction of analysis bottlenecks such as a mini-interpreter.
-Decision (2) inevitably limits the expressive power of constraints; yet it does not prevent the expression of uniform recursive constraints on the deep structure of values, as in MP-constraints.
-
+For the Catch tool we have made two decisions that significantly simplify the design: (1) the target of analysis is a very small, first-order core language; (2) there are finitely many value-set-defining constraints per type. Decision (1) allows for a much simpler analysis method, without the added complexity of higher-order programs. Decision (2) inevitably limits the expressive power of constraints; yet it does not prevent the expression of uniform recursive constraints on the deep structure of values, as in MP-constraints.
 
