@@ -1,5 +1,7 @@
 %include paper.fmt
 
+\todo{Koen's extensions to use a Tree type}
+
 %format target = "\textsc{target}"
 %format unit = "\textsc{unit}"
 %format |- = "\mathbin{\vdash}"
@@ -30,8 +32,6 @@ context = undefined
 
 \chapter{Boilerplate Removal}
 \label{chp:uniplate}
-
-\todo{Koen's extensions to use a Tree type}
 
 Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. This chapter describes the Uniplate library, which offers a way to abstract several common forms of boilerplate code. \S\ref{secU:intro} gives an example problem, and our solution. \S\ref{secU:use_play} introduces the traversal combinators that we propose, along with short examples. \S\ref{secU:implement_play} discusses how these combinators are implemented in terms of a single primitive. \S\ref{secU:use_playex} extends this approach to multi-type traversals, and \S\ref{secU:implement_playex} covers the extended implementation. \S\ref{secU:performance} investigates some performance optimisations. \S\ref{secU:results} gives comparisons with other approaches, using examples such as the ``paradise'' benchmark. \S\ref{secU:related} presents related work.
 
