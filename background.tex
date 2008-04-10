@@ -3,6 +3,8 @@
 \chapter{Background}
 \label{chp:background}
 
+\todo{add examples of homeomorphic embedding}
+
 In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, its sharing properties in \S\ref{sec:sharing} and how we generate Core in \S\ref{sec:generating_core}. We then cover the homeomorphic embedding relation in \S\ref{sec:homeomorphic}, particularly applied to the expression type of our Core language.
 
 \section{Core Language}
@@ -426,7 +428,7 @@ In order to generate our Core language from the full Haskell language, we use th
 
 The internal Core language of Yhc is PosLambda -- a simple variant of lambda calculus without types, but with source position information. Yhc works by applying basic desugaring transformations, without optimisation. This simplicity ensures the generated PosLambda is close to the original Haskell in its structure. Each top-level function in a source file maps to a top-level function in the generated PosLambda, retaining the same name. However, PosLambda has constructs that have no direct representation in Haskell. For example, there is a FatBar construct \cite{spj:implementation}, used for compiling pattern matches which require fall through behaviour. We have therefore introduced a new Core language to Yhc, to which PosLambda can easily be translated \cite{me:yhc_core}.
 
-The Yhc compiler can generate the Core for a single source file. Yhc can also link in all definitions from all required libraries, producing a single Core file representing a whole program. All function and constructor names are fully qualified, so the linking process simply involves merging the list of functions from each required Core file.
+The Yhc compiler can generate the Core for a single source file. Yhc can also link in all definitions from all necessary libraries, producing a single Core file representing a whole program. All function and constructor names are fully qualified, so the linking process simply involves merging the list of functions from each required Core file.
 
 In the process of generating a Core file, Yhc performs several transformations. Haskell's type classes are removed using the dictionary transformation (see \S\ref{sec:dictionary_transformation}). All local functions are lambda lifted, leaving only top-level functions -- ensuring Yhc generated Core does \textit{not} contain any lambda expressions. All constructor applications and primitive applications are fully saturated.
 
