@@ -275,7 +275,18 @@ Our generalisation is characterised by $x \bowtie y$, which produces an expressi
         {-" \text{where }(t_g,\theta_1,\theta_2) = \text{msg}(x,y) "-}
 \end{code}
 
-The fv function in the first rule calculates the free variables of an expression, and $\sigma^*(y)$ denotes a subexpression $y$ within a containing context $\sigma^*$. The first rule applies if the homeomorphic embedding first applied the dive rule. The idea is to descend to the element which matched, and then promote this to the top-level using a lambda. The second rule applies the most specific generalisation operation if the coupling rule was applied first. We now show an example where most specific generalisation fails to produce the ideal generalised version.
+The fv function in the first rule calculates the free variables of an expression, and $\sigma^*(y)$ denotes a subexpression $y$ within a containing context $\sigma^*$. The first rule applies if the homeomorphic embedding first applied the dive rule. The idea is to descend to the element which matched, and then promote this to the top-level using a lambda. The second rule applies the most specific generalisation operation if the coupling rule was applied first.
+
+Some examples of our generalisation method, and the msg generalisation, are:
+
+\begin{tabular}{@@{}r@@{ $\unlhd$ }l@@{\hspace{7mm}(}l@@{, }l@@{, }l@@{)\hspace{7mm} |let|\hspace{1mm}}l@@{\hspace{1mm}|in|\hspace{1mm}}l}
+\multicolumn{2}{l}{\hspace{-2mm}Embedding} & \multicolumn{3}{l}{\hspace{-3mm}msg} & \multicolumn{2}{l}{\hspace{-8mm}$\bowtie$} \vspace{2mm} \\
+$a$ & $b(a)$ & $x$ & $\{x = a\}$ & $\{x = b(a)\}$ & $f = b(a)$ & $f$ \\
+$c(b)$ & $c(a(b))$ & $c(x)$ & $\{x = b\}$ & $\{x = a(b))\}$ & $x = a(b)$ & $c(x)$ \\
+$b(a)$ & $c(b(a))$ & $x$ & $\{x = b(a)\}$ & $\{x = c(b(a))\}$ & $f = b(a)$ & $c(f)$
+\end{tabular}
+
+We now show an example where most specific generalisation fails to produce the ideal generalised version.
 
 \begin{example}
 
@@ -471,7 +482,7 @@ Supercompilation \cite{supercompilation,turchin:experiments} was introduced by T
 The issue of let expressions in supercompilation has not previously been a primary focus. If lets are mentioned, the usual strategy is to substitute all linear lets and residuate all others. Lets have been considered in a strict setting \cite{jonsson:supercompilation}, where they are used to preserve termination semantics, but in this work all strict lets are inlined without regard to loss of sharing. Movement of lets can have a dramatic impact on performance: carefully designed let-shifting transformations give an average speedup of 15\% in GHC \cite{spj:letfloating}, suggesting let expressions are critical to the performance of real programs.
 
 \subsection{Partial evaluation}
- 
+
 There has been a lot of work on partial evaluation \cite{jones:partial_evaluation}, where a program is specialised with respect to some static data. The emphasis is on determining which variables can be entirely computed at compile time, and which must remain in the residual program. Partial evaluation is particularly appropriate for specialising an interpreter with an expression tree to generate a compiler automatically, often with an order of magnitude speedup, known as the First Futamura Projection \cite{futanama:projections}. Partial evaluation is not usually able to remove intermediate data structures. Our method is certainly less appropriate for specialising an interpreter, but in the absence of static data, is still able to show improvements.
 
 % Partial evaluation has been applied to full-scale functional languages, such as Curry
