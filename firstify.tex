@@ -470,7 +470,7 @@ case (f xs_) of alts_
 
 As with the simplification stage, there may be some loss of sharing if the definition being inlined has an arity of 0, known as a constant applicative form (CAF). A Haskell implementation computes these expressions only once, and reuses their value as necessary. If they are inlined, this sharing will be lost.
 
-\subsection{Specialisation (|specialise|)}
+\subsection{Specialisation}
 
 For each application of a function to arguments containing lambdas, a specialised variant is created, and used where applicable. The process follows the same pattern as constructor specialisation \cite{spj:specconstr}, but applies where function arguments are lambda expressions, rather than known constructors. Examples of common functions whose applications can usually be made first-order by specialisation include |map|, |filter|, |foldr| and |foldl|.
 
@@ -612,7 +612,7 @@ map_id v_1 =  let  xs = v_1
 We now have a first-order definition.
 \end{exampleany}
 
-\subsection{Extending the method to allow primitive functions}
+\subsection{Primitive Functions}
 \label{secF:primitives}
 
 Primitive functions do not have an associated body, and therefore cannot be examined or inlined. We make just two simple changes to support primitives.
@@ -1084,24 +1084,24 @@ ppBesides = foldr1 f nil
 Here |ppBesides| evaluates to |undefined| if the input list to |foldr1| is |[]|. The |undefined| value will be of type |Pretty|, and will be given further arguments, which can be functional arguments. In reality, the code ensures that the input list is never |[]|, so the program will never fail with this error.
 \end{example}
 
-\subsection{Termination Bound (Bound in Table \ref{tabF:results})}
+\subsection{Termination Bound}
 
-The termination bound used varies from 2 to 11 for the sample programs. If we exclude the integer program, which is complicated by the primitive operations on functional values, the highest bound is 8. Most programs have a termination bound of 4. There is no apparent relation between the size of a program and the termination bound.
+The termination bound used varies from 2 to 11 for the sample programs (see Bound in Table \ref{tabF:results}). If we exclude the integer program, which is complicated by the primitive operations on functional values, the highest bound is 8. Most programs have a termination bound of 4. There is no apparent relation between the size of a program and the termination bound.
 
-\subsection{Creating of Functional Values (HO Create in Table \ref{tabF:results})}
+\subsection{Creating of Functional Values}
 
-We use Yhc generated programs as input, which have been lambda lifted \cite{lambda_lift}, so contain no lambda expressions. The residual program has no partial application, only lambda expressions. Most programs in our test suite start with hundreds of partial applications, but only 3 residual programs contain lambda expressions.
+We use Yhc generated programs as input, which have been lambda lifted \cite{lambda_lift}, so contain no lambda expressions. The residual program has no partial application, only lambda expressions. Most programs in our test suite start with hundreds of partial applications, but only 3 residual programs contain lambda expressions (see HO Create in Table \ref{tabF:results}).
 
 For the purposes of testing defunctionalisation, we have worked on unmodified Yhc libraries, including all the low-level detail. For example, |readFile| in Yhc is implemented in terms of file handles and pointer operations. Most analysis operations work on an abstracted view of the program, which would reduce the number and complexity of functional values.
 
-\subsection{Uses of Functional Values (HO Use in Table \ref{tabF:results})}
+\subsection{Uses of Functional Values}
 
-While very few programs have residual functional values, a substantial number make use of applications to a non-function/non-constructor, and use over-application of functions. In most cases these result from supplying |error| calls with additional arguments, typically related to the desugaring of |do| notation and pattern matching within Yhc.
+While very few programs have residual functional values, a substantial number make use of applications to a non-function/non-constructor, and use over-application of functions (see HO Use in Table \ref{tabF:results}). In most cases these result from supplying |error| calls with additional arguments, typically related to the desugaring of |do| notation and pattern matching within Yhc.
 
-\subsection{Execution Time (Time in Table \ref{tabF:results})}
+\subsection{Execution Time}
 \label{secF:time}
 
-The timing results were all measured on a 1.2GHz laptop, running GHC 6.8.2 \cite{ghc}. The longest execution time was only one second, with the average time under half a second. The programs requiring most time made use of floating point numbers, suggesting that library code requires most effort to defunctionalise. If abstractions were given for library methods, the execution time would drop substantially.
+The timing results were all measured on a 1.2GHz laptop, running GHC 6.8.2 \cite{ghc}. The longest execution time was only one second, with the average time under half a second (see Time in Table \ref{tabF:results}). The programs requiring most time made use of floating point numbers, suggesting that library code requires most effort to defunctionalise. If abstractions were given for library methods, the execution time would drop substantially.
 
 In order to gain acceptable speed, we perform a number of optimisations over the algorithm presented in \S\ref{secF:detailed}:
 
@@ -1112,15 +1112,17 @@ In order to gain acceptable speed, we perform a number of optimisations over the
 \item We track the arity and boxed lambda status of each function.
 \end{itemize}
 
-\subsection{Program Size (Size in Table \ref{tabF:results})}
+\subsection{Program Size}
 
-We measured program size by taking the number of nodes in the abstract syntax tree. On average the size of the resultant program is smaller by 33\%. The reason for the decrease in program size is due to eliminating dictionaries holding references to unnecessary code.
+We measured program size by taking the number of nodes in the abstract syntax tree. On average the size of the resultant program is smaller by 33\% (see Size in Table \ref{tabF:results}). The reason for the decrease in program size is due to eliminating dictionaries holding references to unnecessary code.
 
 
 \section{Related Work}
 \label{secF:related}
 
-\paragraph{Reynolds style defunctionalisation} \cite{reynolds:defunc} is the seminal method for generating a first-order equivalent of a higher-order program.
+\subsection{Reynolds style defunctionalisation}
+ 
+Reynolds style defunctionalisation \cite{reynolds:defunc} is the seminal method for generating a first-order equivalent of a higher-order program.
 
 \begin{example}
 \begin{code}
@@ -1151,7 +1153,9 @@ The method is complete, removing all possible higher-order functions, and preser
 
 Reynolds method has been used as a tool in program calculation \cite{danvy:defunctionalization_at_work,hutton:calculating_an_exceptional_machine}, often as a mechanism for removing introduced continuations. Another use of Reynolds' method is for optimisation \cite{grin,jhc}, allowing flow control information to be recovered without the complexity of higher-order transformation.
 
-\paragraph{Removing Functional Values.} The closest work to ours is \citet{chin:higher_order_removal}, which itself is similar to that of \citet{nelan:firstification}. They define a higher-order removal method, with similar goals of removing functional values from a program. Their work shares some of the simplification rules, the arity raising and function specialisation. Despite these commonalities, there are big differences between their method and ours.
+\subsection{Removing Functional Values}
+
+The closest work to ours is \citet{chin:higher_order_removal}, which itself is similar to that of \citet{nelan:firstification}. They define a higher-order removal method, with similar goals of removing functional values from a program. Their work shares some of the simplification rules, the arity raising and function specialisation. Despite these commonalities, there are big differences between their method and ours.
 
 \begin{itemize}
 \item Their method makes use of the types of expressions, information that must be maintained and extended to work with additional type systems.
@@ -1162,7 +1166,7 @@ Reynolds method has been used as a tool in program calculation \cite{danvy:defun
 
 In addition, functional programs now use monads, IO continuations and type classes as a matter of course. Such features were still experimental when their work was done and they did not handle them. Our work can be seen as a successor to theirs, indeed we achieve most of the aims set out in their future work section. We have tried their examples, and can confirm that all of them are successfully handled by our system. Some of their observations and extensions apply equally to our work: for example, they suggest possible methods of removing accumulating functions such as in Example \ref{exF:functional_lists}.
 
-\paragraph{Partial Evaluation and Supercompilation}
+\subsection{Partial Evaluation and Supercompilation}
 
-The specialisation and inlining steps are taken from existing program optimisers, as is the termination strategy of homeomorphic embedding. A lot of program optimisers include some form of specialisation and so remove some higher-order functions, such as partial evaluation \cite{jones:partial_evaluation} and supercompilation \cite{supercompilation}. We have certainly benefited from ideas in both these areas in developing our algorithms. Our initial attempt at removing functional values involved modifying a supercompiler \cite{me:supero}. But the optimiser is not attempting to preserve correspondence to the original program, so will optimise all aspects of the program equally, instead of focusing on the higher-order elements. Overall, the results were poor.
+The specialisation and inlining steps are taken from existing program optimisers, as is the termination strategy of homeomorphic embedding. A lot of program optimisers include some form of specialisation and so remove some higher-order functions, such as partial evaluation \cite{jones:partial_evaluation} and supercompilation \cite{supercompilation}. We have certainly benefited from ideas in both these areas in developing our algorithms. Our initial attempt at removing functional values involved modifying our supercompiler (see \ref{chp:supero}). But the optimiser is not attempting to preserve correspondence to the original program, so will optimise all aspects of the program equally, instead of focusing on the higher-order elements. Overall, the results were poor.
 
