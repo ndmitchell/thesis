@@ -4,7 +4,7 @@
 \usepackage{setspace} \onehalfspacing
 \usepackage{parskip}
 
-\newcommand{\only}{uniplate}
+\newcommand{\only}{supero}
 
 \include{paper}
 %include paper.fmt
@@ -24,7 +24,7 @@
 
 % simplify rules
 \newenvironment{simplify}
-    {\bigskip\begin{tabular*}{\textwidth}{@@{}p{10cm}@@{\extracolsep{\fill}}r}}
+    {\bigskip\begin{tabular*}{\linewidth}{@@{}p{10cm}@@{\extracolsep{\fill}}r}}
     {\end{tabular*}}
 \newcommand{\simp}[2]{\vspace{-7mm} #2 & (#1) \\[-5mm]}
 
@@ -32,7 +32,6 @@
 \addtolength{\topmargin}{-5mm}
 \addtolength{\textheight}{10mm}
 
-\newcommand{\col}{\extracolsep{\fill}}
 
 \begin{document}
 
