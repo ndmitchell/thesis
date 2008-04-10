@@ -30,14 +30,15 @@ primNeqInt, primEqInt :: Int -> Int -> Bool
 
 This chapter deals with the reduction from a higher-order Core language to a primarily first-order Core language. Unlike Reynolds style defunctionalisation, it does not introduce any new data types, and the results are more amenable to subsequent analysis operations. Our motivation is that the Catch analysis tool (see Chapter \ref{chp:catch}) is designed to work only upon a first-order language, but our method may have wider applicability such as termination checking \cite{sereni:higher_order_termination}.
 
-The sections begin with an introductory example (\S\ref{sec:firstify_intro}), followed by a definition of what we consider to be a first-order program (\S\ref{sec:first_order}). Next we present an overview of our method (\S\ref{sec:overview}), followed by a more detailed account (\S\ref{sec:detailed}), along with a number of examples (\S\ref{sec:examples}). We classify where functional values may remain in a resultant program (\S\ref{sec:completeness}) and show how to modify our method to guarantee termination (\S\ref{sec:termination}). Finally we give results (\S\ref{sec:results}) and review related work (\S\ref{sec:related}).
+The sections begin with an introductory example (\S\ref{secF:intro}), followed by a definition of what we consider to be a first-order program (\S\ref{secF:first_order}). Next we present an overview of our method (\S\ref{secF:overview}), followed by a more detailed account (\S\ref{secF:detailed}), along with a number of examples (\S\ref{secF:examples}). We classify where functional values may remain in a resultant program (\S\ref{secF:completeness}) and show how to modify our method to guarantee termination (\S\ref{secF:termination}). Finally we give results (\S\ref{secF:results}) and review related work (\S\ref{secF:related}).
 
 \section{Introductory Example}
+\label{secF:intro}
 
 Higher-order functions are widely used in functional programming languages.  Having functions as first-class values leads to more concise code, but it often complicates analysis methods.
 
 \begin{example}
-\label{ex:incList}
+\label{exF:incList}
 
 Consider this definition of |incList|:
 
@@ -78,7 +79,7 @@ This chapter makes the following contributions:
 \end{itemize}
 
 \section{First-Order Programs}
-\label{sec:first_order}
+\label{secF:first_order}
 
 Informally, a program is higher-order if at runtime the program creates functional values. Functional values can only be created in two ways: (1) a lambda expression; or (2) a partially-applied function application. We therefore make the following definition:
 
@@ -86,14 +87,14 @@ Informally, a program is higher-order if at runtime the program creates function
 A program which contains no lambda expressions and no partially-applied functions is first-order.
 \end{definition}
 
-\begin{examplerevisit}{\ref{ex:incList}}
+\begin{examplerevisit}{\ref{exF:incList}}
 The original definition of |incList| is higher-order because of the partial applications of both |map| and |(+)|. The original definition of |map| is first-order. In the defunctionalised version, the program is first-order.
 \end{examplerevisit}
 
 We may expect the |map| definition to be higher-order, as |map| has the |f x| subexpression, where |f| is a variable, and therefore an instance of general application. We do not define instances of general application to be higher-order, but expect that usually they will be accompanied by the creation of a functional value elsewhere within the program.
 
 \section{Our First-Order Reduction Method}
-\label{sec:overview}
+\label{secF:overview}
 
 Our method works by combining three separate and well-known transformations. Each transformation on its own preserves correctness, and none introduces any additional data types. Our method also applies simplification rules before each transformation, most of which may be found in any optimising compiler \cite{spj:transformation}.
 
@@ -103,13 +104,13 @@ Our method works by combining three separate and well-known transformations. Eac
 \item[Specialisation:] Specialisation is another standard technique, used to remove type classes \cite{jones:dictionary_free} and more recently to specialise functions to a given constructor \cite{spj:specconstr}.
 \end{description}
 
-Each transformation has the possibility of removing some functional values, but the key contribution of this chapter is \textit{how they can be used together}. Using the fixed point operator |(+||+)| introduced in \S\ref{sec:detailed}, their combination is:
+Each transformation has the possibility of removing some functional values, but the key contribution of this chapter is \textit{how they can be used together}. Using the fixed point operator |(+||+)| introduced in \S\ref{secF:detailed}, their combination is:
 
 \begin{code}
 firstify = simplify +|+ arity +|+ inline +|+ specialise
 \end{code}
 
-We proceed by first giving a brief flavour of how these transformations may be used in isolation to remove functional values. We then discuss the transformations in detail in \S\ref{sec:detailed}, including how they can be combined.
+We proceed by first giving a brief flavour of how these transformations may be used in isolation to remove functional values. We then discuss the transformations in detail in \S\ref{secF:detailed}, including how they can be combined.
 
 \subsection{Simplification}
 
@@ -142,7 +143,7 @@ even = \x ->  let  one = 1
               in   not (odd x)
 \end{code}
 
-\noindent In general this transformation may cause duplicate computation to be performed, an issue we return to in \S\ref{sec:sharing}.
+\noindent In general this transformation may cause duplicate computation to be performed, an issue we return to in \S\ref{secF:sharing}.
 \end{example}
 
 
@@ -212,7 +213,7 @@ notList xs = map_not xs
 \end{example}
 
 \subsection{Goals}
-\label{sec:goals}
+\label{secF:goals}
 
 We define a number of goals: some are \textit{essential}, and others are \textit{desirable}. If essential goals make desirable goals unachievable in full, we still aim to do the best we can.
 
@@ -220,7 +221,7 @@ We define a number of goals: some are \textit{essential}, and others are \textit
 
 \paragraph{Preserve the result computed by the program.} By making use of three established transformations, correctness is relatively easy to show.
 
-\paragraph{Ensure the transformation terminates.} The issue of termination is much harder. Both inlining and specialisation could be applied in ways that diverge. In \S\ref{sec:termination} we develop a set of criteria to ensure termination.
+\paragraph{Ensure the transformation terminates.} The issue of termination is much harder. Both inlining and specialisation could be applied in ways that diverge. In \S\ref{secF:termination} we develop a set of criteria to ensure termination.
 
 \paragraph{Recover the original program.} Our transformation is designed to be performed before analysis. It is important that the results of the analysis can be presented in terms of the original program. We need a method for transforming expressions in the resultant program into equivalent expressions in the original program.
 
@@ -229,7 +230,7 @@ We define a number of goals: some are \textit{essential}, and others are \textit
 
 \subsubsection*{Desirable}
 
-\paragraph{Remove all functional values.} We aim to remove as many functional values as possible. In \S\ref{sec:completeness} we make precise where functional values may appear in the resultant programs. If a totally first-order program is required, Reynolds' method can be always be applied after our transformation.
+\paragraph{Remove all functional values.} We aim to remove as many functional values as possible. In \S\ref{secF:completeness} we make precise where functional values may appear in the resultant programs. If a totally first-order program is required, Reynolds' method can be always be applied after our transformation.
 
 \paragraph{Preserve the space/sharing behaviour of the program.} In the expression |let y = f x in y + y|, according to the rules of lazy evaluation, |f x| will be evaluated at most once. We could inline the let binding to give |f x + f x|, but this expression evaluates |f x| twice. Where possible, we will avoid changing the sharing of the program. Our goals are primarily for analysis of the resultant code, not to compile and execute the result. Because we are not interested in performance, we permit the loss of sharing in computations if to do so will remove functional values.
 
@@ -239,7 +240,7 @@ We define a number of goals: some are \textit{essential}, and others are \textit
 
 
 \section{Method in Detail}
-\label{sec:detailed}
+\label{secF:detailed}
 
 \begin{comment}
 % paper haskell
@@ -300,7 +301,7 @@ firstify = ((simplify +|+ arity) +|+ inline) +|+ specialise
 
 Within this chain we can guarantee that the end result will be a fixed point of every component transformation. Additionally, before each transformation is applied, those to the left will have reached fixed points.
 
-The operator |(+||+)| is written for clarity, not for speed. If the first argument is idempotent, then additional unnecessary work is performed. In the case of chaining operators, the left function is guaranteed to be idempotent if it is the result of |(+||+)|, so much computation is duplicated. We describe further optimisations in \S\ref{sec:time}.
+The operator |(+||+)| is written for clarity, not for speed. If the first argument is idempotent, then additional unnecessary work is performed. In the case of chaining operators, the left function is guaranteed to be idempotent if it is the result of |(+||+)|, so much computation is duplicated. We describe further optimisations in \S\ref{secF:time}.
 
 We describe each of the stages in the algorithm separately. In all subsequent stages, we assume that all the simplification rules have been applied.
 
@@ -327,7 +328,7 @@ let v = (\w -> x) in y
 \ignore\begin{code}
 let v = x in y
     => y[v / x]
-    where x {-" \text{ is a boxed lambda (see \S\ref{sec:inlining})} "-}
+    where x {-" \text{ is a boxed lambda (see \S\ref{secF:inlining})} "-}
 \end{code}}
 
 \simp{let-lam}{
@@ -338,10 +339,10 @@ let v = x in \w -> y
 
 \end{simplify}
 \caption{Additional Simplification rules.}
-\label{fig:lambda_simplify}
+\label{figF:lambda_simplify}
 \end{figure}
 
-The simplification stage has the goal of moving lambda expressions upwards, and introducing lambdas for partially applied functions. This stage makes use of standard simplification rules from \ref{sec:core_simplify} plus additional rules which deal specifically with lambda expressions, given in Figure \ref{fig:lambda_simplify}. All of the simplification rules are correct individually. The rules are applied to any subexpression, as long as any rule matches.
+The simplification stage has the goal of moving lambda expressions upwards, and introducing lambdas for partially applied functions. This stage makes use of standard simplification rules from \ref{secB:core_simplify} plus additional rules which deal specifically with lambda expressions, given in Figure \ref{figF:lambda_simplify}. All of the simplification rules are correct individually. The rules are applied to any subexpression, as long as any rule matches.
 
 \subsubsection{Lambda Introduction}
 
@@ -370,9 +371,9 @@ even x = (.) (\y -> not y) (\z -> odd z) x
 This replaces partial application with lambda expressions, and has the advantage of making functional values more explicit, permitting arity raising.
 
 \subsubsection{Lambda Movement}
-\label{sec:sharing}
+\label{secF:sharing}
 
-The (bind-lam) rule inlines a lambda bound in a let expression. The (bind-box) rule will be discussed as part of the inlining stage, see \S\ref{sec:inlining}. The (let-lam) rule can be responsible for a reduction in sharing:
+The (bind-lam) rule inlines a lambda bound in a let expression. The (bind-box) rule will be discussed as part of the inlining stage, see \S\ref{secF:inlining}. The (let-lam) rule can be responsible for a reduction in sharing:
 
 \begin{example}
 \begin{code}
@@ -408,9 +409,9 @@ Given a body which is a lambda expression, the arguments to the lambda expressio
 
 
 \subsection{Inlining}
-\label{sec:inlining}
+\label{secF:inlining}
 
-We use inlining as the first stage in the removal of functional values stored within a data value -- for example |Just (\x -> x)|. We refer to expressions that evaluate to functional values inside data values as \textit{boxed lambdas}. If a boxed lambda is bound in a let expression, we substitute the let binding, using the (bind-box) rule from Figure \ref{fig:lambda_simplify}. We only inline a function if two conditions both hold: (1) the function's body is a boxed lambda; (2) the function application occurs within a case scrutinee.
+We use inlining as the first stage in the removal of functional values stored within a data value -- for example |Just (\x -> x)|. We refer to expressions that evaluate to functional values inside data values as \textit{boxed lambdas}. If a boxed lambda is bound in a let expression, we substitute the let binding, using the (bind-box) rule from Figure \ref{figF:lambda_simplify}. We only inline a function if two conditions both hold: (1) the function's body is a boxed lambda; (2) the function application occurs within a case scrutinee.
 
 \begin{figure}
 \begin{code}
@@ -424,11 +425,11 @@ isLambda (ELam v x)  = True
 isLambda _           = False
 \end{code}
 \caption{The |isBox| function, to test if an expression is a boxed lambda.}
-\label{fig:boxed_lambda}
+\label{figF:boxed_lambda}
 \end{figure}
 
 \begin{definition}
-An expression |e| is a boxed lambda if |isBox e == True|, where |isBox| is defined as in Figure \ref{fig:boxed_lambda}.
+An expression |e| is a boxed lambda if |isBox e == True|, where |isBox| is defined as in Figure \ref{figF:boxed_lambda}.
 \end{definition}
 
 The |isBox| function as presented may not terminate, but by simply keeping a list of followed functions, we can assume the result is false in any duplicate call. This modification does not change the result of any previously terminating evaluations.
@@ -476,13 +477,13 @@ For each application of a function to arguments containing lambdas, a specialise
 The specialisation transformation makes use of \textit{templates}. A template is an expression where some sub-expressions are omitted, denoted by an underscore. The process of specialisation proceeds as follows:
 
 \begin{enumerate}
-\item Find all functions which have arguments containing lambdas, and generate templates, omitting first-order components (see \S\ref{sec:generate_templates}).
-\item For each template, generate a function specialised to that template (see \S\ref{sec:generate_functions}).
-\item For each subexpression matching a template, replace it with the generated function (see \S\ref{sec:use_templates}).
+\item Find all functions which have arguments containing lambdas, and generate templates, omitting first-order components (see \S\ref{secF:generate_templates}).
+\item For each template, generate a function specialised to that template (see \S\ref{secF:generate_functions}).
+\item For each subexpression matching a template, replace it with the generated function (see \S\ref{secF:use_templates}).
 \end{enumerate}
 
 \begin{example}
-\label{ex:map_id}
+\label{exF:map_id}
 \begin{code}
 main xs = map (\x -> x) xs
 
@@ -507,7 +508,7 @@ map_id xs = case  xs of
 Specialisation is the only stage which introduces new function names. In order to translate an expression in the result program to an equivalent expression in the input program, it is sufficient to replace all generated function names with their associated template, supplying all the necessary variables.
 
 \subsubsection{Generating Templates}
-\label{sec:generate_templates}
+\label{secF:generate_templates}
 
 %format underscore = _
 
@@ -545,10 +546,10 @@ apply :: ([Expr] -> Expr) -> [Expr] -> Expr
 apply f xs = if all (== underscore) xs then underscore else f xs
 \end{code}
 \caption{Template generation function.}
-\label{fig:template_generation}
+\label{figF:template_generation}
 \end{figure}
 
-A template is generated if an expression is a function application, whose arguments include a sub-expression which is either a lambda expression or a boxed lambda -- as calculated by the |template| function in Figure \ref{fig:template_generation}. The template additionally includes all sub-expressions whose removal would lead to functional values as omitted subexpressions, and all free variables bound within the template.
+A template is generated if an expression is a function application, whose arguments include a sub-expression which is either a lambda expression or a boxed lambda -- as calculated by the |template| function in Figure \ref{figF:template_generation}. The template additionally includes all sub-expressions whose removal would lead to functional values as omitted subexpressions, and all free variables bound within the template.
 
 \begin{example}
 \noindent\begin{tabular}{@@{}ll}
@@ -564,11 +565,11 @@ In all examples, the |id| function has an argument which has a lambda expression
 \end{example}
 
 \subsubsection{Generating Functions}
-\label{sec:generate_functions}
+\label{secF:generate_functions}
 
 Given a template, to generate an associated function, a unique function name is allocated to the template. For each |_| template a fresh argument variable is assigned. The body is produced by unfolding the outer function symbol in the template once.
 
-\begin{examplerevisit}{\ref{ex:map_id}}
+\begin{examplerevisit}{\ref{exF:map_id}}
 Consider the template \ignore|map (\x -> x) _|. Let |v_1| be the fresh argument variable for the single |_| placeholder, and |map_id| be the function name:
 
 \begin{code}
@@ -585,7 +586,7 @@ map_id v_1 =  let  f   = \x -> x
                          y:ys  -> f y : map f ys
 \end{code}
 
-\noindent After the simplification rules from Figure \ref{fig:lambda_simplify}, we obtain:
+\noindent After the simplification rules from Figure \ref{figF:lambda_simplify}, we obtain:
 
 \begin{code}
 map_id v_1 =  let  xs = v_1
@@ -596,11 +597,11 @@ map_id v_1 =  let  xs = v_1
 \end{examplerevisit}
 
 \subsubsection{Using Templates}
-\label{sec:use_templates}
+\label{secF:use_templates}
 
 After a function has been generated for each template, every expression matching a template can be replaced by a call to the new function. Every subexpression corresponding to an |underscore| is passed as an argument.
 
-\begin{exampleany}{\ref{ex:map_id} (continued)}
+\begin{exampleany}{\ref{exF:map_id} (continued)}
 \begin{code}
 map_id v_1 =  let  xs = v_1
               in   case  xs of
@@ -612,7 +613,7 @@ We now have a first-order definition.
 \end{exampleany}
 
 \subsection{Extending the method to allow primitive functions}
-\label{sec:primitives}
+\label{secF:primitives}
 
 Primitive functions do not have an associated body, and therefore cannot be examined or inlined. We make just two simple changes to support primitives.
 
@@ -634,10 +635,10 @@ Some primitives not only \textit{permit} functional values, but actually \textit
 \begin{comment}
 % does not seem that interesting, rather obvious...
 \subsection{Allowing |main| to return a functional value}
-\label{sec:main_relax}
+\label{secF:main_relax}
 
 \begin{examplename}{Root function returning functional values}
-\label{ex:root_function_functional}
+\label{exF:root_function_functional}
 \begin{code}
 main = [id]
 \end{code}
@@ -668,12 +669,12 @@ In this example, the |main| function takes a functional argument |f|, which is a
 \end{comment}
 
 \section{Examples}
-\label{sec:examples}
+\label{secF:examples}
 
 We now give two examples. Our method can convert the first example to first-order, but not the second.
 
 \begin{examplename}{Inlining Boxed Lambdas}
-\label{ex:inlining_boxed_lambdas}
+\label{exF:inlining_boxed_lambdas}
 An earlier version of our defunctionaliser inlined boxed lambdas everywhere they occurred. This made the detection of boxed lambdas much simpler, and did not require looking into external functions. However, it was unable to cope with programs like this one:
 
 \begin{code}
@@ -685,7 +686,7 @@ The |gen| function is both a boxed lambda and recursive. If we inlined |gen| bef
 \end{examplename}
 
 \begin{examplename}{Functional Lists}
-\label{ex:functional_lists}
+\label{exF:functional_lists}
 Sometimes lambda expressions are used to build up lists which can have elements concatenated onto the end. Using Hughes lists \cite{hughes:lists}, we can define:
 
 \begin{code}
@@ -707,7 +708,7 @@ We have benchmarked these operations in a variety of settings and the list based
 
 
 \section{Restricted Completeness}
-\label{sec:completeness}
+\label{secF:completeness}
 
 Our method would be \textit{complete} if it removed all lambda expressions and partially-applied functions from a program. All partially-applied functions are translated to lambda expressions using the (eta) rule. We therefore need to determine where a lambda expression may occur in a program after the application of our defunctionalisation method.
 
@@ -739,7 +740,7 @@ s_0  =  lam s_0 &+ fun s_0 s_0 &+ con s_0 &+ app s_0 s_0 &+ var &+
 We classify the location of lambdas within the residual program, assuming the program satisfies the following two conditions:
 
 \begin{enumerate}
-\item The termination criteria does not stop further defunctionalisation (see \S\ref{sec:termination}).
+\item The termination criteria does not stop further defunctionalisation (see \S\ref{secF:termination}).
 \item A primitive function is neither passed a functional argument, nor returns a functional value.
 \end{enumerate}
 
@@ -759,7 +760,7 @@ s_1  =  lam s_1 &+ fun s_1 s_1 &+ con s &+ app (s_1 - con s_1) s_1 &+ var &+
 \end{code}
 
 \paragraph{Restriction 2: Standard Simplification Rules}
-Our simplification rules given in Figure \ref{fig:simplify} are applied until a fixed point is found, meaning that the left-hand side of any rule cannot occur in the output. In view of these restrictions we can further reduce the bounding set of residual expressions:
+Our simplification rules from \S\ref{secB:core_simplify} are applied until a fixed point is found, meaning that the left-hand side of any rule cannot occur in the output. In view of these restrictions we can further reduce the bounding set of residual expressions:
 
 % _ = L f C a(v, _) v c(f a v, _) l
 \ignore\begin{code}
@@ -768,7 +769,7 @@ s_2  =  lam s_2 &+ fun s_2 s_2 &+ con s_2 &+ app var s_2 &+ var &+
 \end{code}
 
 \paragraph{Restriction 3: Lambda Simplification Rules}
-We apply the lambda rules from Figure \ref{fig:lambda_simplify}. As \ignore|(e - lam e)| occurs repeatedly we have factored it out as |l'|. To allow reuse of |l'| in future definitions, we parameterise by |n| to obtain |l_n'|.
+We apply the lambda rules from Figure \ref{figF:lambda_simplify}. As \ignore|(e - lam e)| occurs repeatedly we have factored it out as |l'|. To allow reuse of |l'| in future definitions, we parameterise by |n| to obtain |l_n'|.
 
 % _ = L f C a(v, _) v c(f a v, !L) l(!L, !L)
 \ignore\begin{code}
@@ -789,7 +790,7 @@ e_4   =  lam e_4 &+ fun l_4' e_4 &+ con e_4 &+ app var e_4 &+ var &+
 \end{code}
 
 \paragraph{Restriction 5: Inlining and (bind-box)}
-To deal with inlining, we need to work with lambda boxes, as defined by the function |isBox|, from Figure \ref{fig:boxed_lambda}. We first define the subset of expressions which are \textit{not} lambda boxes:
+To deal with inlining, we need to work with lambda boxes, as defined by the function |isBox|, from Figure \ref{figF:boxed_lambda}. We first define the subset of expressions which are \textit{not} lambda boxes:
 
 \ignore\begin{code}
 b_n'  =  lam e_n &+ fun b_n' e_n &+ con (b_n' - lam e_n) &+ app e_n e_n &+ var &+
@@ -861,7 +862,7 @@ main_3 f = f (\x -> x)
 \end{code}
 
 \section{Proof of Termination}
-\label{sec:termination}
+\label{secF:termination}
 
 \begin{comment}
 We can remove all data types by encoding them as functions, as described in \citet{naylor:reduceron}. If we then had a transformation which made the program first-order \textit{without} introducing any data types, we would end up with a program without data or closures, which is incapable of storing an unbounded amount of information. Since with higher-order functions we can implement a Turing machine \cite{turing:halting}, and without an unbounded store we cannot, such a transformation cannot exist.
@@ -870,7 +871,7 @@ We can remove all data types by encoding them as functions, as described in \cit
 Our algorithm, as it stands, may not terminate. In order to ensure termination, it is necessary to bound both the inlining and specialisation stages. In this section we develop a mechanism to ensure termination, by first looking at how non-termination may arise.
 
 \subsection{Termination of Simplification}
-\label{sec:termination_simplification}
+\label{secF:termination_simplification}
 
 \begin{figure}
 \bigskip
@@ -886,10 +887,10 @@ let(lam(x),y)    -> lam(let(x,y))
 \end{verbatim}
 \bigskip
 \caption{Encoding of termination simplification.}
-\label{fig:term_simplification}
+\label{figF:term_simplification}
 \end{figure}
 
-In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. A simple encoding of our rules is given in Figure \ref{fig:term_simplification}. We have proven termination using both this simple formulation, which considers all constructors to have one alternative of exactly arity one, and a more complex encoding. In both cases, the system is able to report success.
+In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. A simple encoding of our rules is given in Figure \ref{figF:term_simplification}. We have proven termination using both this simple formulation, which considers all constructors to have one alternative of exactly arity one, and a more complex encoding. In both cases, the system is able to report success.
 
 The encoding of the (bind-box) and (bind-lam) rules is excluded. Given these rules, there are non terminating sequences. For example:
 
@@ -909,7 +910,7 @@ Functions may only ever increase in arity, and provided the function bodies do n
 
 \subsection{Termination of Inlining}
 
-A standard technique to ensure termination of inlining is to refuse to inline recursive functions \cite{spj:inlining}. For our purposes, this non-recursive restriction is too cautious at it would leave residual lambda expressions in cases such as Example \ref{ex:inlining_boxed_lambdas}. We first present a program which causes our method to non-terminate, then our means of ensuring termination.
+A standard technique to ensure termination of inlining is to refuse to inline recursive functions \cite{spj:inlining}. For our purposes, this non-recursive restriction is too cautious at it would leave residual lambda expressions in cases such as Example \ref{exF:inlining_boxed_lambdas}. We first present a program which causes our method to non-terminate, then our means of ensuring termination.
 
 \begin{example}
 \begin{code}
@@ -937,12 +938,12 @@ To avoid such problems, we permit inlining a function |f|, at all application si
 
 
 \subsection{Termination of Specialisation}
-\label{sec:termination_specialisation}
+\label{secF:termination_specialisation}
 
 The specialisation method, left unrestricted, also may not terminate.
 
 \begin{example}
-\label{ex:wrap}
+\label{exF:wrap}
 \begin{code}
 data Wrap a  =  Wrap (Wrap a)
              |  Value a
@@ -954,11 +955,11 @@ main = f (Value head)
 In the first iteration, the specialiser generates a version of |f| specialised for the argument |Value head|. In the second iteration it would specialise for |Wrap (Value head)|, then in the third with |Wrap (Wrap (Value head))|. Specialisation would generate an infinite number of specialisations of |f|.
 \end{example}
 
-To ensure we only specialise a finite number of times we use a homeomorphic embedding, from \S\ref{sec:homeomorphic}. We associate a set $S$ with each function. After specialising with a template we add that template to the set $S$ of the function associated with that expression. When we create a new function based on a template, we copy the $S$ associated with the function in which the specialisation is performed.
+To ensure we only specialise a finite number of times we use a homeomorphic embedding, from \S\ref{secB:homeomorphic}. We associate a set $S$ with each function. After specialising with a template we add that template to the set $S$ of the function associated with that expression. When we create a new function based on a template, we copy the $S$ associated with the function in which the specialisation is performed.
 
 One of the conditions for termination of homeomorphic embedding is that there is only a finite alphabet. During the process of specialisation we create new functions, and these new functions are new symbols in our language. So we only use function names from the original input program. Every template has a correspondence with an expression in the original program. We perform the homeomorphic embedding test only after transforming all templates into their original equivalent expression.
 
-\begin{examplerevisit}{\ref{ex:wrap}}
+\begin{examplerevisit}{\ref{exF:wrap}}
 Using homeomorphic embedding, we again generate the specialised variant of |f (Value head)|. Next we would generate the template |f (Wrap (Value head))|. However, |f (Value head)| $\unlhd{}$ |f (Wrap (Value head))|, so the new template would not be used.
 \end{examplerevisit}
 
@@ -988,14 +989,14 @@ This example may look slightly obscure, but similar situations occur commonly wi
 
 To alleviate this problem, instead of storing one set $S$, we store a sequence of sets, $S_1 \ldots S_n$ -- where $n$ is a small positive number, constant for the duration of the program. Instead of adding to the set $S$, we now add to the lowest set $S_i$ where adding the element will not violate the admissible sequence. Each of the sets $S_i$ is still finite, and there are a finite number ($n$) of them, so termination is maintained.
 
-By default our defunctionalisation program uses 8 sets. In the results table given in \S\ref{sec:results}, we have given the minimum possible value of $n$ to remove all lambda expressions within each program.
+By default our defunctionalisation program uses 8 sets. In the results table given in \S\ref{secF:results}, we have given the minimum possible value of $n$ to remove all lambda expressions within each program.
 
 \subsection{Termination as a Whole}
 
 Given an initial program, the arity raising, inlining and specialisation stages will each apply a finite number of times. The simplification stage is terminating on its own, and will be invoked a finite number of times, so will also terminate. Therefore, when combined, the stages will terminate.
 
 \section{Results}
-\label{sec:results}
+\label{secF:results}
 
 \subsection{Benchmark Tests}
 
@@ -1026,7 +1027,7 @@ Average         & 4.8 & 237 & 0.06 & 202 & 3.6 & 0.4  & -33\% \\
 
 \bigskip
 \textbf{Name} is the name of the program;
-\textbf{Bound} is the numeric bound used for termination (see \S\ref{sec:termination_specialisation});
+\textbf{Bound} is the numeric bound used for termination (see \S\ref{secF:termination_specialisation});
 \textbf{HO Create} the number of lambda expressions and under-applied functions, first in the input program and then in the output program;
 \textbf{HO Use} the number of application expressions and over-applied functions;
 \textbf{Time} the execution time of our method in seconds;
@@ -1034,10 +1035,10 @@ Average         & 4.8 & 237 & 0.06 & 202 & 3.6 & 0.4  & -33\% \\
 \bigskip
 
 \caption{Results of defunctionalisation on the nofib suite.}
-\label{tab:results}
+\label{tabF:results}
 \end{table}
 
-We have tested our method with programs drawn from the nofib benchmark suite, and the results are given in Table \ref{tab:results}. Looking at the input Core programs, we see many sources of functional values.
+We have tested our method with programs drawn from the nofib benchmark suite, and the results are given in Table \ref{tabF:results}. Looking at the input Core programs, we see many sources of functional values.
 
 \begin{itemize}
 \item Type classes create dictionaries which are implemented as tuples of functions.
@@ -1083,26 +1084,26 @@ ppBesides = foldr1 f nil
 Here |ppBesides| evaluates to |undefined| if the input list to |foldr1| is |[]|. The |undefined| value will be of type |Pretty|, and will be given further arguments, which can be functional arguments. In reality, the code ensures that the input list is never |[]|, so the program will never fail with this error.
 \end{example}
 
-\subsection{Termination Bound (Bound in Table \ref{tab:results})}
+\subsection{Termination Bound (Bound in Table \ref{tabF:results})}
 
 The termination bound used varies from 2 to 11 for the sample programs. If we exclude the integer program, which is complicated by the primitive operations on functional values, the highest bound is 8. Most programs have a termination bound of 4. There is no apparent relation between the size of a program and the termination bound.
 
-\subsection{Creating of Functional Values (HO Create in Table \ref{tab:results})}
+\subsection{Creating of Functional Values (HO Create in Table \ref{tabF:results})}
 
 We use Yhc generated programs as input, which have been lambda lifted \cite{lambda_lift}, so contain no lambda expressions. The residual program has no partial application, only lambda expressions. Most programs in our test suite start with hundreds of partial applications, but only 3 residual programs contain lambda expressions.
 
 For the purposes of testing defunctionalisation, we have worked on unmodified Yhc libraries, including all the low-level detail. For example, |readFile| in Yhc is implemented in terms of file handles and pointer operations. Most analysis operations work on an abstracted view of the program, which would reduce the number and complexity of functional values.
 
-\subsection{Uses of Functional Values (HO Use in Table \ref{tab:results})}
+\subsection{Uses of Functional Values (HO Use in Table \ref{tabF:results})}
 
 While very few programs have residual functional values, a substantial number make use of applications to a non-function/non-constructor, and use over-application of functions. In most cases these result from supplying |error| calls with additional arguments, typically related to the desugaring of |do| notation and pattern matching within Yhc.
 
-\subsection{Execution Time (Time in Table \ref{tab:results})}
-\label{sec:time}
+\subsection{Execution Time (Time in Table \ref{tabF:results})}
+\label{secF:time}
 
 The timing results were all measured on a 1.2GHz laptop, running GHC 6.8.2 \cite{ghc}. The longest execution time was only one second, with the average time under half a second. The programs requiring most time made use of floating point numbers, suggesting that library code requires most effort to defunctionalise. If abstractions were given for library methods, the execution time would drop substantially.
 
-In order to gain acceptable speed, we perform a number of optimisations over the algorithm presented in \S\ref{sec:detailed}:
+In order to gain acceptable speed, we perform a number of optimisations over the algorithm presented in \S\ref{secF:detailed}:
 
 \begin{itemize}
 \item We transform functions in an order determined by a topological sort with respect to the call-graph.
@@ -1111,13 +1112,13 @@ In order to gain acceptable speed, we perform a number of optimisations over the
 \item We track the arity and boxed lambda status of each function.
 \end{itemize}
 
-\subsection{Program Size (Size in Table \ref{tab:results})}
+\subsection{Program Size (Size in Table \ref{tabF:results})}
 
 We measured program size by taking the number of nodes in the abstract syntax tree. On average the size of the resultant program is smaller by 33\%. The reason for the decrease in program size is due to eliminating dictionaries holding references to unnecessary code.
 
 
 \section{Related Work}
-\label{sec:related}
+\label{secF:related}
 
 \paragraph{Reynolds style defunctionalisation} \cite{reynolds:defunc} is the seminal method for generating a first-order equivalent of a higher-order program.
 
@@ -1159,7 +1160,7 @@ Reynolds method has been used as a tool in program calculation \cite{danvy:defun
 \item To ensure termination of the specialisation step, they never specialise a recursive function unless it has all functional arguments passed identically in all recursive calls. This restriction is satisfied by higher-order functions such as |map|, but fails in many other cases.
 \end{itemize}
 
-In addition, functional programs now use monads, IO continuations and type classes as a matter of course. Such features were still experimental when their work was done and they did not handle them. Our work can be seen as a successor to theirs, indeed we achieve most of the aims set out in their future work section. We have tried their examples, and can confirm that all of them are successfully handled by our system. Some of their observations and extensions apply equally to our work: for example, they suggest possible methods of removing accumulating functions such as in Example \ref{ex:functional_lists}.
+In addition, functional programs now use monads, IO continuations and type classes as a matter of course. Such features were still experimental when their work was done and they did not handle them. Our work can be seen as a successor to theirs, indeed we achieve most of the aims set out in their future work section. We have tried their examples, and can confirm that all of them are successfully handled by our system. Some of their observations and extensions apply equally to our work: for example, they suggest possible methods of removing accumulating functions such as in Example \ref{exF:functional_lists}.
 
 \paragraph{Partial Evaluation and Supercompilation}
 

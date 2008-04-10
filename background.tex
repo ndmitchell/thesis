@@ -5,10 +5,10 @@
 
 \todo{add examples of homeomorphic embedding}
 
-In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{sec:core}, then discuss the semantics of this Core language in \S\ref{sec:semantics}, its sharing properties in \S\ref{sec:sharing} and how we generate Core in \S\ref{sec:generating_core}. We then cover the homeomorphic embedding relation in \S\ref{sec:homeomorphic}, particularly applied to the expression type of our Core language.
+In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{secB:core}, then discuss the semantics of this Core language in \S\ref{secB:semantics}, its sharing properties in \S\ref{secB:sharing} and how we generate Core in \S\ref{secB:generating_core}. We then cover the homeomorphic embedding relation in \S\ref{secB:homeomorphic}, particularly applied to the expression type of our Core language.
 
 \section{Core Language}
-\label{sec:core}
+\label{secB:core}
 
 \begin{figure}
 \renewcommand{\f}[1]{\text{\hspace{1cm}#1}}
@@ -30,10 +30,10 @@ alt   ::=  c vs_ -> x          {-"\f{case alternative}"-}
 
 Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over function names, |x| and |y| range over expressions and |a| ranges over case alternatives. \\
 \caption{Core syntax}
-\label{fig:core}
+\label{figB:core}
 \end{figure}
 
-The syntax of our Core language is given in Figure \ref{fig:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. During future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation.
+The syntax of our Core language is given in Figure \ref{figB:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. During future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation.
 
 A program is a list of functions, with a root function named |main|. A function is a name, a list of arguments and a body expression. Variables and lambda abstractions are much as they would be in any Core language.  Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary. We have three forms of application, all of which take two values: the first value may be either a constructor, a top-level named function, or any arbitrary expression; the second value is a list of arguments, which may be empty. These forms of application give rise to three equivalences:
 
@@ -83,10 +83,10 @@ arity  :: String    -> Int
 ctors  :: CtorName  -> [CtorName]
 \end{code}
 \caption{Operations on Core.}
-\label{fig:core_operations}
+\label{figB:core_operations}
 \end{figure}
 
-Figure \ref{fig:core_operations} gives the signatures for helper functions over the core data types. We use the functions |body f| and |args f| to denote the body and arguments of |f|. We use the function |rhs| to extract the expression on the right of a case alternative. Every function and constructor has an arity, which can be obtained with the |arity| function. To determine alternative constructors the |ctors| function can be used; for example |ctors "True" = ["False", "True"]| and |ctors "[]" = ["[]",":"]|.
+Figure \ref{figB:core_operations} gives the signatures for helper functions over the core data types. We use the functions |body f| and |args f| to denote the body and arguments of |f|. We use the function |rhs| to extract the expression on the right of a case alternative. Every function and constructor has an arity, which can be obtained with the |arity| function. To determine alternative constructors the |ctors| function can be used; for example |ctors "True" = ["False", "True"]| and |ctors "[]" = ["[]",":"]|.
 
 
 \subsubsection{Substitution}
@@ -117,17 +117,17 @@ fv (ECase x as_  ) = fv x `union` unions (map f as_)
 fvs xs_ = unions (map fv xs_)
 \end{code}
 \caption{Free variables of an expression.}
-\label{fig:free_variables}
+\label{figB:free_variables}
 \end{figure}
 
-The variables in the patterns of case expressions, the arguments of lambda abstractions and the bindings of let expressions are \textit{bound}; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |fv e|, and can be computed using the function in Figure \ref{fig:free_variables}. Within a function definition all variables must be bound.
+The variables in the patterns of case expressions, the arguments of lambda abstractions and the bindings of let expressions are \textit{bound}; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |fv e|, and can be computed using the function in Figure \ref{figB:free_variables}. Within a function definition all variables must be bound.
 
 In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and afterwards any repeated bound variables can be assigned fresh names.
 
 \section{Semantics}
-\label{sec:semantics}
+\label{secB:semantics}
 
-The evaluation strategy of our Core language is lazy. We specify a reduction to weak-head normal form (WHNF) in Figure \ref{fig:whnf} and a reduction to normal form (NF) in \ref{fig:nf}. We have assumed that all applications are translated to general applications where the second value is a 1-element list. The |_F| function translates a function name to an associate expression incorporating the program arguments as variables in a lambda, and the body as the body of that lambda. The grammar for expressions in WHNF is:
+The evaluation strategy of our Core language is lazy. We specify a reduction to weak-head normal form (WHNF) in Figure \ref{figB:whnf} and a reduction to normal form (NF) in \ref{figB:nf}. We have assumed that all applications are translated to general applications where the second value is a 1-element list. The |_F| function translates a function name to an associate expression incorporating the program arguments as variables in a lambda, and the body as the body of that lambda. The grammar for expressions in WHNF is:
 
 \begin{code}
 r  =  c \< xs_ \>  {-" \text{  constructor} "-}
@@ -182,7 +182,7 @@ n  =  c \< ns_ \>  {-" \text{  constructor} "-}
     {|case x of alts_ => bottom|}
 \end{eqnarray}
 \caption{Reduction to weak-head normal form, |(=>)|.}
-\label{fig:whnf}
+\label{figB:whnf}
 \end{figure}
 
 \begin{figure}
@@ -199,10 +199,10 @@ n  =  c \< ns_ \>  {-" \text{  constructor} "-}
     {|x =>* c \< xs_' \>|}
 \end{eqnarray}
 \caption{Reduction to normal form, |(=>*)|.}
-\label{fig:nf}
+\label{figB:nf}
 \end{figure}
 
-Our semantics does not respect sharing, this topic is dealt with in \S\ref{sec:sharing}. The evaluation of a program corresponds to reducing |main| to NF.
+Our semantics does not respect sharing, this topic is dealt with in \S\ref{secB:sharing}. The evaluation of a program corresponds to reducing |main| to NF.
 
 We never descend below a bound variable without replacing that variable, therefore any remaining variable would have to be free in the definition of the program, which is not permitted. Consequently, there is no rule for a variable. We choose not evaluate inside a lambda, even on |=>*|, as this would generate a free variable. The |_F| mapping never crashes, as it is checked statically that all mentioned function names exist in the mapping.
 
@@ -211,7 +211,7 @@ The only way an undefined value may be initially generated is by a call to the e
 There is no rule for case of a lambda abstraction, as this situation is not permitted by the type system. Similarly, the type system plus the exhaustiveness of case branches means that if the scrutinee successfully evaluates, it will match exactly one alternative.
 
 \subsection{Simplification Rules}
-\label{sec:core_simplify}
+\label{secB:core_simplify}
 
 \begin{figure}
 \begin{simplify}
@@ -295,18 +295,18 @@ let v = x in y
 \end{code}}
 \end{simplify}
 \caption{Simplification rules.}
-\label{fig:simplify}
+\label{figB:simplify}
 \end{figure}
 
-We present several simplification rules in Figure \ref{fig:simplify}, which can be applied to our Core language. These rules are standard and would be applied by any optimising compiler \cite{spj:transformation}. All the rules preserve both the semantics and the sharing behaviour of an expression.
+We present several simplification rules in Figure \ref{figB:simplify}, which can be applied to our Core language. These rules are standard and would be applied by any optimising compiler \cite{spj:transformation}. All the rules preserve both the semantics and the sharing behaviour of an expression.
 
 The (app-app), (fun-app) and (con-app) rules normalise applications. The (case-con) and (lam-app) rules simply follow the semantics, using let expressions to preserve the sharing. The (case-app), (let-case) and (case-case) rules move outer expressions over an inner case expression, duplicating the outer expression in each alternative. The (case-lam) rule promotes a lambda from inside a case alternative outwards. The (let-app) and (let-case) rules move an expression over an inner let expression. The (let) rule substitutes let expressions where the bound variable is used only once, and therefore no loss of sharing is possible.
 
 
 \section{Sharing}
-\label{sec:sharing}
+\label{secB:sharing}
 
-The semantics presented in \S\ref{sec:semantics} model both values and laziness correctly, but do not model the sharing present in Haskell. This section informally discusses the relevant sharing properties of Haskell. In general, any optimisation must take account of sharing, but semantic analysis can sometimes ignore the effects of sharing. The sharing present in Haskell is not specified in the Haskell Report \cite{haskell}, but is defined elsewhere \cite{bakewell:space_semantics}.
+The semantics presented in \S\ref{secB:semantics} model both values and laziness correctly, but do not model the sharing present in Haskell. This section informally discusses the relevant sharing properties of Haskell. In general, any optimisation must take account of sharing, but semantic analysis can sometimes ignore the effects of sharing. The sharing present in Haskell is not specified in the Haskell Report \cite{haskell}, but is defined elsewhere \cite{bakewell:space_semantics}.
 
 \subsection{Let bindings}
 
@@ -346,17 +346,17 @@ linear :: VarName -> Expr -> Bool
 linear v x = occurs v x <= 1
 \end{code}
 \caption{Linear variables within an expression.}
-\label{fig:linear}
+\label{figB:linear}
 \end{figure}
 
-In general, the substitution of a bound variable for the associated expression may cause duplicate computation to be formed. However, in some circumstances, duplicate computation can be guaranteed not to occur. If a bound variable can be used at most once in an expression, it is said to be \textit{linear}, and substitution can be performed. A variable is linear if it is used at most once, i.e. occurs at most once down each possible flow of control, and can be computed following Figure \ref{fig:linear}.
+In general, the substitution of a bound variable for the associated expression may cause duplicate computation to be formed. However, in some circumstances, duplicate computation can be guaranteed not to occur. If a bound variable can be used at most once in an expression, it is said to be \textit{linear}, and substitution can be performed. A variable is linear if it is used at most once, i.e. occurs at most once down each possible flow of control, and can be computed following Figure \ref{figB:linear}.
 
 \subsection{Recursive let bindings}
 
 A recursive let binding is one where the bound variables are in scope during the computation of their associated expression. In the Haskell language, let bindings can be \textit{recursive}. In other languages, such as ML \cite{ml}, recursive let binding are made explicit with the |letrec| keyword. One common use of |letrec| in Haskell is the |repeat| function:
 
 \begin{example}
-\label{ex:repeat}
+\label{exB:repeat}
 \begin{code}
 repeat x =  letrec xs = x : xs
             in xs
@@ -373,7 +373,7 @@ Our Core language does not allow recursive let bindings, for reasons of simplici
 \item Optionally, remove the inserted |dummy| markers.
 \end{enumerate}
 
-\begin{examplerevisit}{\ref{ex:repeat}}
+\begin{examplerevisit}{\ref{exB:repeat}}
 Applying this to our example from before, we first add dummy arguments:
 
 \begin{code}
@@ -422,7 +422,7 @@ If a general function is inlined, this will not dramatically change the runtime 
 
 
 \section{Generating Core}
-\label{sec:generating_core}
+\label{secB:generating_core}
 
 In order to generate our Core language from the full Haskell language, we use the Yhc compiler \cite{yhc}, a fork of nhc \cite{nhc}.
 
@@ -430,16 +430,16 @@ The internal Core language of Yhc is PosLambda -- a simple variant of lambda cal
 
 The Yhc compiler can generate the Core for a single source file. Yhc can also link in all definitions from all necessary libraries, producing a single Core file representing a whole program. All function and constructor names are fully qualified, so the linking process simply involves merging the list of functions from each required Core file.
 
-In the process of generating a Core file, Yhc performs several transformations. Haskell's type classes are removed using the dictionary transformation (see \S\ref{sec:dictionary_transformation}). All local functions are lambda lifted, leaving only top-level functions -- ensuring Yhc generated Core does \textit{not} contain any lambda expressions. All constructor applications and primitive applications are fully saturated.
+In the process of generating a Core file, Yhc performs several transformations. Haskell's type classes are removed using the dictionary transformation (see \S\ref{secB:dictionary_transformation}). All local functions are lambda lifted, leaving only top-level functions -- ensuring Yhc generated Core does \textit{not} contain any lambda expressions. All constructor applications and primitive applications are fully saturated.
 
 
 \subsection{The Dictionary Transformation}
-\label{sec:dictionary_transformation}
+\label{secB:dictionary_transformation}
 
 Most transformations in Yhc operate within a single function definition. The only phases which require information about more than one function are type checking and the transformation used to implement type classes \citep{wadler:type_classes}. The dictionary transformation introduces tuples (or \textit{dictionaries}) of methods passed as additional arguments to class-polymorphic functions. Haskell also allows subclassing. For example, |Ord| requires |Eq| for the same type. In such cases the dictionary transformation generates a nested tuple: the |Eq| dictionary is a component of the |Ord| dictionary.
 
 \begin{example}
-\label{ex:dictionary}
+\label{exB:dictionary}
 \begin{code}
 f :: Eq alpha => alpha -> alpha -> Bool
 f x y = x == y || x /= y
@@ -458,11 +458,11 @@ f dict x y = (||) (((==) dict) x y) (((/=) dict) x y)
 The |Eq| class is implemented as two selector functions, |(==)| and |(/=)|, acting on a method table. For different types of |alpha|, different method tables are provided.
 \end{example}
 
-The dictionary transformation is a global transformation. In Example \ref{ex:dictionary} the |Eq| context in |f| not only requires a dictionary to be accepted by |f|; it requires all the callers of |f| to pass a dictionary as first argument. There are alternative approaches to implementing type classes, such as \citet{jones:dictionary_free}, which does not create a tuple of higher order functions. We use the dictionary transformation for simplicity, as it is already implemented within Yhc.
+The dictionary transformation is a global transformation. In Example \ref{exB:dictionary} the |Eq| context in |f| not only requires a dictionary to be accepted by |f|; it requires all the callers of |f| to pass a dictionary as first argument. There are alternative approaches to implementing type classes, such as \citet{jones:dictionary_free}, which does not create a tuple of higher order functions. We use the dictionary transformation for simplicity, as it is already implemented within Yhc.
 
 
 \section{Homeomorphic Embedding}
-\label{sec:homeomorphic}
+\label{secB:homeomorphic}
 
 \begin{figure}
 \noindent\begin{tabular}{p{5cm}p{5cm}}
@@ -478,10 +478,10 @@ The dictionary transformation is a global transformation. In Example \ref{ex:dic
 \]
 \end{tabular}
 \caption{Homeomorphic embedding relation.}
-\label{fig:homeomorphic}
+\label{figB:homeomorphic}
 \end{figure}
 
-The homeomorphic embedding relation \cite{leuschel:homeomorphic} has recently been used to guarantee termination of certain program transformations \cite{sorensen:supercompilation}. An expression $x$ is an embedding of $y$, written $x \unlhd y$, if the relationship can be inferred by the rules given in Figure \ref{fig:homeomorphic}, $\sim$ corresponds to equality of expression shells.
+The homeomorphic embedding relation \cite{leuschel:homeomorphic} has recently been used to guarantee termination of certain program transformations \cite{sorensen:supercompilation}. An expression $x$ is an embedding of $y$, written $x \unlhd y$, if the relationship can be inferred by the rules given in Figure \ref{figB:homeomorphic}, $\sim$ corresponds to equality of expression shells.
 
 The homeomorphic embedding uses the relations dive and couple. The dive relation checks if the first term is contained as a child of the second term, while the couple relation checks if both terms have the same outer shell. The homeomorphic embedding $\unlhd$ is a well-binary relation, meaning there are no infinite admissible sequences. A sequence $s_1,s_2 \ldots$ is admissible if there are no $i < j$ such that $s_i \unlhd s_j$. Given a set $S$, we permit the insertion of an element $t$ if $\forall s \in S \bullet \neg(s \unlhd t)$. Following this restriction, the set $S$ will remain finite.
 
@@ -489,7 +489,7 @@ The homeomorphic embedding assumes all elements are expressions over a finite al
 
 \subsection{Fast Homeomorphic Embedding}
 
-To compute $s \unlhd t$, using the algorithm presented in Figure \ref{fig:homeomorphic}, takes greater than polynomial time in the size of the expressions. Fortunately, there exists an algorithm \cite{stillman:computational_problems,stillman:homeomorphic} which takes $O(\text{size}(s) \cdot \text{size}(t) \cdot a)$, where $a$ is the maximum arity of any subexpression in $s$ or $t$.
+To compute $s \unlhd t$, using the algorithm presented in Figure \ref{figB:homeomorphic}, takes greater than polynomial time in the size of the expressions. Fortunately, there exists an algorithm \cite{stillman:computational_problems,stillman:homeomorphic} which takes $O(\text{size}(s) \cdot \text{size}(t) \cdot a)$, where $a$ is the maximum arity of any subexpression in $s$ or $t$.
 
 The faster algorithm first constructs a $\text{size}(s)$ by $\text{size}(t)$ table, recording whether each pair of subexpressions within $s$ and $t$ satisfy the homeomorphic embedding. By computing the homeomorphic embedding in a bottom-up manner, making use of the table to cache pre-computed results, much duplicate computation can be eliminated. By first assigning each subexpression a uniquely identifying number, the table can be accessed and modified in $O(1)$ per operation. The result is a polynomial algorithm.
 

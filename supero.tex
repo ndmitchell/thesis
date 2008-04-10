@@ -7,10 +7,10 @@
 
 \todo{Give examples of generalisation, perhaps}
 
-This chapter deals with developing a \textit{supercompiler} for Haskell, which we have called Supero. We start with an introductory example in \S\ref{sec:intro_supero}, then describe our supercompilation method in \S\ref{sec:optimisation}. We then give a number of benchmarks, comparing both against C (compiled with GCC) in \S\ref{sec:c_results} and Haskell (compiled with GHC) in \S\ref{sec:haskell_results}. Finally, we review related work in \S\ref{sec:related}.
+This chapter deals with developing a \textit{supercompiler} for Haskell, which we have called Supero. We start with an introductory example in \S\ref{secS:intro_supero}, then describe our supercompilation method in \S\ref{secS:optimisation}. We then give a number of benchmarks, comparing both against C (compiled with GCC) in \S\ref{secS:c_results} and Haskell (compiled with GHC) in \S\ref{secS:haskell_results}. Finally, we review related work in \S\ref{secS:related}.
 
 \section{Introductory Example}
-\label{sec:intro_supero}
+\label{secS:intro_supero}
 
 Haskell \cite{haskell} can be used in a highly declarative manner, to express specifications which are themselves executable. Take for example the task of counting the number of words in a file read from the standard input. In Haskell, one could write:
 
@@ -20,7 +20,7 @@ main = print . length . words =<< getContents
 
 From right to left, the |getContents| function reads the input as a list of characters, |words| splits this list into a list of words, |length| counts the number of words, and finally |print| writes the value to the screen.
 
-An equivalent C program is given in Figure \ref{fig:c_words}. Compared to the C program, the Haskell version is more concise and more easily seen to be correct. Unfortunately, the Haskell program (compiled with GHC \cite{ghc}) is also three times slower than the C version (compiled with GCC). This slowdown is caused by several factors:
+An equivalent C program is given in Figure \ref{figS:c_words}. Compared to the C program, the Haskell version is more concise and more easily seen to be correct. Unfortunately, the Haskell program (compiled with GHC \cite{ghc}) is also three times slower than the C version (compiled with GCC). This slowdown is caused by several factors:
 
 \begin{figure}
 \begin{verbatim}
@@ -39,7 +39,7 @@ int main()
 }
 \end{verbatim}
 \caption{Word counting in C.}
-\label{fig:c_words}
+\label{figS:c_words}
 \end{figure}
 
 \begin{description}
@@ -62,9 +62,9 @@ Our goal is an automatic optimisation that makes high-level Haskell programs run
 
 
 \section{Supercompilation}
-\label{sec:optimisation}
+\label{secS:optimisation}
 
-Our supercompiler takes a Core program as input, in the format described in \S\ref{sec:core}, and produces an equivalent Core program as output. To improve the program we do not make small local changes to the original, but instead \textit{evaluate it} so far as possible at compile time, leaving a \textit{residual program} to be run.
+Our supercompiler takes a Core program as input, in the format described in \S\ref{secB:core}, and produces an equivalent Core program as output. To improve the program we do not make small local changes to the original, but instead \textit{evaluate it} so far as possible at compile time, leaving a \textit{residual program} to be run.
 
 \begin{figure}
 \begin{code}
@@ -91,10 +91,10 @@ drive(rho, x)
 Where |psi| is a mapping from expressions to function names, and |fv\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decides whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it.
 \vspace{3mm}
 \caption{The |supercompile| function.}
-\label{fig:supercompile}
+\label{figS:supercompile}
 \end{figure}
 
-The general method of supercompilation is shown in Figure \ref{fig:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost element in the expression becomes part of the residual program. All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to alpha renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions are then supercompiled as before.
+The general method of supercompilation is shown in Figure \ref{figS:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost element in the expression becomes part of the residual program. All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to alpha renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions are then supercompiled as before.
 
 \begin{figure}
 \begin{code}
@@ -113,10 +113,10 @@ let v = c x_1 ... x_n in y
     where v_1 ... v_n {-" \hbox{ are fresh} "-}
 \end{code}
 \caption{Additional simplification rules.}
-\label{fig:simplify}
+\label{figS:simplify}
 \end{figure}
 
-The supercompilation of an expression proceeds by repeatedly inlining a function application until some termination criterion is met. Once the termination criterion holds, the expression is generalised before the outer spine becomes part of the residual program and all subexpressions are assigned names. After each inlining step, the expression is simplified using the standard simplification rules from \S\ref{sec:core_simplify}, along with additional simplification rules from Figure \ref{fig:simplify}. The additional simplification rules all reduce the sharing in an expression, but by small constant amounts, and permit additional transformations. There are three key decisions in the supercompilation of an expression:
+The supercompilation of an expression proceeds by repeatedly inlining a function application until some termination criterion is met. Once the termination criterion holds, the expression is generalised before the outer spine becomes part of the residual program and all subexpressions are assigned names. After each inlining step, the expression is simplified using the standard simplification rules from \S\ref{secB:core_simplify}, along with additional simplification rules from Figure \ref{figS:simplify}. The additional simplification rules all reduce the sharing in an expression, but by small constant amounts, and permit additional transformations. There are three key decisions in the supercompilation of an expression:
 
 \begin{enumerate}
 \item Which function to inline.
@@ -239,7 +239,7 @@ The |unfolds| function computes all possible one-step inlinings, using an in-ord
 
 The original Supero program used a size bound on the expression to determine when to stop. The problem with a size bound is that different programs require different bounds to ensure both timely completion at compile-time and efficient residual programs. Indeed, within a single program, there may be different elements requiring different size bounds -- a problem exacerbated as the size and complexity of a program increases.
 
-We use the homeomorphic embedding relation (described in \S\ref{sec:homeomorphic}). We terminate the supercompilation of an expression |y| if on the chain of reductions from |main| to |y| we have encountered an expression |x| such that $x \unlhd y$.
+We use the homeomorphic embedding relation (described in \S\ref{secB:homeomorphic}). We terminate the supercompilation of an expression |y| if on the chain of reductions from |main| to |y| we have encountered an expression |x| such that $x \unlhd y$.
 
 In addition to using the homeomorphic embedding, we also terminate if further unfolding cannot yield any improvement to the root of the expression. For example, if the root of an expression is a constructor application, no further unfolding will change the root constructor. When terminating for this reason, we always residuate the outer spine of the expression, without applying any generalisation.
 
@@ -317,11 +317,11 @@ Our generalisation is superior because it has split out the |putStr| application
 
 
 \section{Performance Compared With C Programs}
-\label{sec:c_results}
+\label{secS:c_results}
 
 The benchmarks we have used as motivating examples are inspired by the Unix \texttt{wc} command -- namely character, word and line counting. We require the program to read from the standard input, and write out the number of elements in the file. To ensure that we test computation speed, not IO speed (which is usually determined by the buffering strategy, rather than optimisation) we demand that all input is read using the standard C |getchar| function only. Any buffering improvements, such as reading in blocks or memory mapping of files, could be performed equally in all compilers.
 
-All the C versions are implemented following a similar pattern to Figure \ref{fig:c_words}. Characters are read in a loop, with an accumulator recording the current value. Depending on the program, the body of the loop decides when to increment the accumulator. The Haskell versions all follow the same pattern as in the Introduction, merely replacing |words| with |lines|, or removing the |words| function for character counting.
+All the C versions are implemented following a similar pattern to Figure \ref{figS:c_words}. Characters are read in a loop, with an accumulator recording the current value. Depending on the program, the body of the loop decides when to increment the accumulator. The Haskell versions all follow the same pattern as in the Introduction, merely replacing |words| with |lines|, or removing the |words| function for character counting.
 
 We performed all benchmarks on a machine running Windows XP, with a 3GHz processor and 1Gb RAM. All benchmarks were run over a 50Mb log file, repeated 10 times, and the lowest value was taken. The C versions used GCC\footnote{\url{http://gcc.gnu.org/}} version 3.4.2 with -O3. The Haskell version used GHC 6.8.1 with -O2. The Supero version was compiled using our optimiser, then written back as a Haskell file, and compiled once more with GHC 6.8.1 and -O2.
 
@@ -333,10 +333,10 @@ We performed all benchmarks on a machine running Windows XP, with a 3GHz process
 \end{center}
 \bigskip
 \caption{Benchmarks with C, Supero+GHC and GHC alone.}
-\label{fig:c_results}
+\label{figS:c_results}
 \end{figure}
 
-The results are given in Figure \ref{fig:c_results}. In all the benchmarks C and Supero are within 10\% of each other, while GHC trails further behind.
+The results are given in Figure \ref{figS:c_results}. In all the benchmarks C and Supero are within 10\% of each other, while GHC trails further behind.
 
 \subsection{Identified Haskell Speedups}
 
@@ -363,12 +363,12 @@ drop1 []      = []
 drop1 (x:xs)  = xs
 \end{code}
 \caption{The |words| function from the Haskell standard libraries, and an improved |words'|.}
-\label{fig:words}
+\label{figS:words}
 \end{figure}
 
 \paragraph{Inefficient \textsf{words} function}
 
-The second issue is that the standard definition of the |words| function (given in Figure \ref{fig:words}) performs two additional |isSpace| tests per word. By appealing to the definitions of |dropWhile| and |break| it is possible to show that in |words| the first character of |x| is not a space, and that if |y| is non-empty then the first character is a space. The revised |words'| function uses these facts to avoid the redundant |isSpace| tests.
+The second issue is that the standard definition of the |words| function (given in Figure \ref{figS:words}) performs two additional |isSpace| tests per word. By appealing to the definitions of |dropWhile| and |break| it is possible to show that in |words| the first character of |x| is not a space, and that if |y| is non-empty then the first character is a space. The revised |words'| function uses these facts to avoid the redundant |isSpace| tests.
 
 \subsection{Potential GHC Speedups}
 
@@ -388,12 +388,12 @@ The final source of extra computation relative to the C version are stack checks
 
 \subsection{Why Supero Outperforms C for the Wordcount Benchmark}
 
-The most curious result is that Supero outperforms C on wordcounting, by about 6\% -- even with the problems discussed! The C program presented in Figure \ref{fig:c_words} is not optimal. The variable \verb"last_space" is a boolean, indicating whether the previous character was a space, or not. Each time round the loop a test is performed on \verb"last_space", even though its value was determined and tested on the previous iteration. The way to optimise this code is to have two specialised variants of the loop, one for when \verb"last_space" is true, and one for when it is false. When the value of \verb"last_space" changes, the program would transition to the other loop. This pattern effectively encodes the boolean variable in the program counter, and is what the Haskell program has managed to generate from the high-level code.
+The most curious result is that Supero outperforms C on wordcounting, by about 6\% -- even with the problems discussed! The C program presented in Figure \ref{figS:c_words} is not optimal. The variable \verb"last_space" is a boolean, indicating whether the previous character was a space, or not. Each time round the loop a test is performed on \verb"last_space", even though its value was determined and tested on the previous iteration. The way to optimise this code is to have two specialised variants of the loop, one for when \verb"last_space" is true, and one for when it is false. When the value of \verb"last_space" changes, the program would transition to the other loop. This pattern effectively encodes the boolean variable in the program counter, and is what the Haskell program has managed to generate from the high-level code.
 
 However, in C it is quite challenging to capture the required control flow. The program needs two loops, where both loops can transition to the other. Using \texttt{goto} turns off many critical optimisations in the C compiler. Tail recursion is neither required by the C standard, nor supported by most compilers. The only way to express the necessary pattern is using nested while loops, but unlike newer imperative languages such as Java, C does not have named loops -- so the inner loop cannot break from the outer loop if it reaches the end of the file. The only solution is to place the nested while loops in a function, and use \texttt{return} to break from the inner loop. This solution would not scale to a three-valued control structure, and substantially increases the complexity of the code.
 
 \section{Performance Compared With GHC Alone}
-\label{sec:haskell_results}
+\label{secS:haskell_results}
 
 The standard set of Haskell benchmarks is the nofib suite \cite{nofib}. It is divided into three categories of increasing size: imaginary, spectral and real. Even small Haskell programs increase in size substantially once libraries are included, so we have limited our attention to the benchmarks in the imaginary section. All benchmarks were run with parameters that require runtimes of between 3 and 5 seconds for GHC.
 
@@ -410,7 +410,7 @@ We exclude two benchmarks, paraffins and gen\_regexps. The paraffins benchmark m
 \textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{spine} applies no generalisation operation; \textbf{none} never performs any inlining. \\
 
 \caption{Runtime, relative to GHC being 1.}
-\label{fig:haskell_results}
+\label{figS:haskell_results}
 \end{figure}
 
 \begin{table}
@@ -435,10 +435,10 @@ x2n1 			& 0.58 & 0.64 & 1.61 & 3.04 & 1.09 & 0.33 \\
 \textbf{Program} is the name of the program; \textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{spine} applies no generalisation operation; \textbf{none} never performs any inlining; \textbf{Size} is the size of the Supero generated executable; \textbf{Memory} is the amount of memory allocated on the heap by the Supero executable. \\
 
 \caption{Runtime, relative to GHC being 1.}
-\label{tab:haskell_results}
+\label{tabS:haskell_results}
 \end{table}
 
-The results of these benchmarks are given in Figure \ref{fig:haskell_results}, along with detailed breakdowns in Table \ref{tab:haskell_results}. All results are relative to the runtime of a program compiled with GHC -O2, lower numbers being better. The first three variants (Supero, msg, spine) all use homeomorphic embedding as the termination criterion, and $\bowtie$, msg or nothing respectively as the generalisation function. The final variant, none, uses a termination test that always causes a residuation. The `none' variant is useful as a control to determine which improvements are due to bringing all definitions into one module scope, and which are a result of supercompilation. Compilation times ranged from a few seconds to five minutes.
+The results of these benchmarks are given in Figure \ref{figS:haskell_results}, along with detailed breakdowns in Table \ref{tabS:haskell_results}. All results are relative to the runtime of a program compiled with GHC -O2, lower numbers being better. The first three variants (Supero, msg, spine) all use homeomorphic embedding as the termination criterion, and $\bowtie$, msg or nothing respectively as the generalisation function. The final variant, none, uses a termination test that always causes a residuation. The `none' variant is useful as a control to determine which improvements are due to bringing all definitions into one module scope, and which are a result of supercompilation. Compilation times ranged from a few seconds to five minutes.
 
 The Bernouilli benchmark is the only one where Supero is slower than GHC by more than 3\%. The reason for this anomaly is that a dictionary is referred to in an inner loop which is specialised away by GHC, but not by Supero.
 
@@ -454,15 +454,15 @@ For these benchmarks it is important to clarify which optimisations are performe
 
 \begin{comment}
 \subsection{Termination Bound}
-\label{sec:results_bound}
+\label{secS:results_bound}
 
-Table \ref{tab:haskell_results} includes a column indicating the size bound that was applied to expressions. Out of the five benchmarks, both primes and queens could be run at any greater bound and would still produce the same program -- the direct repetition criteria (see \S\ref{sec:direct}) bounds the expressions on its own. For the remaining programs, a bound was chosen to ensure that the compilation process was quick (under two seconds). By increasing the termination bound the size of the residual program would increase, but the generated program may execute faster.
+Table \ref{tabS:haskell_results} includes a column indicating the size bound that was applied to expressions. Out of the five benchmarks, both primes and queens could be run at any greater bound and would still produce the same program -- the direct repetition criteria (see \S\ref{secS:direct}) bounds the expressions on its own. For the remaining programs, a bound was chosen to ensure that the compilation process was quick (under two seconds). By increasing the termination bound the size of the residual program would increase, but the generated program may execute faster.
 
 The existence of a termination bound requiring different values for different programs is a cause for concern. In a large program it is likely that different parts of the program would require different bounds on the size of the generated expression -- something not currently possible. We suspect that the most promising direction is to augment the direct repetition criterion to obtain termination in all practical cases without resorting to a depth bound.
 \end{comment}
 
 \section{Related Work}
-\label{sec:related}
+\label{secS:related}
 
 Supercompilation \cite{supercompilation,turchin:experiments} was introduced by Turchin for the Refal language \cite{refal}. Since this original work, there have been various suggestions of both termination strategies and generalisation strategies \cite{turchin:generalisation,sorensen:supercompilation,leuschel:homeomorphic}. The original supercompiler maintained both positive and negative knowledge, but our implementation is a simplified version maintaining only positive information \cite{secher:perfect_supercompilation}.
 

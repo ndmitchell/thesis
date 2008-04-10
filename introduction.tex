@@ -1,6 +1,7 @@
 %include paper.fmt
 
 \chapter{Introduction}
+\label{chp:introduction}
 
 This thesis focuses on the field of functional programming, particularly the Haskell programming language \cite{haskell}. Haskell is both lazy and pure, which allows greater freedom when manipulating and reasoning about Haskell programs. In this thesis, we describe two transformations and one analysis method for Haskell programs. We have implemented all our techniques in Haskell. While we have made use of Haskell, much of our work should be applicable to any functional language.
 
@@ -35,7 +36,7 @@ We have implemented all the ideas presented in this thesis, and include sample c
 All the code is available from the authors homepage\footnote{\url{http://www.cs.york.ac.uk/~ndm/}}. Additionally, we have released the folllowing packages on the Hackage website\footnote{\url{http://hackage.haskell.org/}}:
 
 \begin{description}
-\item[Homeomorphic] This is a library for testing homeomorphic embedding, used to ensure termination, as described in \S\ref{sec:homeomorphic}.
+\item[Homeomorphic] This is a library for testing homeomorphic embedding, used to ensure termination, as described in \S\ref{secB:homeomorphic}.
 \item[Uniplate] This is the library described in Chapter \ref{chp:uniplate}.
 \item[Yhc.Core] This is a library providing the data type for Yhc's Core language. It requires Uniplate to implement some of the functions.
 \item[Supero] This is the program described in Chapter \ref{chp:supero}. It requires Yhc.Core as the Core language to operate on, Homeomorphic to ensure termination and Uniplate for various transformations.

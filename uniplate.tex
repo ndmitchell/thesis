@@ -33,11 +33,11 @@ context = undefined
 
 \todo{Koen's extensions to use a Tree type}
 
-Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. This chapter describes the Uniplate library, which offers a way to abstract several common forms of boilerplate code. \S\ref{sec:uniplate_example} gives an example problem, and our solution. \S\ref{sec:use_play} introduces the traversal combinators that we propose, along with short examples. \S\ref{sec:implement_play} discusses how these combinators are implemented in terms of a single primitive. \S\ref{sec:use_playex} extends this approach to multi-type traversals, and \S\ref{sec:implement_playex} covers the extended implementation. \S\ref{sec:performance} investigates some performance optimisations. \S\ref{sec:results} gives comparisons with other approaches, using examples such as the ``paradise'' benchmark. \S\ref{sec:related} presents related work.
+Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. This chapter describes the Uniplate library, which offers a way to abstract several common forms of boilerplate code. \S\ref{secU:intro} gives an example problem, and our solution. \S\ref{secU:use_play} introduces the traversal combinators that we propose, along with short examples. \S\ref{secU:implement_play} discusses how these combinators are implemented in terms of a single primitive. \S\ref{secU:use_playex} extends this approach to multi-type traversals, and \S\ref{secU:implement_playex} covers the extended implementation. \S\ref{secU:performance} investigates some performance optimisations. \S\ref{secU:results} gives comparisons with other approaches, using examples such as the ``paradise'' benchmark. \S\ref{secU:related} presents related work.
 
 
 \section{Introductory Example}
-\label{sec:uniplate_introduction}
+\label{secU:intro}
 
 Take a simple example of a recursive data type:
 
@@ -68,7 +68,7 @@ variables :: Expr -> [String]
 variables x = [y | Var y <- universe x]
 \end{code}
 
-The type signature is optional, and would be inferred automatically if left absent. This example assumes a |Uniplate| instance for the |Expr| data type, given in \S\ref{sec:play_instances}. This example requires only Haskell 98. For more advanced examples we require multi-parameter type classes -- but no functional dependencies, rank-2 types or GADTs.
+The type signature is optional, and would be inferred automatically if left absent. This example assumes a |Uniplate| instance for the |Expr| data type, given in \S\ref{secU:play_instances}. This example requires only Haskell 98. For more advanced examples we require multi-parameter type classes -- but no functional dependencies, rank-2 types or GADTs.
 
 The central idea is to exploit a common property of many traversals: they only require value-specific behaviour for a \textit{single uniform type}. In the |variables| example, the only type of interest is |Expr|. In practical applications, this pattern is common\footnote{Most examples in boilerplate removal papers meet this restriction, even though the systems being discussed do not depend on it.}. By focusing only on uniform type traversals, we are able to exploit well-developed techniques in list processing.
 
@@ -86,9 +86,9 @@ Ours is far from the first technique for `scrapping boilerplate'. The area has b
 \end{itemize}
 
 \section{Queries and Transformations}
-\label{sec:use_play}
+\label{secU:use_play}
 
-We define various traversals, using the |Expr| type defined in the introduction as an example throughout. We divide \textit{traversals} into two categories: queries and transformations. A \textit{query} is a function that takes a value, and extracts some information of a different type. A \textit{transformation} takes a value, and returns a modified version of the original value. All the traversals rely on the class |Uniplate|, an instance of which is assumed for |Expr|. The definition of this class and its instances are covered in \S\ref{sec:implement_play}.
+We define various traversals, using the |Expr| type defined in the introduction as an example throughout. We divide \textit{traversals} into two categories: queries and transformations. A \textit{query} is a function that takes a value, and extracts some information of a different type. A \textit{transformation} takes a value, and returns a modified version of the original value. All the traversals rely on the class |Uniplate|, an instance of which is assumed for |Expr|. The definition of this class and its instances are covered in \S\ref{secU:implement_play}.
 
 \subsection{Children}
 
@@ -128,7 +128,7 @@ universe (Add (Neg (Var "x")) (Val 12)) =
 One use of this mechanism for querying was given in the introduction. Using the |universe| function, queries can be expressed very concisely. Using a list-comprehension to process the results of |universe| is common.
 
 \begin{example}
-\label{ex:zerocount}
+\label{exU:zerocount}
 Consider the task of counting divisions by the literal 0.
 
 \begin{code}
@@ -150,7 +150,7 @@ transform :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
 The result of |transform f x| is |f x'| where |x'| is obtained by replacing each |alpha|-child |x_i| in |x| by |transform f x_i|.
 
 \begin{example}
-\label{ex:simplify}
+\label{exU:simplify}
 Suppose we wish to remove the |Sub| constructor assuming the equivalence: |x - y == x + (- y)|. To apply this equivalence as a rewriting rule, at all possible places in an expression, we define:
 
 \begin{code}
@@ -258,7 +258,7 @@ This definition tries to apply the rule everywhere in a bottom-up manner. If at 
 A disadvantage of |rewrite| is that it may check unchanged sub-expressions repeatedly. Performance sensitive programmers might prefer to use an explicit transformation, and manage the rewriting themselves. We show under which circumstances a bottom-up transformation obtains a normal form, and how any transformation can be modified to ensure a normal form.
 
 \subsubsection{Bottom-Up Transformations to a Normal Form}
-\label{sec:rewrite_bottom}
+\label{secU:rewrite_bottom}
 
 We define the function |always| that takes a rewrite rule |r| and produces a function appropriate for use with |transform|.
 
@@ -269,7 +269,7 @@ always r x = fromMaybe x (r x)
 
 What restrictions on |r| ensure that the property \ignore|rewrite r x == transform (always r) x| holds? It is sufficient that the constructors on the right-hand side of |r| do not overlap with the constructors on the left-hand side.
 
-\begin{examplerevisit}{\ref{ex:simplify}}
+\begin{examplerevisit}{\ref{exU:simplify}}
 
 Recall the |simplify| transformation, as a rewrite:
 
@@ -385,14 +385,14 @@ transformM  :: (Uniplate alpha, Monad m) => (alpha -> m alpha) -> alpha -> m alp
 universe    :: Uniplate alpha => alpha -> [alpha]
 \end{code}
 \caption{All |Uniplate| methods.}
-\label{fig:play}
+\label{figU:play}
 \end{figure}
 
-We present signatures for all our methods in Figure \ref{fig:play}, including several monadic variants. In our experience, the most commonly used operations are |universe| and |transform|, followed by |transformM| and |descend|.
+We present signatures for all our methods in Figure \ref{figU:play}, including several monadic variants. In our experience, the most commonly used operations are |universe| and |transform|, followed by |transformM| and |descend|.
 
 
 \section{Implementing the |Uniplate| class}
-\label{sec:implement_play}
+\label{secU:implement_play}
 
 Requiring each instance of the |Uniplate| class to implement ten separate methods would be an undue imposition. Instead, given a type specific instance for a \textit{single} auxiliary method with a pair as result, we can define \textit{all ten} operations generically, at the class level. The auxiliary is:
 
@@ -409,9 +409,9 @@ propId x = x == context children
 \end{code}
 
 \subsection{Operations in terms of |uniplate|}
-\label{sec:using_replacechildren}
+\label{secU:using_replacechildren}
 
-All ten operations of \S\ref{sec:use_play} can be defined in terms of |uniplate| very concisely. We define four functions as examples.
+All ten operations of \S\ref{secU:use_play} can be defined in terms of |uniplate| very concisely. We define four functions as examples.
 
 \begin{code}
 children :: Uniplate alpha => alpha -> [alpha]
@@ -429,10 +429,10 @@ descend f x = context $ map f children
     where (children, context) = uniplate x
 \end{code}
 
-The common pattern is to call |uniplate|, then operate on the current children, often calling |context| to create a modified value. Some of these definitions can be made more efficient -- see \S\ref{sec:optimise_everything}.
+The common pattern is to call |uniplate|, then operate on the current children, often calling |context| to create a modified value. Some of these definitions can be made more efficient -- see \S\ref{secU:optimise_everything}.
 
 \subsection{Writing |Uniplate| instances}
-\label{sec:play_instances}
+\label{secU:play_instances}
 
 \begin{figure}
 \begin{code}
@@ -448,12 +448,12 @@ instance Uniplate Expr where
     uniplate x             = ([]     , \[]       -> x           )
 \end{code}
 \caption{The |Uniplate| class and an instance for |Expr|.}
-\label{fig:play_expr}
+\label{figU:play_expr}
 \end{figure}
 
-We define a |Uniplate| instance for the |Expr| type in Figure \ref{fig:play_expr}.
+We define a |Uniplate| instance for the |Expr| type in Figure \ref{figU:play_expr}.
 
-The distinguishing feature of our library is that the children are defined in terms of their type. While this feature keeps the traversals simple, it does mean that rules for \textit{deriving} instance definitions are not purely syntactic, but depend on the types of the constructors. We now describe the derivation rules, followed by information on the Derive tool that performs this task automatically. (If we are willing to make use of Multi-Parameter Type Classes, simpler derivation rules can be used: see \S\ref{sec:implement_playex}.)
+The distinguishing feature of our library is that the children are defined in terms of their type. While this feature keeps the traversals simple, it does mean that rules for \textit{deriving} instance definitions are not purely syntactic, but depend on the types of the constructors. We now describe the derivation rules, followed by information on the Derive tool that performs this task automatically. (If we are willing to make use of Multi-Parameter Type Classes, simpler derivation rules can be used: see \S\ref{secU:implement_playex}.)
 
 
 \subsection{Derivation Rules}
@@ -465,7 +465,7 @@ instance Uniplate Type where
     uniplate x = (children x, context x)
 \end{code}
 
-Alternatively, it is possible to define one single function which generates both elements of the pair at once, avoiding the need to examine each value twice (see \S\ref{sec:optimise_playdata} for an example).
+Alternatively, it is possible to define one single function which generates both elements of the pair at once, avoiding the need to examine each value twice (see \S\ref{secU:optimise_playdata} for an example).
 
 We model the derivation of an instance by describing a derivation from a data type to a set of declarations. The derivation rules have three functional parameters: |(<>)|, |unit| and |target|. By varying these parameters we derive either |children| or |context| functions.
 
@@ -487,10 +487,10 @@ _T $| v              |$ = v
 _N {-" \mbox{ is an injection to fresh variables} "-}
 \end{code}
 \caption{Derivation rules for Uniplate instances.}
-\label{fig:derive}
+\label{figU:derive}
 \end{figure}
 
-The derivation rules are given in Figure \ref{fig:derive}. The |_D| rule takes a data type declaration, and defines a function over that data type. The |_C| rule defines a case alternative for each constructor. The |_T| rule defines type specific behaviour: a type is either the target type on which an instance is being defined, or a primitive such as |Char|, or an algebraic data type, or a free type variable.
+The derivation rules are given in Figure \ref{figU:derive}. The |_D| rule takes a data type declaration, and defines a function over that data type. The |_C| rule defines a case alternative for each constructor. The |_T| rule defines type specific behaviour: a type is either the target type on which an instance is being defined, or a primitive such as |Char|, or an algebraic data type, or a free type variable.
 
 \begin{comment}
 
@@ -643,7 +643,7 @@ instance Uniplate Term where
 
 
 \section{Multi-type Traversals}
-\label{sec:use_playex}
+\label{secU:use_playex}
 
 We have introduced the |Uniplate| class and an instance of it for type |Expr|. Now let us imagine that |Expr| is merely the expression type in a language with statements:
 
@@ -768,7 +768,7 @@ variables x = [y | Var y <- universeBi x]
 The equation requires only one change: the addition of the |Bi| suffix to |universe|. In the type signature we replace |Expr| with \ignore|Biplate beta Expr => beta|. Instead of requiring the input to be an |Expr|, we merely require that from the input we know how to reach an |Expr|.
 \end{exampleany}
 
-\begin{examplerevisit}{\ref{ex:simplify}}
+\begin{examplerevisit}{\ref{exU:simplify}}
 \begin{code}
 simplify :: Biplate beta Expr => beta -> beta
 simplify x = transformBi f x
@@ -780,7 +780,7 @@ In this redefinition we have again made a single change to the equation: the add
 \end{examplerevisit}
 
 \section{Implementing |Biplate|}
-\label{sec:implement_playex}
+\label{secU:implement_playex}
 
 The complicating feature of |biplate| is that when defining |Biplate| where \ignore|alpha == beta| the function does not descend to the children, but simply returns its argument. This ``same type'' restriction can be captured either using the type system, or using the |Typeable| class \cite{lammel:syb}. We present three methods for defining a |Biplate| instance -- offering a trade-off between performance, compatibility and volume of code.
 
@@ -794,9 +794,9 @@ All three methods can be fully automated using the Derive tool, and all provide 
 
 
 \subsection{Direct instances}
-\label{sec:implement_playdirect}
+\label{secU:implement_playdirect}
 
-Writing direct instances requires the |Data.Generics.PlateDirect| module to be imported. This style requires a maximum of $n^2$ instance definitions, where $n$ is the number of types which contain each other, but gives the highest performance and most type-safety. The instances still depend on the type of each field, but are easier to define than the |Uniplate| instance discussed in \S\ref{sec:play_instances}. Here is a possible instance for the |Expr| type:
+Writing direct instances requires the |Data.Generics.PlateDirect| module to be imported. This style requires a maximum of $n^2$ instance definitions, where $n$ is the number of types which contain each other, but gives the highest performance and most type-safety. The instances still depend on the type of each field, but are easier to define than the |Uniplate| instance discussed in \S\ref{secU:play_instances}. Here is a possible instance for the |Expr| type:
 
 \begin{comment}
 \begin{code}
@@ -840,11 +840,11 @@ From the definitions of |PlateOne| and |PlateAll| the library can define |Unipla
 
 In the worst case, this approach requires an instance for each container/contained pair. In reality few traversal pairs are actually needed. The restricted pairing of types in |Biplate| instances also gives increased type safety; instances such as \ignore|Biplate Expr Stmt| do not exist.
 
-In our experience definitions using these combinators offer similar performance to hand-tuned instances; see \S\ref{sec:results_speed} for measurements.
+In our experience definitions using these combinators offer similar performance to hand-tuned instances; see \S\ref{secU:results_speed} for measurements.
 
 
 \subsection{|Typeable| based instances}
-\label{sec:implement_playtypeable}
+\label{secU:implement_playtypeable}
 
 Instead of writing $O(n^2)$ class instances to locate values of the target type, we can use the |Typeable| class to \textit{test at runtime} whether we have reached the target type. We present derivations much as before, based this time only on combinators | ||+| and | ||-|:
 
@@ -900,7 +900,7 @@ Consider the |Expr| type. To infer \ignore|Uniplate Expr| we require an instance
 
 
 \subsection{Using the |Data| class}
-\label{sec:implement_playdata}
+\label{secU:implement_playdata}
 
 The existing |Data| and |Typeable| instances provided by the SYB approach can also be used to define |Uniplate| instances:
 
@@ -929,23 +929,23 @@ repChildren x = (children, context)
                   return $ con as
 \end{code}
 \caption{Code for |Uniplate| in terms of |Data|.}
-\label{fig:playdata}
+\label{figU:playdata}
 \end{figure}
 
-How do we implement the Uniplate class instances? The fundamental operation is given in Figure \ref{fig:playdata}. The \ignore|repChildren| function descends to each of the child nodes, and is guarded by a |Typeable| cast to ensure that \ignore|alpha /= beta|. The operation to get the children can be done using |gmapQ|. The operation to replace the children is more complex, requiring a state monad to keep track of the items to insert.
+How do we implement the Uniplate class instances? The fundamental operation is given in Figure \ref{figU:playdata}. The \ignore|repChildren| function descends to each of the child nodes, and is guarded by a |Typeable| cast to ensure that \ignore|alpha /= beta|. The operation to get the children can be done using |gmapQ|. The operation to replace the children is more complex, requiring a state monad to keep track of the items to insert.
 
-The code in Figure \ref{fig:playdata} is not optimised for speed. Uses of |splitAt| and |length| require the list of children to be traversed multiple times. We discuss improvements in \S\ref{sec:optimise_playdata}.
+The code in Figure \ref{figU:playdata} is not optimised for speed. Uses of |splitAt| and |length| require the list of children to be traversed multiple times. We discuss improvements in \S\ref{secU:optimise_playdata}.
 
 
 \section{Performance Improvements}
-\label{sec:performance}
+\label{secU:performance}
 
 This section describes some of the performance improvements we have been able to make. First we focus on our optimisation of |universe|, using continuation passing and some |foldr|/|build| fusion properties \cite{spj:rules}. Next we turn to our |Data| class based instances, improving them enough to outperform SYB itself.
 
 \subsection{Optimising the |universe| function}
-\label{sec:optimise_everything}
+\label{secU:optimise_everything}
 
-Our initial |universe| implementation was presented in \S\ref{sec:using_replacechildren} as:
+Our initial |universe| implementation was presented in \S\ref{secU:using_replacechildren} as:
 
 \begin{code}
 universe :: Uniplate on => on -> [on]
@@ -977,7 +977,7 @@ concatCont xs rest = foldr ($) rest xs
 \end{code}
 
 \subsection{Optimising |PlateData|}
-\label{sec:optimise_playdata}
+\label{secU:optimise_playdata}
 
 Surprisingly, it is possible to layer |Uniplate| over the |Data| instances of SYB, with better performance than SYB itself. The first optimisation is to generate the two members of the |uniplate| pair with only one pass over the data value. We cannot use SYB's |gmapM| or |gmapQ| -- we must instead use |gfoldl| directly. We also make use of continuation passing style in some places.
 
@@ -1006,22 +1006,22 @@ The \ignore|contains| function takes a \textit{phantom} argument |x| which is ne
 
 We compute these sets for each type only once, by using a CAF inside the class to store it. The cost of computing them is small. When examining a value, if its type is a member of set 3 we can prune the search. This trick is surprisingly effective. Take for example an operation over |Bool| on the value |(True,"Haskell")|. The SYB approach finds 16 subcomponents, Uniplate touches only 3 subcomponents.
 
-With all these optimisations we can usually perform both queries and transformations faster than SYB. In the benchmarks we range from 4\% worse to 127\% better, with an average of 56\% faster. Full details are presented in \S\ref{sec:results_speed}.
+With all these optimisations we can usually perform both queries and transformations faster than SYB. In the benchmarks we range from 4\% worse to 127\% better, with an average of 56\% faster. Full details are presented in \S\ref{secU:results_speed}.
 
 
 \section{Results and Evaluation}
-\label{sec:results}
+\label{secU:results}
 
 We evaluate our boilerplate reduction scheme in two ways: firstly by the \textit{conciseness of traversals} using it (i.e. the amount of boilerplate it removes), and secondly by its \textit{runtime performance}. We measure conciseness by counting lexemes -- although we concede that some aspects of concise expression may still be down to personal preference. We give a set of nine example programs, written using Uniplate, SYB and Compos operations. We then compare both the conciseness and the performance of these programs. Other aspects, such as the clarity of expression, are not so easily measured. Readers can make their own assessment based on the full sources we give.
 
 \subsection{Boilerplate Reduction}
-\label{sec:results_boilerplate}
+\label{secU:results_boilerplate}
 
 As test operations we have taken the first three examples from this chapter, three from the Compos paper \citep{bringert:compos}, and the three given in the SYB paper \citep{lammel:syb} termed the ``Paradise Benchmark''. In all cases the Compos, SYB and Uniplate functions are given an appropriately prefixed name. In some cases, a helper function can be defined in the same way in both SYB and Uniplate; where this is possible we have done so. Type signatures are omitted where the compiler is capable of inferring them. For SYB and Compos we have used definitions from the original authors where available, otherwise we have followed the guidelines and style presented in the corresponding paper.
 
 \subsubsection{Examples from this Chapter}
 
-\begin{exampleany}{from \S\ref{sec:uniplate_introduction} (revisited)}
+\begin{exampleany}{from \S\ref{secU:intro} (revisited)}
 
 \ignore\begin{code}
 uni_variables x = [y | Var y <- universe x]
@@ -1039,7 +1039,7 @@ com_variables x = case x of
 Only Compos needs a type signature, due to the use of GADTs. List comprehensions allow for succinct queries in Uniplate.
 \end{exampleany}
 
-\begin{examplerevisit}{\ref{ex:zerocount}}
+\begin{examplerevisit}{\ref{exU:zerocount}}
 
 \ignore\begin{code}
 uni_zeroCount x = length [() | Div _ (Val 0) <- universe x]
@@ -1057,7 +1057,7 @@ com_zeroCount x = case x of
 In the Uniplate solution the list of |()| is perhaps inelegant. However, Uniplate is the only scheme that is able to use the standard |length| function: the other two express the operation as a fold. Compos requires additional boilerplate to continue the operation on |Div y|.
 \end{examplerevisit}
 
-\begin{examplerevisit}{\ref{ex:simplify}}
+\begin{examplerevisit}{\ref{exU:simplify}}
 
 \ignore\begin{code}
 simp (Sub x y)           = simp $ Add x (Neg y)
@@ -1077,7 +1077,7 @@ com_simplify x = case x of
     _ -> composOp com_simplify x
 \end{code}
 
-This is a modified version of |simplify| discussed in \S\ref{sec:rewrite_bottom}. The two rules are applied everywhere possible. Compos does not provide a bottom-up transformation, so needs extra boilerplate.
+This is a modified version of |simplify| discussed in \S\ref{secU:rewrite_bottom}. The two rules are applied everywhere possible. Compos does not provide a bottom-up transformation, so needs extra boilerplate.
 \end{examplerevisit}
 
 \subsubsection{Multi-type examples from the Compos paper}
@@ -1092,10 +1092,10 @@ data Var  =  V String
 data Typ  =  T_int              | T_float
 \end{code}
 \caption{Data type from Compos.}
-\label{fig:compos}
+\label{figU:compos}
 \end{figure}
 
-The statement type manipulated by the Compos paper is given in Figure \ref{fig:compos}. The Compos paper translates this type into a GADT, while Uniplate and SYB both accept the definition as supplied.
+The statement type manipulated by the Compos paper is given in Figure \ref{figU:compos}. The Compos paper translates this type into a GADT, while Uniplate and SYB both accept the definition as supplied.
 
 As the |warnAssign| function from the Compos paper could be implemented much more neatly as a query, rather than a monadic fold, we choose to ignore it. We cover the remaining three functions.
 
@@ -1172,10 +1172,10 @@ data  Person    = P Name Address
 data  Salary    = S Integer
 \end{code}
 \caption{Paradise Benchmark data structure.}
-\label{fig:paradise}
+\label{figU:paradise}
 \end{figure}
 
-The Paradise benchmark was introduced in the SYB paper \citep{lammel:syb}. The data type is shown in Figure \ref{fig:paradise}. The idea is that this data type represents an XML file, and a Haskell program is being written to perform various operations over it. The Compos paper includes an encoding into a GADT, with tag types for each of the different types.
+The Paradise benchmark was introduced in the SYB paper \citep{lammel:syb}. The data type is shown in Figure \ref{figU:paradise}. The idea is that this data type represents an XML file, and a Haskell program is being written to perform various operations over it. The Compos paper includes an encoding into a GADT, with tag types for each of the different types.
 
 We have made one alteration to the data type: |Salary| is no longer of type |Float| but of type |Integer|. In various experiments we found that the rounding errors for floating point numbers made different definitions return different results.\footnote{Storing your salary in a non-exact manner is probably not a great idea!} This change is of no consequence to the boilerplate code.
 
@@ -1247,7 +1247,7 @@ Here the Uniplate solution wins by being able to use a list comprehension to sel
 
 \begin{sidewaystable}
 \caption{Table of lexeme counts and runtime performance.}
-\label{tab:uniplate_results}
+\label{tabU:uniplate_results}
 \vspace{3mm}
 \newlength{\maxany}
 \settowidth{\maxany}{00.00}
@@ -1271,7 +1271,7 @@ SYB            &  2.21 &  5.88 & 16.62 &  2.30 &  2.13 &  5.56 & 24.29 &  3.12 &
 \textbf{Lexemes} are the number of lexemes for each of the solutions to the test problems using each of Uniplate, SYB and Compos. \textbf{Performance} is expressed as multiples of the run-time for a hand-optimised version not using any traversal library, with lower being better.
 \end{sidewaystable}
 
-In order to measure conciseness of expression, we have taken the code for all solutions and counted the number of lexemes -- using the |lex| function provided by Haskell. A table of results is given in Table \ref{tab:uniplate_results}. The definitions of functions shared between SYB and Uniplate are included in both measurements. For the |incrOne| function we have not included the code for |increase| as well.
+In order to measure conciseness of expression, we have taken the code for all solutions and counted the number of lexemes -- using the |lex| function provided by Haskell. A table of results is given in Table \ref{tabU:uniplate_results}. The definitions of functions shared between SYB and Uniplate are included in both measurements. For the |incrOne| function we have not included the code for |increase| as well.
 
 The Compos approach requires much more residual boilerplate than Uniplate, particularly for queries, bottom-up transformations and in type signatures. The Compos approach also requires a GADT representation.
 
@@ -1279,15 +1279,15 @@ Compared with SYB, Uniplate seems much more similar. For queries, Uniplate is ab
 
 
 \subsection{Runtime Overhead}
-\label{sec:results_speed}
+\label{secU:results_speed}
 
 This section compares the speed of solutions for the nine examples given in the previous section, along with hand-optimised versions, using no boilerplate removal library. We use four |Uniplate| instances, provided by:
 
 \begin{description}
 \item[Manual:] These are |Uniplate| and |Biplate| instances written by hand. We have chosen not to use continuation-passing to implement these instances, as it quickly becomes complex!
-\item[Direct:] These instances use the direct combinators from \S\ref{sec:implement_playdirect}.
-\item[Typeable:] These instances use the |Typeable| combinators from \S\ref{sec:implement_playtypeable}.
-\item[Data:] These instances use the SYB |Data| instances directly, as described in \S\ref{sec:implement_playdata}.
+\item[Direct:] These instances use the direct combinators from \S\ref{secU:implement_playdirect}.
+\item[Typeable:] These instances use the |Typeable| combinators from \S\ref{secU:implement_playtypeable}.
+\item[Data:] These instances use the SYB |Data| instances directly, as described in \S\ref{secU:implement_playdata}.
 \end{description}
 
 For all data types we generate 100 values at random using QuickCheck \citep{quickcheck}. In order to ensure a fair comparison, we define one data type which is the same as the original, and one which is a GADT encoding. All operations take these original data types, transform them into the appropriate structure, apply the operation and then unwrap them. We measure all results as multiples of the time taken for a hand-optimised version. We compiled all programs with GHC 6.6 and -O2 on Windows XP.
@@ -1297,19 +1297,19 @@ For all data types we generate 100 values at random using QuickCheck \citep{quic
 % http://csdl.ics.hawaii.edu/FAQ/chart-ps.html
 \includegraphics[scale=0.4]{graph.ps}
 \caption{Timing results, relative to Raw.}
-\label{fig:graph}
+\label{figU:graph}
 \end{figure}
 \end{comment}
 
-The results are presented in Table \ref{tab:uniplate_results}. Using Manual or Direct instances, Uniplate is roughly the same speed as Compos -- but about 50\% slower than hand-optimised versions. Using the Data instances provided by SYB, we are able to outperform SYB itself! See \S\ref{sec:performance} for details of some of the optimisations used.
+The results are presented in Table \ref{tabU:uniplate_results}. Using Manual or Direct instances, Uniplate is roughly the same speed as Compos -- but about 50\% slower than hand-optimised versions. Using the Data instances provided by SYB, we are able to outperform SYB itself! See \S\ref{secU:performance} for details of some of the optimisations used.
 
 
 \section{Related Work}
-\label{sec:related}
+\label{secU:related}
 
 The Uniplate library is intended to be a way to remove the boilerplate of traversals from Haskell programs. It is far from the first library to attempt boilerplate removal.
 
-\paragraph{The SYB library} \citep{lammel:syb} is perhaps the most popular boilerplate removal system in Haskell. One of the reasons for its success is tight integration with the GHC compiler, lowering the barrier to use. We have compared directly against traversals written in SYB in \S\ref{sec:results_boilerplate}, and have also covered how to implement Uniplate in terms of SYB in \S\ref{sec:implement_playdata}. In our experience most operations are shorter and simpler than the equivalents in SYB, and we are able to operate without the extension of rank-2 types. Most of these benefits stem directly from our definition of children as being the children of the same uniform type, contrasting with the SYB approach of all direct children.
+\paragraph{The SYB library} \citep{lammel:syb} is perhaps the most popular boilerplate removal system in Haskell. One of the reasons for its success is tight integration with the GHC compiler, lowering the barrier to use. We have compared directly against traversals written in SYB in \S\ref{secU:results_boilerplate}, and have also covered how to implement Uniplate in terms of SYB in \S\ref{secU:implement_playdata}. In our experience most operations are shorter and simpler than the equivalents in SYB, and we are able to operate without the extension of rank-2 types. Most of these benefits stem directly from our definition of children as being the children of the same uniform type, contrasting with the SYB approach of all direct children.
 
 The SYB library is, however, more powerful than Uniplate. If you wish to visit values of different type in a single traversal, Uniplate is unsuitable. The |Data| and |Typeable| methods have also been pushed further in successive papers \citep{lammel:syb2,lammel:syb3} -- in directions Uniplate may be unable to go.
 
