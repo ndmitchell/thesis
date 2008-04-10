@@ -3,8 +3,6 @@
 \chapter{Background}
 \label{chp:background}
 
-\todo{add examples of homeomorphic embedding}
-
 In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{secB:core}, then discuss the semantics of this Core language in \S\ref{secB:semantics}, its sharing properties in \S\ref{secB:sharing} and how we generate Core in \S\ref{secB:generating_core}. We then cover the homeomorphic embedding relation in \S\ref{secB:homeomorphic}, particularly applied to the expression type of our Core language.
 
 \section{Core Language}
@@ -481,9 +479,21 @@ The dictionary transformation is a global transformation. In Example \ref{exB:di
 \label{figB:homeomorphic}
 \end{figure}
 
-The homeomorphic embedding relation \cite{leuschel:homeomorphic} has recently been used to guarantee termination of certain program transformations \cite{sorensen:supercompilation}. An expression $x$ is an embedding of $y$, written $x \unlhd y$, if the relationship can be inferred by the rules given in Figure \ref{figB:homeomorphic}, $\sim$ corresponds to equality of expression shells.
+The homeomorphic embedding relation \cite{leuschel:homeomorphic} has recently been used to guarantee termination of certain program transformations \cite{sorensen:supercompilation}. An expression $x$ is an embedding of $y$, written $x \unlhd y$, if the relationship can be inferred by the rules given in Figure \ref{figB:homeomorphic}, $\sim$ corresponds to equality of expression shells. The homeomorphic embedding uses the relations dive and couple. The dive relation checks if the first term is contained as a child of the second term, while the couple relation checks if both terms have the same outer shell.
 
-The homeomorphic embedding uses the relations dive and couple. The dive relation checks if the first term is contained as a child of the second term, while the couple relation checks if both terms have the same outer shell. The homeomorphic embedding $\unlhd$ is a well-binary relation, meaning there are no infinite admissible sequences. A sequence $s_1,s_2 \ldots$ is admissible if there are no $i < j$ such that $s_i \unlhd s_j$. Given a set $S$, we permit the insertion of an element $t$ if $\forall s \in S \bullet \neg(s \unlhd t)$. Following this restriction, the set $S$ will remain finite.
+Some examples:
+
+\begin{eqnarray*}
+A & \unlhd & A \\
+A & \unlhd & B(A) \\
+B(A) & \ntrianglelefteq & A \\
+A & \ntrianglelefteq & B(C) \\
+B(A) & \unlhd & D(B(A),C) \\
+D(A,C) & \unlhd & D(B(A),C) \\
+D(C,A) & \ntrianglelefteq & D(B(A),C) \\
+\end{eqnarray*}
+ 
+The homeomorphic embedding $\unlhd$ is a well-binary relation, meaning there are no infinite admissible sequences. A sequence $s_1,s_2 \ldots$ is admissible if there are no $i < j$ such that $s_i \unlhd s_j$. Given a set $S$, we permit the insertion of an element $t$ if $\forall s \in S \bullet \neg(s \unlhd t)$. Following this restriction, the set $S$ will remain finite.
 
 The homeomorphic embedding assumes all elements are expressions over a finite alphabet. To ensure this condition, we weaken the $\sim$ relation to consider all variables and literals to be equivalent.
 
