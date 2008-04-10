@@ -202,6 +202,7 @@ Both intermediate lists have been removed, and the functional arguments to |map|
 
 During the supercompilation of an expression, at each step some function needs to be inlined. Which to choose? In most supercompilation work the choice is made following the runtime semantics of the program. But in a language with let expressions this may be inappropriate. If a function in a let binding is inlined, its application when reduced may be simple enough to substitute in the let body. However, if a function in a let body is inlined, the let body may now only refer to the let binding once, allowing the binding to be substituted. Let us take two expressions, based on intermediate steps obtained from real programs (word counting and prime number calculation respectively):
 
+\begin{center}
 \begin{tabular}{p{5cm}p{5cm}}
 \begin{code}
 let x = (==) $ 1
@@ -213,6 +214,7 @@ let x = repeat 1
 in const 0 x : map f x
 \end{code}
 \end{tabular}
+\end{center}
 
 In the first example, inlining |($)| in the let binding gives |(\x -> 1 == x)|, which is now simple enough to substitute for |x|, resulting in |(1 == 1 : map (\x -> 1 == x) ys)| after simplification. Now |map| can be specialised appropriately. Alternatively, expanding the |map| repeatedly would keep increasing the size of expression until the termination criterion was met, aborting the supercompilation of this expression without achieving specialisation.
 
@@ -227,7 +229,7 @@ unfold x = head (filter (not . terminate) xs ++ xs ++ [x])
 unfolds (EFun f xs_) = [ EApp (inline f) xs_ ]
 unfolds x =  [gen (cs |+ (i, y))
              |let (cs, gen) = uniplate x
-             ,i <- [0..length sub], y <- unfolds (sub !! i) ]
+             ,(i,c) <- zip [0..] cs, y <- unfolds c]
     where xs |+ (i,x) = zipWith (\j y -> if i == j then x else y) [0..] xs
 \end{code}
 
@@ -413,7 +415,7 @@ We exclude two benchmarks, paraffins and gen\_regexps. The paraffins benchmark m
 
 \begin{table}
 \bigskip
-\begin{tabular*}{\linewidth}{@@{}l@@{\extracolsep{\fill}}rrrrrr}
+\begin{tabular*}{\linewidth}{@@{\extracolsep{\fill}}lrrrrrr@@{\extracolsep{0cm}}}
 \textbf{Program} & \textbf{Supero} & \textbf{msg} & \textbf{spine} & \textbf{none} & \textbf{Size} & \textbf{Memory} \\
 bernouilli 		& 1.41 & 1.53 & 1.58 & 1.18 & 1.10 & 0.97 \\
 digits-of-e1	& 1.03 & 1.16 & 1.03 & 1.06 & 1.01 & 1.11 \\
