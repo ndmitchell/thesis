@@ -30,7 +30,7 @@ primNeqInt, primEqInt :: Int -> Int -> Bool
 
 This chapter deals with the reduction from a higher-order Core language to a primarily first-order Core language. Unlike Reynolds style defunctionalisation, it does not introduce any new data types, and the results are more amenable to subsequent analysis operations. Our motivation is that the Catch analysis tool (see Chapter \ref{chp:catch}) is designed to work only upon a first-order language, but our method may have wider applicability such as termination checking \cite{sereni:higher_order_termination}.
 
-The sections begin with an introductory example (\S\ref{sec:firstify_intro}), followed by definitions related to our Core language (\S\ref{sec:core}), including what we consider to be a first-order program. Next we present an overview of our method (\S\ref{sec:overview}), followed by a more detailed account (\S\ref{sec:detailed}), along with a number of examples (\S\ref{sec:examples}). We classify where functional values may remain in a resultant program (\S\ref{sec:completeness}) and show how to modify our method to guarantee termination (\S\ref{sec:termination}). Finally we give results (\S\ref{sec:results}) and review related work (\S\ref{sec:related}).
+The sections begin with an introductory example (\S\ref{sec:firstify_intro}), followed by a definition of what we consider to be a first-order program (\S\ref{sec:first_order}). Next we present an overview of our method (\S\ref{sec:overview}), followed by a more detailed account (\S\ref{sec:detailed}), along with a number of examples (\S\ref{sec:examples}). We classify where functional values may remain in a resultant program (\S\ref{sec:completeness}) and show how to modify our method to guarantee termination (\S\ref{sec:termination}). Finally we give results (\S\ref{sec:results}) and review related work (\S\ref{sec:related}).
 
 \section{Introductory Example}
 
@@ -59,7 +59,7 @@ incList []      = []
 incList (x:xs)  = x+1 : incList xs
 \end{code}
 
-Although this first-order variant of |incList| is much longer, it is also more amenable to certain types of analysis. The method presented in this paper transforms the higher-order definition into the first-order one automatically.
+Although this first-order variant of |incList| is much longer, it is also more amenable to certain types of analysis. The method presented in this chapter transforms the higher-order definition into the first-order one automatically.
 \end{example}
 
 Our defunctionalisation method processes the whole program to remove functional values, without changing the semantics of the program. This idea is not new. As far back as 1972 Reynolds gave a solution, now known as \textit{Reynolds style defunctionalisation} \cite{reynolds:defunc}. Unfortunately, Reynolds method effectively introduces a mini-interpreter, which causes problems for analysis tools. Our method produces a program closer to what a human might have written, if denied the use of functional values.
@@ -77,54 +77,8 @@ This chapter makes the following contributions:
 \item We have implemented our method, and present measured results for much of the nofib benchmark suite.
 \end{itemize}
 
-\section{Core Language}
-\label{sec:core}
-
-\todo{Make this closer to the Core language in the background section. In particular, define alts in terms of patterns, move the description of arity etc into the background, define as a modification on the existing one.}
-
-\begin{figure}
-\ignore\begin{code}
-prog   =  f |--> (vs_,expr){-"\text{\hspace{1cm}program definition}"-}
-
-expr   =  \v -> x          {-"\text{\hspace{1cm}lambda abstraction}"-}
-       |  f xs_            {-"\text{\hspace{1cm}function application}"-}
-       |  c xs_            {-"\text{\hspace{1cm}constructor application}"-}
-       |  x xs_            {-"\text{\hspace{1cm}general application}"-}
-       |  v                {-"\text{\hspace{1cm}variable}"-}
-       |  let v = x in y   {-"\text{\hspace{1cm}let expression}"-}
-       |  case x of alts_  {-"\text{\hspace{1cm}case expression}"-}
-
-alt    =  c vs_ -> x       {-"\text{\hspace{1cm}case alternative}"-}
-\end{code}
-\begin{comment}
-% for paper haskell
-\begin{code}
-data Expr = ELam String Expr
-          | EFun String [Expr]
-          | ECon String [Expr]
-          | EApp Expr [Expr]
-          | EVar String
-          | ECase Expr [Alt]
-          | ELet String Expr Expr
-
-data Alt = Alt String [String] Expr
-
-arity :: String -> Int
-body :: String -> Expr
-args :: String -> [String]
-rhs :: Alt -> Expr
-\end{code}
-\end{comment}
-
-We let |v| range over variables, |x| and |y| over expressions, |f| over function names and |c| over constructors. \bigskip
-
-\caption{Core Language.}
-\label{fig:core}
-\end{figure}
-
-Our Core language is presented in Figure \ref{fig:core}. A program is a set of functions, with a root function named |main|. A function definition consists of a name, a list of argument variables, and a body expression. The arity of a function is the number of arguments in its definition. We initially assume there are no primitive functions in our language, but explain how to extend our method to deal with them in \S\ref{sec:primitives}.
-
-The variable, case, let, application and lambda expressions are much as they would be in any Core language. The constructor expression consists of a constructor and a list of expressions, exactly matching the arity of the constructor. (Any partially applied constructor can be represented as a lambda expression.) A function application consists of a function name and a possibly empty list of argument expressions. If a function is given fewer arguments than its arity we refer to it as \textit{partially-applied}, matching the arity is \textit{fully-applied}, and more than the arity is \textit{over-applied}. We use the meta functions |arity f|, |body f| and |args f| to denote the arity, body and arguments of |f|. We use the function |rhs| to extract the expression on the right of a case alternative.
+\section{First-Order Programs}
+\label{sec:first_order}
 
 Informally, a program is higher-order if at runtime the program creates functional values. Functional values can only be created in two ways: (1) a lambda expression; or (2) a partially-applied function application. We therefore make the following definition:
 
@@ -149,7 +103,7 @@ Our method works by combining three separate and well-known transformations. Eac
 \item[Specialisation:] Specialisation is another standard technique, used to remove type classes \cite{jones:dictionary_free} and more recently to specialise functions to a given constructor \cite{spj:specconstr}.
 \end{description}
 
-Each transformation has the possibility of removing some functional values, but the key contribution of this paper is \textit{how they can be used together}. Using the fixed point operator |(+||+)| introduced in \S\ref{sec:detailed}, their combination is:
+Each transformation has the possibility of removing some functional values, but the key contribution of this chapter is \textit{how they can be used together}. Using the fixed point operator |(+||+)| introduced in \S\ref{sec:detailed}, their combination is:
 
 \begin{code}
 firstify = simplify +|+ arity +|+ inline +|+ specialise
@@ -363,15 +317,6 @@ f xs_
     where arity f > length xs_
 \end{code}}
 
-\end{simplify}
-\caption{Standard Core simplification rules.}
-\label{fig:simplify}
-\end{figure}
-
-
-\begin{figure}
-\begin{simplify}
-
 \simp{bind-lam}{
 \ignore\begin{code}
 let v = (\w -> x) in y
@@ -392,11 +337,11 @@ let v = x in \w -> y
 \end{code}}
 
 \end{simplify}
-\caption{Lambda Simplification rules.}
+\caption{Additional Simplification rules.}
 \label{fig:lambda_simplify}
 \end{figure}
 
-The simplification stage has the goal of moving lambda expressions upwards, and introducing lambdas for partially applied functions. This stage makes use of standard simplification rules given in Figure \ref{fig:simplify}, which are found in most optimising compilers, such as GHC \cite{spj:transformation}. We also make use of additional rules which deal specifically with lambda expressions, given in Figure \ref{fig:lambda_simplify}. All of the simplification rules are correct individually. The rules are applied to any subexpression, as long as any rule matches.
+The simplification stage has the goal of moving lambda expressions upwards, and introducing lambdas for partially applied functions. This stage makes use of standard simplification rules from \ref{sec:core_simplify} plus additional rules which deal specifically with lambda expressions, given in Figure \ref{fig:lambda_simplify}. All of the simplification rules are correct individually. The rules are applied to any subexpression, as long as any rule matches.
 
 \subsubsection{Lambda Introduction}
 
@@ -427,7 +372,7 @@ This replaces partial application with lambda expressions, and has the advantage
 \subsubsection{Lambda Movement}
 \label{sec:sharing}
 
-The (case-lam) rule lifts a lambda within a case alternative outside the case expression. The (bind-lam) rule inlines a lambda bound in a let expression. The (bind-box) rule will be discussed as part of the inlining stage, see \S\ref{sec:inlining}. The (let-lam) rule can be responsible for a reduction in sharing:
+The (bind-lam) rule inlines a lambda bound in a let expression. The (bind-box) rule will be discussed as part of the inlining stage, see \S\ref{sec:inlining}. The (let-lam) rule can be responsible for a reduction in sharing:
 
 \begin{example}
 \begin{code}
@@ -928,7 +873,8 @@ Our algorithm, as it stands, may not terminate. In order to ensure termination, 
 \label{sec:termination_simplification}
 
 \begin{figure}
-\noindent\begin{verbatim}
+\bigskip
+\begin{verbatim}
 [x,y,z]
 app(lam(x),y)    -> let(y,x)
 app(case(x,y),z) -> case(x,app(y,z))
@@ -938,6 +884,7 @@ case(con(x),y)   -> let(x,y)
 case(x,lam(y))   -> lam(case(x,app(lam(y),var)))
 let(lam(x),y)    -> lam(let(x,y))
 \end{verbatim}
+\bigskip
 \caption{Encoding of termination simplification.}
 \label{fig:term_simplification}
 \end{figure}
@@ -1053,8 +1000,8 @@ Given an initial program, the arity raising, inlining and specialisation stages 
 \subsection{Benchmark Tests}
 
 \begin{table}
-\smallskip
-\begin{tabular*}{\linewidth}{@@{}l@@{$\!\!$}rrrrrrrrr}
+\bigskip
+\begin{tabular*}{\linewidth}{@@{}l@@{\extracolsep{\fill}}rrrrrrr}
 \textbf{Name} & \textbf{Bound} & \multicolumn{2}{c}{\textbf{HO Create}} & \multicolumn{2}{c}{\textbf{HO Use}} & \textbf{Time} & \textbf{Size} \\
 \vspace{-1ex} \\
 bernouilli      & 4 & 240 & 0 & 190 & 2 & 0.4 & -32\% \\
@@ -1071,7 +1018,7 @@ tak             & 4 & 212 & 0 & 145 & 4 & 0.3 & -40\% \\
 wheel-sieve1    & 4 & 224 & 0 & 151 & 2 & 0.3 & -35\% \\
 wheel-sieve2    & 4 & 224 & 0 & 162 & 2 & 0.3 & -36\% \\
 x2n1            & 4 & 345 & 0 & 385 & 2 & 0.8 & -57\% \\
-& \multicolumn{8}{l} ...plus 35 tests from the spectral suite... \\
+ & \multicolumn{7}{c}{$\ldots{}$ plus 35 tests from the spectral suite $\ldots{}$} \\
 Minimum         & 2 & 60 & 0 & 46 & 0 & 0.1  & -78\% \\
 Maximum         & 14 & 437 & 1 & 449 & 100 & 1.0  & 15\% \\
 Average         & 4.8 & 237 & 0.06 & 202 & 3.6 & 0.4  & -33\% \\
