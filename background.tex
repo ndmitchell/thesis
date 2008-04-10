@@ -463,7 +463,7 @@ The dictionary transformation is a global transformation. In Example \ref{exB:di
 \label{secB:homeomorphic}
 
 \begin{figure}
-\noindent\begin{tabular}{p{5cm}p{5cm}}
+\begin{tabular}{p{5cm}p{5cm}}
 \[\frac{\text{dive}(x,y)}{x \unlhd y}\] \vspace{-8mm}
 &
 \[\frac{\text{couple}(x,y)}{x \unlhd y}\] \vspace{-8mm}
@@ -483,16 +483,17 @@ The homeomorphic embedding relation \cite{leuschel:homeomorphic} has recently be
 
 Some examples:
 
-\begin{eqnarray*}
-A & \unlhd & A \\
-A & \unlhd & B(A) \\
-B(A) & \ntrianglelefteq & A \\
-A & \ntrianglelefteq & B(C) \\
-B(A) & \unlhd & D(B(A),C) \\
-D(A,C) & \unlhd & D(B(A),C) \\
-D(C,A) & \ntrianglelefteq & D(B(A),C) \\
-\end{eqnarray*}
- 
+\begin{center}
+\begin{tabular}{r@@{ $\unlhd$ }l@@{\hspace{15mm}}r@@{ $\ntrianglelefteq$ }l}
+$a$ & $a$                       & $b(a)$ & $a$ \\
+$a$ & $b(a)$                    & $a$ & $b(c)$ \\
+$c(a)$ & $c(b(a))$              & $d(a,a)$ & $d(b(a),c)$ \\
+$d(a,a)$ & $c(b(a),c(c(a)))$    & $b(a,a)$ & $b(a,a,a)$
+\end{tabular}
+\end{center}
+
+\smallskip
+
 The homeomorphic embedding $\unlhd$ is a well-binary relation, meaning there are no infinite admissible sequences. A sequence $s_1,s_2 \ldots$ is admissible if there are no $i < j$ such that $s_i \unlhd s_j$. Given a set $S$, we permit the insertion of an element $t$ if $\forall s \in S \bullet \neg(s \unlhd t)$. Following this restriction, the set $S$ will remain finite.
 
 The homeomorphic embedding assumes all elements are expressions over a finite alphabet. To ensure this condition, we weaken the $\sim$ relation to consider all variables and literals to be equivalent.
