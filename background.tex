@@ -3,7 +3,7 @@
 \chapter{Background}
 \label{chp:background}
 
-In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{secB:core}, then discuss the semantics of this Core language in \S\ref{secB:semantics}, its sharing properties in \S\ref{secB:sharing} and how we generate Core in \S\ref{secB:generating_core}. We then cover the homeomorphic embedding relation in \S\ref{secB:homeomorphic}, particularly applied to the expression type of our Core language.
+In this chapter we introduce the background material and general notations used throughout the rest of this thesis. We start by introducing a Core language in \S\ref{secB:core}, then discuss its sharing properties in \S\ref{secB:sharing} and how we generate Core in \S\ref{secB:generating_core}. We then cover the homeomorphic embedding relation in \S\ref{secB:homeomorphic}, particularly applied to the expression type of our Core language.
 
 \section{Core Language}
 \label{secB:core}
@@ -31,7 +31,7 @@ Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over f
 \label{figB:core}
 \end{figure}
 
-The syntax of our Core language is given in Figure \ref{figB:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. During future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation.
+The syntax of our Core language is given in Figure \ref{figB:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. During future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation. The language is based upon Yhc.Core, a semantics for which is given in \cite{me:yhc_core}.
 
 A program is a list of functions, with a root function named |main|. A function is a name, a list of arguments and a body expression. Variables and lambda abstractions are much as they would be in any Core language.  Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary. We have three forms of application, all of which take two values: the first value may be either a constructor, a top-level named function, or any arbitrary expression; the second value is a list of arguments, which may be empty. These forms of application give rise to three equivalences:
 
@@ -121,92 +121,6 @@ fvs xs_ = unions (map fv xs_)
 The variables in the patterns of case expressions, the arguments of lambda abstractions and the bindings of let expressions are \textit{bound}; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |fv e|, and can be computed using the function in Figure \ref{figB:free_variables}. Within a function definition all variables must be bound.
 
 In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and afterwards any repeated bound variables can be assigned fresh names.
-
-\section{Semantics}
-\label{secB:semantics}
-
-The evaluation strategy of our Core language is lazy. We specify a reduction to weak-head normal form (WHNF) in Figure \ref{figB:whnf} and a reduction to normal form (NF) in \ref{figB:nf}. We have assumed that all applications are translated to general applications where the second value is a 1-element list. The |_F| function translates a function name to an associate expression incorporating the program arguments as variables in a lambda, and the body as the body of that lambda. The grammar for expressions in WHNF is:
-
-\begin{code}
-r  =  c \< xs_ \>  {-" \text{  constructor} "-}
-   |  \v -> x      {-" \text{  lambda} "-}
-   |  bottom       {-" \text{  bottom/undefined} "-}
-\end{code}
-
-The grammar for expression in NF is:
-
-\begin{code}
-n  =  c \< ns_ \>  {-" \text{  constructor} "-}
-   |  \v -> x      {-" \text{  lambda} "-}
-   |  bottom       {-" \text{  bottom/undefined} "-}
-\end{code}
-
-\newcommand{\sem}[1]
-    {& \begin{array}{c}#1\smallskip\end{array}}
-\newcommand{\semm}[2]
-    {& \frac{\begin{array}{c}#1\end{array}}
-            {\begin{array}{c}#2\smallskip\end{array}}}
-\newcommand{\semmm}[3]
-    {& \frac{\begin{array}{c}#1\\#2\end{array}}
-            {\begin{array}{c}#3\smallskip\end{array}}}
-
-\begin{figure}
-\begin{eqnarray}
-\sem
-    {|c => c \< \>|}
-\\ \semmm
-    {|_F(f) = x|}
-    {|x => r|}
-    {|f => r|}
-\\ \semm
-    {|x => bottom|}
-    {|x y => bottom|}
-\\ \semm
-    {|x => c \< xs_ \>|}
-    {|x y => c \< xs_ y \>|}
-\\ \semmm
-    {|x => \v -> x'|}
-    {|x'[v/y] => r|}
-    {|x y => r|}
-\\ \semm
-    {|y[v/x] => r|}
-    {|let v = x in y => r|}
-\\ \semmm
-    {|x => c \< xs_ \>|}
-    {|y[vs_ / xs_] => r|}
-    {|case x of {... ; c vs_ -> y ; ...} => r|}
-\\ \semm
-    {|x => bottom|}
-    {|case x of alts_ => bottom|}
-\end{eqnarray}
-\caption{Reduction to weak-head normal form, |(=>)|.}
-\label{figB:whnf}
-\end{figure}
-
-\begin{figure}
-\begin{eqnarray}
-\semm
-    {|x => bottom|}
-    {|x =>* bottom|}
-\\ \semm
-    {|x => \v -> y|}
-    {|x =>* \v -> y|}
-\\ \semmm
-    {|x => c \< xs_ \>|}
-    {|xs_ =>* xs_' |}
-    {|x =>* c \< xs_' \>|}
-\end{eqnarray}
-\caption{Reduction to normal form, |(=>*)|.}
-\label{figB:nf}
-\end{figure}
-
-Our semantics does not respect sharing, this topic is dealt with in \S\ref{secB:sharing}. The evaluation of a program corresponds to reducing |main| to NF.
-
-We never descend below a bound variable without replacing that variable, therefore any remaining variable would have to be free in the definition of the program, which is not permitted. Consequently, there is no rule for a variable. We choose not evaluate inside a lambda, even on |=>*|, as this would generate a free variable. The |_F| mapping never crashes, as it is checked statically that all mentioned function names exist in the mapping.
-
-The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. |_F(error) = \v -> bottom|. If a computation forces a |bottom| value, in the scrutinee of a case or the first argument of an application, the |bottom| is propagated.
-
-There is no rule for case of a lambda abstraction, as this situation is not permitted by the type system. Similarly, the type system plus the exhaustiveness of case branches means that if the scrutinee successfully evaluates, it will match exactly one alternative.
 
 \subsection{Simplification Rules}
 \label{secB:core_simplify}
@@ -301,10 +215,99 @@ We present several simplification rules in Figure \ref{figB:simplify}, which can
 The (app-app), (fun-app) and (con-app) rules normalise applications. The (case-con) and (lam-app) rules simply follow the semantics, using let expressions to preserve the sharing. The (case-app), (let-case) and (case-case) rules move outer expressions over an inner case expression, duplicating the outer expression in each alternative. The (case-lam) rule promotes a lambda from inside a case alternative outwards. The (let-app) and (let-case) rules move an expression over an inner let expression. The (let) rule substitutes let expressions where the bound variable is used only once, and therefore no loss of sharing is possible.
 
 
+\begin{comment}
+\section{Semantics}
+\label{secB:semantics}
+
+The evaluation strategy of our Core language is lazy. We specify a reduction to weak-head normal form (WHNF) in Figure \ref{figB:whnf} and a reduction to normal form (NF) in \ref{figB:nf}. We have assumed that all applications are translated to general applications where the second value is a 1-element list. The |_F| function translates a function name to an associate expression incorporating the program arguments as variables in a lambda, and the body as the body of that lambda. The grammar for expressions in WHNF is:
+
+\begin{code}
+r  =  c \< xs_ \>  {-" \text{  constructor} "-}
+   |  \v -> x      {-" \text{  lambda} "-}
+   |  bottom       {-" \text{  bottom/undefined} "-}
+\end{code}
+
+The grammar for expression in NF is:
+
+\begin{code}
+n  =  c \< ns_ \>  {-" \text{  constructor} "-}
+   |  \v -> x      {-" \text{  lambda} "-}
+   |  bottom       {-" \text{  bottom/undefined} "-}
+\end{code}
+
+\newcommand{\sem}[1]
+    {& \begin{array}{c}#1\smallskip\end{array}}
+\newcommand{\semm}[2]
+    {& \frac{\begin{array}{c}#1\end{array}}
+            {\begin{array}{c}#2\smallskip\end{array}}}
+\newcommand{\semmm}[3]
+    {& \frac{\begin{array}{c}#1\\#2\end{array}}
+            {\begin{array}{c}#3\smallskip\end{array}}}
+
+\begin{figure}
+\begin{eqnarray}
+\sem
+    {|c => c \< \>|}
+\\ \semmm
+    {|_F(f) = x|}
+    {|x => r|}
+    {|f => r|}
+\\ \semm
+    {|x => bottom|}
+    {|x y => bottom|}
+\\ \semm
+    {|x => c \< xs_ \>|}
+    {|x y => c \< xs_ y \>|}
+\\ \semmm
+    {|x => \v -> x'|}
+    {|x'[v/y] => r|}
+    {|x y => r|}
+\\ \semm
+    {|y[v/x] => r|}
+    {|let v = x in y => r|}
+\\ \semmm
+    {|x => c \< xs_ \>|}
+    {|y[vs_ / xs_] => r|}
+    {|case x of {... ; c vs_ -> y ; ...} => r|}
+\\ \semm
+    {|x => bottom|}
+    {|case x of alts_ => bottom|}
+\end{eqnarray}
+\caption{Reduction to weak-head normal form, |(=>)|.}
+\label{figB:whnf}
+\end{figure}
+
+\begin{figure}
+\begin{eqnarray}
+\semm
+    {|x => bottom|}
+    {|x =>* bottom|}
+\\ \semm
+    {|x => \v -> y|}
+    {|x =>* \v -> y|}
+\\ \semmm
+    {|x => c \< xs_ \>|}
+    {|xs_ =>* xs_' |}
+    {|x =>* c \< xs_' \>|}
+\end{eqnarray}
+\caption{Reduction to normal form, |(=>*)|.}
+\label{figB:nf}
+\end{figure}
+
+Our semantics does not respect sharing, this topic is dealt with in \S\ref{secB:sharing}. The evaluation of a program corresponds to reducing |main| to NF.
+
+We never descend below a bound variable without replacing that variable, therefore any remaining variable would have to be free in the definition of the program, which is not permitted. Consequently, there is no rule for a variable. We choose not evaluate inside a lambda, even on |=>*|, as this would generate a free variable. The |_F| mapping never crashes, as it is checked statically that all mentioned function names exist in the mapping.
+
+The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. |_F(error) = \v -> bottom|. If a computation forces a |bottom| value, in the scrutinee of a case or the first argument of an application, the |bottom| is propagated.
+
+There is no rule for case of a lambda abstraction, as this situation is not permitted by the type system. Similarly, the type system plus the exhaustiveness of case branches means that if the scrutinee successfully evaluates, it will match exactly one alternative.
+\end{comment}
+
+
 \section{Sharing}
 \label{secB:sharing}
 
-The semantics presented in \S\ref{secB:semantics} model both values and laziness correctly, but do not model the sharing present in Haskell. This section informally discusses the relevant sharing properties of Haskell. In general, any optimisation must take account of sharing, but semantic analysis can sometimes ignore the effects of sharing. The sharing present in Haskell is not specified in the Haskell Report \cite{haskell}, but is defined elsewhere \cite{bakewell:space_semantics}.
+This section informally discusses the relevant sharing properties of Haskell. In general, any optimisation must take account of sharing, but semantic analysis can sometimes ignore the effects of sharing. The sharing present in Haskell is not specified in the Haskell Report \cite{haskell}, but is defined elsewhere \cite{bakewell:space_semantics}.
 
 \subsection{Let bindings}
 
@@ -333,7 +336,7 @@ occurs v (EVar v'      ) = if v == v' then 1 else 0
 occurs v (ECon c xs_   ) = occurss v xs_
 occurs v (EFun f xs_   ) = occurss v xs_
 occurs v (EApp x xs_   ) = occurss v (x:xs_)
-occurs v (ELam v x     ) = occurs v x
+occurs v (ELam v' x    ) = if v == v' then 0 else occurs v x
 occurs v (ELet v' x y  ) = if v == v' then 0 else occurss v [x,y]
 occurs v (ECase x as_  ) = occurs v x + maximum (map f as_)
     where f (EAlt c vs_ y) = if v `elem` vs_ then 0 else occurs v y
