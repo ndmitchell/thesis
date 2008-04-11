@@ -377,9 +377,9 @@ This predicate states that the invocation of |null xs| must be safe, and either 
 \begin{figure}
 \ignore\begin{code}
 precond  :: FuncName -> Prop (Sat ArgPos)
-precond Rec0   fn =  if fn == "error" then propFalse else propTrue
-precond RecN1  fn =  precond RecN fn `propAnd`
-                     reduce (pre{precond RecN} (body fn))
+precond Rec0   f =  if f == "error" then propFalse else propTrue
+precond RecN1  f =  precond RecN f `propAnd`
+                    reduce (pre{precond RecN} (body f))
 \end{code}
 \caption{Precondition calculation.}
 \label{figC:precond_fixp}
@@ -487,9 +487,9 @@ The intuition is that given knowledge of the root constructor of a data value, w
 \begin{figure}
 \ignore\begin{code}
 prePost :: FuncName -> Constraint -> Prop (Sat ArgPos)
-prePost Rec0   fn k =  propTrue
-prePost RecN1  fn k =  prePost RecN fn k `propAnd`
-                       reduce{prePost RecN} (propLit $ body fn `Sat` k)
+prePost Rec0   f k =  propTrue
+prePost RecN1  f k =  prePost RecN f k `propAnd`
+                      reduce{prePost RecN} (propLit $ body f `Sat` k)
 \end{code}
 \caption{Fixed point calculation for |prePost|.}
 \label{figC:property_fixp}
@@ -1164,8 +1164,8 @@ safeTail :: List alpha (ConsT tau) -> List alpha tau
 safeTail (Cons a b) = b
 
 fromList :: [alpha] -> (forall tau `o` List alpha tau -> beta) -> beta
-fromList []      fn = fn Nil
-fromList (x:xs)  fn = fromList xs (fn . Cons x)
+fromList []      f = f Nil
+fromList (x:xs)  f = fromList xs (f . Cons x)
 \end{code}
 \caption{A |safeTail| function using GADTs.}
 \label{figC:gadt}
