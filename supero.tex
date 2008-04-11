@@ -1,7 +1,5 @@
 %include thesis.fmt
 
-\todo{Discuss and improve compile time performance}
-
 \chapter{Supercompilation}
 \label{chp:supero}
 
@@ -92,7 +90,7 @@ Where |psi| is a mapping from expressions to function names, and |fv\!!(x)| retu
 \label{figS:supercompile}
 \end{figure}
 
-The general method of supercompilation is shown in Figure \ref{figS:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost element in the expression becomes part of the residual program. All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to alpha renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions are then supercompiled as before.
+The general method of supercompilation is shown in Figure \ref{figS:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost element in the expression becomes part of the residual program -- making use of a Uniplate instance for our Core language (see Chapter \ref{chp:uniplate}). All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to alpha renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions are then supercompiled as before.
 
 \begin{figure}
 \begin{code}
@@ -197,6 +195,7 @@ Both intermediate lists have been removed, and the functional arguments to |map|
 \end{examplename}
 
 \subsection{Which function to inline}
+\label{secS:which_inline}
 
 During the supercompilation of an expression, at each step some function needs to be inlined. Which to choose? In most supercompilation work the choice is made following the runtime semantics of the program. But in a language with let expressions this may be inappropriate. If a function in a let binding is inlined, its application when reduced may be simple enough to substitute in the let body. However, if a function in a let body is inlined, the let body may now only refer to the let binding once, allowing the binding to be substituted. Let us take two expressions, based on intermediate steps obtained from real programs (word counting and prime number calculation respectively):
 
@@ -231,7 +230,7 @@ unfolds x =  [gen (cs |+ (i, y))
     where xs |+ (i,x) = zipWith (\j y -> if i == j then x else y) [0..] xs
 \end{code}
 
-The |unfolds| function computes all possible one-step inlinings, using an in-order traversal of the abstract syntax tree. The |unfold| function chooses the first unfolding which does not cause the supercompilation to terminate. If no such expression exists, the first unfolding is chosen.
+The |unfolds| function computes all possible one-step inlinings, using an in-order traversal of the abstract syntax tree, making use of the |uniplate| function. The |unfold| function chooses the first unfolding which does not cause the supercompilation to terminate. If no such expression exists, the first unfolding is chosen.
 
 \subsection{The Termination Criterion}
 
@@ -461,14 +460,17 @@ For these benchmarks it is important to clarify which optimisations are performe
 
 \paragraph{List Fusion} GHC relies on names of functions, particularly |foldr|/|build| \cite{spj:rules}, to apply special optimisation rules such as list fusion. Many of GHC's library functions, for example |iterate|, are defined in terms of |foldr| to take advantage of these special properties. After transformation with Yhc, these names are destroyed, so no rule based optimisation can be performed. One example where list fusion is critical is primes, although it occurs in most of the benchmarks to some extent.
 
-\begin{comment}
-\subsection{Termination Bound}
-\label{secS:results_bound}
+\subsection{Compile Time}
+\label{secS:compile_time}
 
-Table \ref{tabS:haskell_results} includes a column indicating the size bound that was applied to expressions. Out of the five benchmarks, both primes and queens could be run at any greater bound and would still produce the same program -- the direct repetition criteria (see \S\ref{secS:direct}) bounds the expressions on its own. For the remaining programs, a bound was chosen to ensure that the compilation process was quick (under two seconds). By increasing the termination bound the size of the residual program would increase, but the generated program may execute faster.
+The compile times for the benchmarks presented in Table \ref{tabS:haskell_results} vary between 1 minute and 12 minutes. These compile times are unsuitable for general development. Profiling shows that 25\% of the time is spent applying simplification rules, and 65\% is spent testing for a homeomorphic embedding. We suspect both these costs can be reduced, although we have not yet done so.
 
-The existence of a termination bound requiring different values for different programs is a cause for concern. In a large program it is likely that different parts of the program would require different bounds on the size of the generated expression -- something not currently possible. We suspect that the most promising direction is to augment the direct repetition criterion to obtain termination in all practical cases without resorting to a depth bound.
-\end{comment}
+\paragraph{Simplification Time} The rules from \S\ref{secB:core_simplify} are applied using the Uniplate library, in particular using the bottom-up rewrite strategy described in \S\ref{secU:rewrite_bottom}. After each function inlining, the rules are applied everywhere within the expression -- despite much of the expression remaining unchanged. By targeting the application of rules more precisely, compile times would decrease.
+
+\paragraph{Homeomorphic Embedding} We use homeomorphic embedding to test a single element against a set of elements. The cost of homeomorphic embedding is related to the number of tests performed, and the size of the set at the time of each test. We perform many tests because of the unfolding strategy described in \S\ref{secS:which_inline}. The set is large because we maintain one set from the root function, including every inlining to the current point.
+
+We have a solution -- split the homeomorphic embedding set in two. One set can be global and used for residuation, the other set can be local and used for inlining. Each expression is optimised within the context of a fresh local set, then for residuation the global set is used. The local set will be bounded by the number of inlinings since the last residuation, while the global set will be the number of residuations from the root function. These restrictions still ensure termination, and will decrease the size of the sets substantially. This scheme would permit more inlining steps to be performed, so would change the runtime performance, but we suspect the effect would be positive.
+
 
 \section{Related Work}
 \label{secS:related}

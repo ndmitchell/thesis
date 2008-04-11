@@ -55,7 +55,7 @@ Within Supero, there are three main areas for future work:
 \begin{description}
 \item[More Benchmarks] The fifteen benchmarks in \S\ref{secS:haskell_results} are not enough. We would like to obtain results for larger programs, including all the remaining benchmarks in the nofib suite.
 \item[Runtime Performance] Earlier versions of Supero \cite{me:supero_ifl} managed to obtain substantial speed ups on benchmarks such as exp3\_8. The Bernouilli benchmark is currently problematic. There is still scope for improvement.
-\item[Compilation Speed] The compilation times are tolerable for benchmarking and a final optimised release, but not for general use. Basic profiling shows that over 90\% of supercompilation time is spent testing for a homeomorphic embedding. It is possible that by decreasing the number of times homeomorphic embedding is tested, a substantial speed up can be obtained.
+\item[Compilation Speed] The compilation times are tolerable for benchmarking and a final optimised release, but not for general use. We have described the major bottlenecks in \S\ref{secS:compile_time}, along with possible strategies for alleviating them.
 \end{description}
 
 \subsection{Firstify}
