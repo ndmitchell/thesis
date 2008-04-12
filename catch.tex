@@ -1,7 +1,5 @@
 %include thesis.fmt
 
-\todo{Argue that Catch is correct}
-
 %format <| = "\mathbin{\lhd}"
 %format |> = "\mathbin{\rhd}"
 %format -< = "\mbox{\ensuremath{<\hspace{-1em}-}}"
@@ -69,7 +67,7 @@ map :: (a -> b) -> [a] -> [b]
 \chapter{Pattern Match Analysis}
 \label{chp:catch}
 
-This chapter describes an automated analysis to check for pattern match errors, which we have called Catch. \S\ref{secC:catch_intro} gives a small example, and \S\ref{secC:walkthrough} gives an overview of the checking process for this example. \S\ref{secC:manipulate} introduces a small core functional language and a mechanism for reasoning about this language, \S\ref{secC:constraint} describes two constraint languages. \S\ref{secC:results} evaluates Catch on programs from the Nofib suite, on a widely-used library and on a larger application program. \S\ref{secC:catch_related} offers comparisons with related work.
+This chapter describes an automated analysis to check for pattern match errors, which we have called Catch. \S\ref{secC:catch_intro} gives a small example, and \S\ref{secC:walkthrough} gives an overview of the checking process for this example. \S\ref{secC:manipulate} introduces a small core functional language and a mechanism for reasoning about this language, \S\ref{secC:constraint} describes two constraint languages. \S\ref{secC:correct} argues for the correctness of the system. \S\ref{secC:results} evaluates Catch on programs from the Nofib suite, on a widely-used library and on a larger application program. \S\ref{secC:catch_related} offers comparisons with related work.
 
 
 \section{Introductory Example}
@@ -847,6 +845,41 @@ v_2 = Branch (Leaf False  ) (Leaf True   )
 \end{example}
 
 We have implemented both constraint systems in Catch. Factors to consider when choosing which constraint system to use include: how readable the constraints are, expressive power, implementation complexity and scalability. In practice the issue of scalability is key: how large do constraints become, how quickly can they be manipulated, how expensive is their simplification. Catch uses MP-constraints by default, as they allow much larger examples to be checked.
+
+
+\section{Argument for Correctness}
+\label{secC:correct}
+
+We do not give a formal proof of correctness, but instead sketch an outline of how such a proof might proceed. We first show that the algorithm is correct given certain conditions on the constraint language, then that each of the three constraint languages satisfy the necessary conditions.
+
+\subsection{Correctness of Algorithm}
+
+After execution, Catch has determined a precondition for each function, and an entailment, namely a precondition on a function to ensure a particular postcondition. We wish that the preconditions and entailments correctly model the program, and that 
+
+presented in Figures \ref{figC:property_fixp} \ref{figC:precondition} \ref{figC:precond_fixp} \ref{figC:prop} is correct, then that the constraint models are correct.
+
+%if 0
+\begin{proof}{|prePost| is correct}
+
+\begin{proof}{|reduce| is correct}
+
+
+
+
+
+
+
+\begin{proof}{All functions satisfy their precondition}
+
+
+\begin{proof}{No value satisfies the precondition to |error|}
+
+
+
+
+\begin{proof}{Given a precondition
+\f{Given a precondition no
+%endif
 
 
 \section{Results and Evaluation}
