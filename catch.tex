@@ -496,6 +496,7 @@ prePost RecN1  f k =  prePost RecN f k `propAnd`
 \para{The |Call| rule} relies on the |prePost| function defined in Figure \ref{figC:property_fixp}. This function calculates the precondition necessary to ensure a given postcondition on a function, which forms an entailment. Like the precondition calculation in \S\ref{secC:precond}, the |prePost| function works iteratively, with each result becoming increasingly restrictive. Initially, all postconditions are assumed to be true. The iterative step takes the body of the function, and uses the |reduce| transformation to obtain a predicate in terms of the arguments to the function, using the previous value of |prePost|. If refinement chains of constraint/function pairs are finite, termination is guaranteed. Here again, a speed up can be obtained by tracking the dependencies between constraints, and additionally caching all calculated results.
 
 \subsection{Semantics of Constraints}
+\label{secC:constraint_semantics}
 
 The semantics of a constraint are determined by which values satisfy it. We can model values in our first-order Core with the data type:
 
@@ -854,32 +855,223 @@ We do not give a formal proof of correctness, but instead sketch an outline of h
 
 \subsection{Correctness of Algorithm}
 
-After execution, Catch has determined a precondition for each function, and an entailment, namely a precondition on a function to ensure a particular postcondition. We wish that the preconditions and entailments correctly model the program, and that 
+The algorithm is correct if given a function application whose arguments meet the precondition, it will not call |error|. The proof is structured as an evaluator with an explicit |bottom| within it -- if this case is encountered the program crashes. We use equational reasoning upon the evaluator to show that the |bottom| case can be eliminated by introducing a check on the first precondition. This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
 
-presented in Figures \ref{figC:property_fixp} \ref{figC:precondition} \ref{figC:precond_fixp} \ref{figC:prop} is correct, then that the constraint models are correct.
+The idea is that as we tranform code we leave impossible cases out, which means we can reason about which things to ignore.
 
-%if 0
-\begin{proof}{|prePost| is correct}
+\subsubsection{Helper Functions}
 
-\begin{proof}{|reduce| is correct}
+\begin{code}
+data Val = Val CtorName [Val]
+         | Bottom
 
+bottom, notBottom :: Expr -> Bool
+bottom Bottom = True
+bottom (Val c xs) = any bottom xs
+notBottom = not . bottom
 
+sat :: Prop (Sat Expr) -> Bool
 
-
-
-
-
-\begin{proof}{All functions satisfy their precondition}
-
-
-\begin{proof}{No value satisfies the precondition to |error|}
-
-
+satPrecond :: FuncName -> [Expr] -> Bool
+\end{code}
 
 
-\begin{proof}{Given a precondition
-\f{Given a precondition no
-%endif
+\subsubsection{An Evaluator}
+
+We start by outlining an evaluator:
+
+\begin{code}
+eval :: Expr -> Val
+eval (Make c xs_   ) = Val c (map eval xs_)
+eval (Case x as_  ) = head [subst y (zip vs_ xs_) | Alt c' vs_ y <- as_, c == c']
+    where Val c xs_ = eval x
+eval (Call f xs_)  | f == "error" = Bottom
+                   | otherwise = eval (call f xs)
+
+call f xs = subst (zip (args f) xs_) (body f)
+
+subst :: [(VarName,Expr)] -> Expr -> Expr
+subst r (Var x) = fromMaybe (Var x) (lookup x r)
+subst r (Make c xs_) = Make c (map (subst r) xs_)
+subst r (Call f xs_) = Call f (map (subst r) xs_)
+subst r (Case x as_) = Case (subst r x)
+    [Alt n vs (subst r' e) | Alt n vs e <- xs
+    ,let r' = filter ((`notElem` vs) . fst) r]
+\end{code}
+
+There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as |subst| will remove them. We maintain the correctness of the evaluator is we replace cases which were defined with |bottom|. In some cases we will be working with predicates which contain no literal values, we use |wrong| to assert that such a predicate is not |true|.
+
+In order to model the proof we assume the existence of a |satisfies| and |satisfiesP| function, much like that given in \S\ref{secC:constraint_semantics}. However, we assume these functions are maximally lazy, to ensure termination in a lazy environment.
+
+\subsubsection{The Statement}
+
+\begin{code}
+forall x . pre x ==> notBottom (eval x)
+\end{code}
+
+We now proceed by strengthening |eval| so that it returns bottom in more locations. If it is always more like to bottom, and the result is safe, then we are safe.
+
+
+\subsubsection{Adding precondition checks}
+
+% eliminate evalPrecond?
+
+\begin{code}
+evalPrecond (Call f xs_)  | not $ satPrecond f xs_ = Bottom
+evalPrecond x = eval x
+\end{code}
+
+We also define |eval'| which is like |eval| but does not return |Bottom|.
+
+\subsubsection{Adding |pre| checks}
+
+We can now define |evalPre|:
+
+\begin{code}
+evalPre x | not $ sat (pre x) = Bottom
+evalPre x = evalSafe x
+
+evalSafe x | sat (pre x) = eval x
+\end{code}
+
+We can see that |evalSafe| is fully defined, even though there is some case lacking. As before, |evalPre| is a strengthening of |evalPrecond|.
+
+\subsubsection{Transforming |evalPre|}
+
+We can now transform the first equation in |evalPre|:
+
+\begin{code}
+evalSafe x@(Make c xs) | sat (pre x) = evalPrecond x
+
+evalSafe x@(Make c xs) | sat (andP (map pre xs)) = Val c (map eval xs_)
+
+evalSafe x@(Make c xs) | sat (andP (map pre xs)) = Val c (map evalPre xs_)
+
+evalSafe x@(Make c xs) | all (sat . pre) xs = Val c (map evalPre xs)
+
+evalSafe x@(Make c xs) | all (sat . pre) xs = Val c (map evalSafe xs)
+\end{code}
+
+Assuming: |sat (andP xs) = all (sat xs)|.
+
+We can now transform the second equation:
+
+\begin{code}
+evalSafe x@(Call f xs) | sat (pre x) = eval x
+
+evalSafe (Call f xs) | not $ satPrecond f xs && all (sat xs) = Bottom
+                     | otherwise = eval x
+
+evalSafe (Call f xs) | not $ satPrecond f xs && all (sat xs) = Bottom
+                     | f == "error" = Bottom
+                     | otherwise = eval (call f xs)
+
+evalSafe (Call f xs) | not $ satPrecond f xs && all (sat xs) = Bottom
+                     | otherwise = eval (call f xs)
+
+evalSafe (Call f xs) | not $ satPrecond f xs = Bottom
+                     | not $ all (sat xs) = Bottom
+                     | otherwise = eval (call f xs)
+
+evalSafe (Call f xs) | not $ sat $ substP xs $ reduce (pre (body f)) = Bottom
+                     | not $ all (sat xs) = Bottom
+                     | otherwise = eval (call f xs)
+
+evalSafe (Call f xs) | not $ sat $ subst' s $ reduce' $ pre $ y = Bottom
+                     | not $ all sat xs = Bottom
+                     | otherwise = eval $ subst s $ y
+    where
+        s = zip (args f) xs
+        y = body f
+
+-- subst/reduce => reduce/subst
+evalSafe (Call f xs) | not $ sat $ reduce' $ subst' s $ pre $ y = Bottom
+                     ....
+
+-- sat/reduce => sat
+evalSafe (Call f xs) | not $ sat $ subst' s $ pre $ y = Bottom
+                     ....
+
+-- subst/pre => pre/subst
+evalSafe (Call f xs) | not $ sat $ pre $ subst s y = Bottom
+                     ....
+
+-- now can call evalSafe
+\end{code}
+
+subst/pre probably requires:
+
+\begin{code}
+(subst' xs $ pre $ body x) && all sat xs => pre $ subst xs $ body x
+\end{code}
+
+
+We know that |precond "error" == false| as the initial value of |precond "error"| is |false|, and the values only get more restrictive, and |false| is the most restrictive value. Therefore |f == "error" ==> wrong (precond "error")|. We can now strengthen the |Call| alternative with:
+
+\todo{The case for case}
+
+\todo{Now prove sat/reduce => sat lemma}
+
+
+\begin{comment}
+\begin{code}
+preEval x | reduce (pre x) == false = bottom
+          | otherwise = eval x
+\end{code}
+
+Obviously this code is less defined than |eval|, and produces |bottom| in more places, so is a safe restriction.
+
+Now we can case expand |preEval|:
+
+\begin{code}
+preEval x@(Make c xs_) | reduce (pre x) == false = bottom
+                     | otherwise = eval x
+\end{code}
+
+\begin{code}
+preEval (Make c xs_) | reduce (andP (map pre xs_)) == false = bottom
+                     | otherwise = Val c (map eval xs_)
+\end{code}
+
+If we assume that |reduce x ==> x|, [is that true?] given no free variables, then we can rewrite to:
+
+\begin{code}
+preEval (Make c xs_) = Val c (map preEval xs_)
+\end{code}
+
+Now we can deal with the other cases:
+
+
+
+Finally, we prove that is a function meets its precondition, it is satisfied.
+
+
+
+
+
+Which we can now see is an implication
+
+
+
+\begin{code}
+eval (Make c xs_   ) = Val c (map eval xs_)
+eval (Case x as_  ) = head [subst y (zip vs_ xs_) | Alt c' vs_ y <- as_, c == c']
+    where Val c xs_ = eval x
+eval (Call f xs_)   | not $ satisfiesP $ subst (precond f) xs_ = bottom
+                   | otherwise = subst (zip (args f) xs_) (body f)
+\end{code}
+\end{comment}
+
+
+
+\subsection{Correctness of BP-constraints}
+
+
+\subsection{Correctness of RE-constraints}
+
+
+\subsection{Correctness of MP-constraints}
+
 
 
 \section{Results and Evaluation}
