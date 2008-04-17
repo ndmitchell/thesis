@@ -15,7 +15,7 @@
 % extra code needed for tex2hs
 \begin{code}
 class Uniplate x where
-	uniplate :: x -> ([x], [x] -> x)
+	uniplate :: x -> (Str x, Str x -> x)
 \end{code}
 \begin{code}
 class Uniplate x where
@@ -397,11 +397,13 @@ We present signatures for all our methods in Figure \ref{figU:play}, including s
 Requiring each instance of the |Uniplate| class to implement ten separate methods would be an undue imposition. Instead, given a type specific instance for a \textit{single} auxiliary method with a pair as result, we can define \textit{all ten} operations generically, at the class level. The auxiliary is:
 
 \begin{code}
-uniplate :: Uniplate alpha => alpha -> ([alpha], [alpha] -> alpha)
+uniplate :: Uniplate alpha => alpha -> (Str alpha, Str alpha -> alpha)
 uniplate x = (children,context)
+
+data Str alpha = Zero | One alpha | Two (Str alpha) (Str alpha)
 \end{code}
 
-The |children| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the length of the list given to |context| is the same as the length of |children|. The result pair splits the information in the value, but by combining the |context| with the |children| the original value can be recovered:
+The original Uniplate paper \cite{uniplate} used lists of items, but we instead use the |Str| data type to collect items -- which simplifies the definition of instances. The |children| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has the same structure as the result of |children|. The result pair splits the information in the value, but by combining the |context| with the |children| the original value can be recovered:
 
 \begin{code}
 propId x = x == context children
@@ -411,22 +413,27 @@ propId x = x == context children
 \subsection{Operations in terms of |uniplate|}
 \label{secU:using_replacechildren}
 
-All ten operations of \S\ref{secU:use_play} can be defined in terms of |uniplate| very concisely. We define four functions as examples.
+All ten operations of \S\ref{secU:use_play} can be defined in terms of |uniplate|. We define four functions as examples.
 
 \begin{code}
 children :: Uniplate alpha => alpha -> [alpha]
-children = fst . uniplate
+children = f . fst . uniplate
+    where  f (Zero     ) = []
+           f (One x    ) = [x]
+           f (Two x y  ) = f x ++ f y
 
 universe :: Uniplate alpha => alpha -> [alpha]
 universe x = x : concatMap universe (children x)
 
-transform :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
-transform f x = f $ context $ map (transform f) children
-    where (children, context) = uniplate x
-
 descend :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
-descend f x = context $ map f children
-    where (children, context) = uniplate x
+descend f x = context $ fmap f children
+    where  children, context) = uniplate x
+           fmap f (Zero     ) = Zero
+           fmap f (One x    ) = One (f x)
+           fmap f (Two x y  ) = Two (fmap f x) (fmap f y)
+
+transform :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
+transform f = f . descend (transform f)
 \end{code}
 
 The common pattern is to call |uniplate|, then operate on the current children, often calling |context| to create a modified value. Some of these definitions can be made more efficient -- see \S\ref{secU:optimise_everything}.
@@ -440,12 +447,16 @@ class Uniplate alpha where
     uniplate :: alpha -> ([alpha], [alpha] -> alpha)
 
 instance Uniplate Expr where
-    uniplate (Neg  a    )  = ([a]    , \[a']     -> Neg  a'     )
-    uniplate (Add  a b  )  = ([a,b]  , \[a',b']  -> Add  a' b'  )
-    uniplate (Sub  a b  )  = ([a,b]  , \[a',b']  -> Sub  a' b'  )
-    uniplate (Mul  a b  )  = ([a,b]  , \[a',b']  -> Mul  a' b'  )
-    uniplate (Div  a b  )  = ([a,b]  , \[a',b']  -> Div  a' b'  )
-    uniplate x             = ([]     , \[]       -> x           )
+    uniplate (Neg  a    )  =  (One a, \(One a') -> Neg  a')
+    uniplate (Add  a b  )  =  (Two (One a) (One b)
+                              ,\(Two (One a') (One b'))  -> Add  a' b'  )
+    uniplate (Sub  a b  )  =  (Two (One a) (One b)
+                              ,\(Two (One a') (One b'))  -> Sub  a' b'  )
+    uniplate (Mul  a b  )  =  (Two (One a) (One b)
+                              ,\(Two (One a') (One b'))  -> Mul  a' b'  )
+    uniplate (Div  a b  )  =  (Two (One a) (One b)
+                              ,\(Two (One a') (One b'))  -> Div  a' b'  )
+    uniplate x             =  (Zero, \Zero -> x)
 \end{code}
 \caption{The |Uniplate| class and an instance for |Expr|.}
 \label{figU:play_expr}
@@ -458,17 +469,6 @@ The distinguishing feature of our library is that the children are defined in te
 
 \subsection{Derivation Rules}
 
-We can define derivation rules for the |children| and |context| functions, allowing the definition:
-
-\ignore\begin{code}
-instance Uniplate Type where
-    uniplate x = (children x, context x)
-\end{code}
-
-Alternatively, it is possible to define one single function which generates both elements of the pair at once, avoiding the need to examine each value twice (see \S\ref{secU:optimise_playdata} for an example).
-
-We model the derivation of an instance by describing a derivation from a data type to a set of declarations. The derivation rules have three functional parameters: |(<>)|, |unit| and |target|. By varying these parameters we derive either |children| or |context| functions.
-
 \begin{figure}
 \ignore\begin{code}
 _D $| data d v_1...v_n = a_1...a_m |$ =
@@ -476,11 +476,13 @@ _D $| data d v_1...v_n = a_1...a_m |$ =
     where x {-" \mbox{ is fresh} "-}
 
 _C $| c t_1...t_n |$ =
-        c y_1...y_n -> unit c <> _T $| t_1 |$ \? y_1 <> ... <> _T $| t_n |$ \? y_n
-    where y_1...y_n {-" \mbox{ are fresh} "-}
+        c y_1...y_n ->  (Zero `Two` a_1 `Two` ... `Two` a_n
+                        ,\(Zero `Two` z_1 `Two` ... `Two` z_n) -> c (b_1 z_1) ... (b_n z_n))
+    where  y_1...y_n {-" \mbox{ and } "-} z_1...z_n {-" \mbox{ are fresh} "-}
+           (a_i,b_i) = _T $| t_i |$ y_i
 
-_T $| TargetType     |$ = target
-_T $| PrimitiveType  |$ = unit
+_T $| TargetType     |$ = \x -> (One x, \(One x') -> x')
+_T $| PrimitiveType  |$ = \x -> (Zero, \Zero -> x)
 _T $| d t_1...t_n    |$ = _N $| d |$ \? _T $| t_1 |$ \? ... \? _T $| t_n |$
 _T $| v              |$ = v
 
@@ -490,134 +492,46 @@ _N {-" \mbox{ is an injection to fresh variables} "-}
 \label{figU:derive}
 \end{figure}
 
-The derivation rules are given in Figure \ref{figU:derive}. The |_D| rule takes a data type declaration, and defines a function over that data type. The |_C| rule defines a case alternative for each constructor. The |_T| rule defines type specific behaviour: a type is either the target type on which an instance is being defined, or a primitive such as |Char|, or an algebraic data type, or a free type variable.
 
-\begin{comment}
-
-To model the derivation of an instance, it is necessary to have a model of data types:
-
-\begin{code}
-data Data  = Data  Name [Var] [Ctor]
-data Ctor  = Ctor  Name [Type]
-data Type  = TyPrim | TyVar Var | TyApp Data [Type]
-
-type Name  = String
-type Var   = String
-\end{code}
-
-\begin{code}
-isTarget :: a -> Bool
-\end{code}
-
-When writing a |Uniplate| instance for a particular data type, |isTarget| returns True for that data type. We define how to produce a function for a given |Data| type using the |_D| function:
-
-\begin{code}
-
-
-unwords $
-    ['d':name] ++ vars ++ ["x ="] ++
-    ["case x of {"] ++
-        separate ";" (map _C ctors) ++
-    ["}"]
-
-_C (Ctor name typs) =
-    [name] ++ vars ++ [" -> "] ++
-    ["unit"] ++ [name] ++ ["<>"] ++
-    separate "<>" (zipWith (:) vars (map _T typs))
-    where vars = ['v':show i | i <- [1..length typs]]
-
-_T (TyPrim                       ) = ["unit"]
-_T (TyVar  v                     ) = [v]
-_T (TyApp  d@(Data name _ _) ts  )
-    | isTarget d  = ["target"]
-    | otherwise   = ['d':name] ++ concatMap _T ts
-
-separate sep xs = concat $ intersperse [sep] xs
-\end{code}
-
-\end{comment}
+We model the derivation of an instance by describing a derivation from a data type to a set of declarations. The derivation rules are given in Figure \ref{figU:derive}. The |_D| rule takes a data type declaration, and defines a function over that data type. The |_C| rule defines a case alternative for each constructor. The |_T| rule defines type specific behaviour: a type is either the target type on which an instance is being defined, or a primitive such as |Char|, or an algebraic data type, or a free type variable.
 
 Applying |_D| to |Expr|, the result is:
 
 \begin{code}
 _N $| Expr |$ \? x = case x of
-    Val  y_1      -> unit Val  <> unit y_1
-    Var  y_1      -> unit Var  <> _N $| List |$ \? unit y_1
-    Neg  y_1      -> unit Neg  <> target y_1
-    Add  y_1 y_2  -> unit Add  <> target y_1 <> target y_2
-    Sub  y_1 y_2  -> unit Sub  <> target y_1 <> target y_2
-    Mul  y_1 y_2  -> unit Mul  <> target y_1 <> target y_2
-    Div  y_1 y_2  -> unit Div  <> target y_1 <> target y_2
+    Val  y_1      -> (Zero `Two` a_1, \(Zero `Two` z_1) -> Val (b_1 z_1)
+        where (a_1,b_1) = (\x -> (Zero, \Zero -> x)) y_1
+
+    Var  y_1      -> (Zero `Two` a_1, \(Zero `Two` z_1) -> Var (b_1 z_1)
+        where (a_1,b_1) = _N $| List |$ \? y_1
+
+    Neg  y_1      -> (Zero `Two` a_1, \(Zero `Two` z_1) -> Neg (b_1 z_1))
+        where (a_1,b_1) = (\x -> (One x, \(One x') -> x')) y_1
+
+    Add  y_1 y_2  ->  (Zero `Two` a_1 `Two` a_2
+                      ,\(Zero `Two` z_1 `Two` z_2) -> Neg (b_1 z_1) (b_2 z_2))
+        where  (a_1,b_1) = (\x -> (One x, \(One x') -> x')) y_1
+               (a_2,b_2) = (\x -> (One x, \(One x') -> x')) y_2
+
+    -- other constructors following the same pattern as |Add| ...
 
 _N $| List |$ \? v_1 x = case x of
-    []            -> unit []
-    (:)  y_1 y_2  -> unit (:) <> v_1 y_1 <> _N $| List |$ \? v_1 y_2
+    []            -> (Zero, \(Zero) -> [])
+    (:)  y_1 y_2  -> (Zero `Two` a_1 `Two` a_2
+                     ,\(Zero `Two` z_1 `Two` z_2) -> Neg (b_1 z_1) (b_2 z_2))
+        where  (a_1,b_1) = v_1 y_1
+               (a_2,b_2) =  _N $| List |$ \? v_1 y_2
 \end{code}
 
-\begin{comment}
-To generate a particular operation we can replace the |unit|, |target| and |<>| functions with versions specific to that operation. We do this replacement using multiple copies of the template, introducing |where| clauses with local definitions of the three functions.
-\end{comment}
-
-\subsubsection{Defining |children|}
-
-To derive the |children| function, the derivations are applied with the following parameter values.
+We can now define a Uniplate instance for the |Expr| type with:
 
 \begin{code}
-unit    = const []
-target  = (:[])
-(<>)    = (++)
-
-children x = _N $| Type |$ \? x
+instance Uniplate Expr where
+    uniplate = _N $| Expr |$
 \end{code}
 
-The generated function is a traversal which visits every value in the data type. A list is created of all the target types by placing the targets into lists, combining lists using |(++)|, and skipping uninteresting values.
+By applying simple transformation steps we can obtain the same instance as presented in Figure \ref{figU:play_expr}.
 
-From these definitions we can do some reasoning. For example, |list == concatMap|, and |concatMap (const []) == const []|. This information can be used to simplify some instances.
-
-\subsubsection{Defining |context|}
-
-For |context| functions we apply the derivation rules with the following parameter values.
-
-\begin{code}
-type Cont t alpha = [alpha] -> (t,[alpha])
-
-unit :: t -> Cont t alpha
-unit x ns = (x,ns)
-
-target :: alpha -> Cont alpha alpha
-target x (n:ns) = (n,ns)
-
-(<>) :: Cont (a->b) alpha -> Cont a alpha -> Cont b alpha
-(<>) a b ns_1 =  let  (a'  ,ns_2  ) = a  ns_1
-                      (b'  ,ns_3  ) = b  ns_2
-                 in   (a' b',ns_3)
-
-context x ns = fst (_N $| Type |$ \? x ns)
-\end{code}
-
-The central |Cont| type is an extension to the type of |context| which takes a list of children to substitute into a value, and returns both the new value, and the children which were not used. By returning the unused children the |(<>)| operation is able to determine both the new value for |a| (namely |a'|), and the remaining list of children (namely |ns2|), sequencing the use of the children. The |target| function consumes a child, and the |unit| function returns the children unmodified.
-
-\begin{comment}
-It is possible to improve the simplification opportunities and runtime speed by moving to continuation passing.
-, by redefining if we use a continuation function to encode the pair.
-
-\begin{code}
-setChildren x ns = dExpr x ns const
-
-type Cont t alpha r = [alpha] -> (t -> [alpha] -> r) -> r
-
-unit :: t -> Cont t alpha r
-unit    x  ns      c  = c x ns
-
-target :: alpha -> Cont alpha alpha r
-target  x  (n:ns)  c  = c n ns
-
-(<>) :: Cont (a->b) alpha r -> Cont a alpha r -> Cont b alpha r
-(<>) a b ns c =  a  ns $ \a'  ns ->
-                 b  ns $ \b'  ns ->
-                 c (a' b') ns
-\end{code}
-\end{comment}
 
 \subsection{Automated Derivation of |uniplate|}
 
@@ -628,7 +542,7 @@ In collaboration with Stefan O'Rear we have developed the Derive tool \citep{der
 \begin{example}
 \begin{code}
 data Term  =  Name String
-           |  Apply Term [Term]
+           |  Apply Term Term
               deriving ( {-! \textsf{Uniplate} !-} )
 \end{code}
 
@@ -636,8 +550,9 @@ Running the Derive tool over this file, the generated code is:
 
 \begin{code}
 instance Uniplate Term where
-    uniplate (Name  x_1      ) = ([]       , \_       -> Name x_1     )
-    uniplate (Apply x_1 x_2  ) = (x_1:x_2  , \(n:ns)  -> Apply n ns  )
+    uniplate (Apply x_1 x_2)  =  (Two (One x_1) (One x_2)
+                                 ,\(Two (One x_1) (One x_2) -> Apply x_1 x_2)
+    uniplate x                =  (Zero, \_ -> x)
 \end{code}
 \end{example}
 
@@ -1310,25 +1225,25 @@ The results are presented in Table \ref{tabU:uniplate_results}. Using Manual or 
 The Uniplate library is intended to be a way to remove the boilerplate of traversals from Haskell programs. It is far from the first library to attempt boilerplate removal.
 
 \subsection{The SYB library}
- 
+
 The SYB library \citep{lammel:syb} is perhaps the most popular boilerplate removal system in Haskell. One of the reasons for its success is tight integration with the GHC compiler, lowering the barrier to use. We have compared directly against traversals written in SYB in \S\ref{secU:results_boilerplate}, and have also covered how to implement Uniplate in terms of SYB in \S\ref{secU:implement_playdata}. In our experience most operations are shorter and simpler than the equivalents in SYB, and we are able to operate without the extension of rank-2 types. Most of these benefits stem directly from our definition of children as being the children of the same uniform type, contrasting with the SYB approach of all direct children.
 
 The SYB library is, however, more powerful than Uniplate. If you wish to visit values of different type in a single traversal, Uniplate is unsuitable. The |Data| and |Typeable| methods have also been pushed further in successive papers \citep{lammel:syb2,lammel:syb3} -- in directions Uniplate may be unable to go.
 
 \subsection{The Compos library}
- 
+
 The Compos library \citep{bringert:compos} is another approach to the removal of boilerplate, requiring GADTs \citep{spj:gadt} along with rank-2 types. The Compos library requires an existing data type to be rewritten as a GADT. The conversion from standard Haskell data structures to GADTs currently presents several problems: they are GHC specific, deriving is not supported on GADTs, and GADTs require explicit type signatures. The Compos approach is also harder to write instances for, having no simple instance generation framework, and no automatic derivation tool (although one could be written). The inner |composOp| operator is very powerful, and indeed we have chosen to replicate it in our library as |descend|. But the Compos library is unable to replicate either |universe| or |transform| from our library.
 
-\subsection{The Stratego tool} 
+\subsection{The Stratego tool}
 
 The Stratego tool \citep{stratego} provides support for generic operations, focusing on both the operations and the strategies for applying them. This approach is performed in an \textit{untyped} language, although a typed representation can be modelled \cite{lammel:typed_generic_strategies}. Rather than being a Haskell library, Stratego implements a domain specific language that can be integrated with Haskell.
 
 \subsection{The Strafunski library}
- 
+
 The Strafunski library \citep{strafunski, lammel:polymorphic_symphony} has two aspects: generic transformations and queries for trees of any type; and features to integrate components into a larger programming system. Generic operations are performed using strategy combinators which can define special case behaviour for particular types, along with a default to perform in other situations. The Strafunski library is integrated with Haskell, primarily providing support for generic programming in application areas that involve traversals over large abstract syntax trees.
 
 \subsection{The Applicative library}
- 
+
 The Applicative library \citep{mcbride:applicative} works by threading an Applicative operation through a data structure, in a similar way to threading a Monad through the structure. There is additionally a notion of |Traversable| functor, which can be used to provide generic programming. While the Applicative library can be used for generic programming, this task was not its original purpose, and the authors note they have ``barely begun to explore'' its power as a generic toolkit.
 
 \subsection{Generic Programming}
