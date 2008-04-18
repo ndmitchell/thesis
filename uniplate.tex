@@ -394,13 +394,33 @@ We present signatures for all our methods in Figure \ref{figU:play}, including s
 \section{Implementing the |Uniplate| class}
 \label{secU:implement_play}
 
-Requiring each instance of the |Uniplate| class to implement ten separate methods would be an undue imposition. Instead, given a type specific instance for a \textit{single} auxiliary method with a pair as result, we can define \textit{all ten} operations generically, at the class level. The auxiliary is:
+\begin{figure}
+\begin{code}
+data Str alpha = Zero | One alpha | Two (Str alpha) (Str alpha)
+
+instance Functor Str where
+    fmap f (Zero      ) = Zero
+    fmap f (One  x    ) = One (f x)
+    fmap f (Two  x y  ) = Two (fmap f x) (fmap f y)
+
+strList :: Str alpha -> [alpha]
+strList (Zero      ) = []
+strList (One  x    ) = [x]
+strList (Two  x y  ) = strList x ++ strList y
+
+listStr :: [alpha] -> Str alpha
+listStr (x:xs) = Two (One x) (listStr xs)
+listStr [] = Zero
+\end{code}
+\caption{|Str| data type.}
+\label{figU:str}
+\end{figure}
+
+Requiring each instance of the |Uniplate| class to implement ten separate methods would be an undue imposition. Instead, given a type specific instance for a \textit{single} auxiliary method with a pair as result, we can define \textit{all ten} operations generically, at the class level. The auxiliary use of the |Str| data type from Figure \ref{figU:str}, and is defined as:
 
 \begin{code}
 uniplate :: Uniplate alpha => alpha -> (Str alpha, Str alpha -> alpha)
 uniplate x = (children,context)
-
-data Str alpha = Zero | One alpha | Two (Str alpha) (Str alpha)
 \end{code}
 
 The original Uniplate paper \cite{uniplate} used lists of items, but we instead use the |Str| data type to collect items -- which simplifies the definition of instances. The |children| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has the same structure as the result of |children|. The result pair splits the information in the value, but by combining the |context| with the |children| the original value can be recovered:
@@ -417,20 +437,14 @@ All ten operations of \S\ref{secU:use_play} can be defined in terms of |uniplate
 
 \begin{code}
 children :: Uniplate alpha => alpha -> [alpha]
-children = f . fst . uniplate
-    where  f (Zero     ) = []
-           f (One x    ) = [x]
-           f (Two x y  ) = f x ++ f y
+children = strList . fst . uniplate
 
 universe :: Uniplate alpha => alpha -> [alpha]
 universe x = x : concatMap universe (children x)
 
 descend :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
 descend f x = context $ fmap f children
-    where  children, context) = uniplate x
-           fmap f (Zero     ) = Zero
-           fmap f (One x    ) = One (f x)
-           fmap f (Two x y  ) = Two (fmap f x) (fmap f y)
+    where children, context) = uniplate x
 
 transform :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
 transform f = f . descend (transform f)
@@ -479,7 +493,7 @@ _C $| c t_1...t_n |$ =
         c y_1...y_n ->  (Zero `Two` a_1 `Two` ... `Two` a_n
                         ,\(Zero `Two` z_1 `Two` ... `Two` z_n) -> c (b_1 z_1) ... (b_n z_n))
     where  y_1...y_n {-" \mbox{ and } "-} z_1...z_n {-" \mbox{ are fresh} "-}
-           (a_i,b_i) = _T $| t_i |$ y_i
+           (a_i,b_i) = _T $| t_i |$ \? y_i
 
 _T $| TargetType     |$ = \x -> (One x, \(One x') -> x')
 _T $| PrimitiveType  |$ = \x -> (Zero, \Zero -> x)
@@ -583,12 +597,12 @@ We define operations, including |universeOn| and |transformOn|, which take an ex
 
 \begin{comment}
 \begin{code}
-type BiplateType beta alpha = beta -> ([alpha], [alpha] -> beta)
+type BiplateType beta alpha = beta -> (Str alpha, Str alpha -> beta)
 \end{code}
 \end{comment}
 
 \begin{code}
-type BiplateType beta alpha = beta -> ([alpha], [alpha] -> beta)
+type BiplateType beta alpha = beta -> (Str alpha, Str alpha -> beta)
 biplate :: BiplateType beta alpha
 \end{code}
 
@@ -596,17 +610,17 @@ The intuition for |biplate| is that given a structure of type |beta|, the functi
 
 \begin{code}
 biplateSelf :: BiplateType alpha alpha
-biplateSelf x = ([x], \[x'] -> x')
+biplateSelf x = (One x, \(One x') -> x')
 \end{code}
 
 We can now define |universeOn| and |transformOn|. Each takes a |biplate| function as an argument:
 
 \begin{code}
 universeOn :: Uniplate alpha => BiplateType beta alpha -> beta -> [alpha]
-universeOn biplate x = concatMap universe $ fst $ biplate x
+universeOn biplate x = concatMap universe $ strList $ biplate x
 
 transformOn  ::  Uniplate alpha => BiplateType beta alpha -> (alpha -> alpha) -> beta -> beta
-transformOn biplate f x = context $ map (transform f) children
+transformOn biplate f x = context $ fmap (transform f) children
     where (children, context) = biplate x
 \end{code}
 
@@ -719,7 +733,7 @@ class PlateAll from to where
     plateAll :: from -> Type from to
 class PlateOne to where
     plateOne :: to -> Type to to
-type Type from to = ([to] -> [to], [to] -> (from,[to]))
+type Type from to = (Str to, Str to -> from)
 plate :: from -> Type from to
 (|*) :: Type (to -> from) to -> to -> Type from to
 (|+) :: PlateAll item to => Type (item -> from) to -> item -> Type from to
@@ -832,12 +846,12 @@ The disadvantages of this approach are (1) \textit{lack of type safety} -- there
 \begin{figure}
 \ignore\begin{code}
 repChildren  :: (Data alpha, Uniplate beta, Typeable alpha, Typeable beta)
-             => alpha -> ([beta],[beta] -> alpha)
+             => alpha -> (Str beta, Str beta -> alpha)
 repChildren x = (children, context)
     where
-        children = concat $ gmapQ (fst . biplate) x
+        children = listStr $ concat $ gmapQ (strList . fst . biplate) x
 
-        context xs = evalState (gmapM f x) xs
+        context xs = evalState (gmapM f x) $ strList xs
         f y = do  let (cs,con) = biplate y
                   (as,bs) <- liftM (splitAt $ length cs) get
                   put bs
@@ -867,28 +881,25 @@ universe :: Uniplate on => on -> [on]
 universe x = x : concatMap universe (children x)
 \end{code}
 
-A disadvantage is that |concatMap| produces and consumes a list at every level in the data structure. We can fix this by using continuations:
-
-\begin{code}
-universe x = f x []
-    where  f :: Uniplate on => on -> [on] -> [on]
-           f x rest = x : concatCont (map f $ children x) rest
-
-concatCont []     rest  =  rest
-concatCont (x:xs) rest  =  x (concatCont xs rest)
-\end{code}
-
-Now we only perform one reconstruction. We can do even better using GHC's list fusion \cite{spj:rules}. The user of |universe| is often a list comprehension, which is a \textit{good consumer}. We can make |concatCont| a good consumer, and |f| a \textit{good producer}:
+A disadvantage is that |concatMap| produces and consumes a list at every level in the data structure. We can fix this by calling the |uniplate| method directly, and building the list with a tail:
 
 \begin{code}
 universe :: Uniplate on => on -> [on]
-universe x = build (f x)
-    where
-    f :: Uniplate on => on -> (on -> res -> res) -> res -> res
-    f x cons nil = x `cons`
-        concatCont (map (flip f cons) $ children x) nil
+universe x = f (One x) []
+    where  f (Zero      ) res = res
+           f (One  x    ) res = x : g (fst $ uniplate x) res
+           f (Two  x y  ) res = f x (f y res)
+\end{code}
 
-concatCont xs rest = foldr ($) rest xs
+Now we only perform one reconstruction. We can do even better using GHC's list fusion \cite{spj:rules}. The user of |universe| is often a list comprehension, which is a \textit{good consumer}. We can make |f| a \textit{good producer}:
+
+\begin{code}
+universe :: Uniplate on => on -> [on]
+universe x = build f
+    where  f cons nil = g cons nil (One x) nil
+           g cons nil (Zero      ) res = res
+           g cons nil (One  x    ) res = x `cons` g cons nil (fst $ uniplate x) res
+           g cons nil (Two  x y  ) res = g cons nil x (g cons nil y res)
 \end{code}
 
 \subsection{Optimising |PlateData|}
@@ -896,7 +907,7 @@ concatCont xs rest = foldr ($) rest xs
 
 Surprisingly, it is possible to layer |Uniplate| over the |Data| instances of SYB, with better performance than SYB itself. The first optimisation is to generate the two members of the |uniplate| pair with only one pass over the data value. We cannot use SYB's |gmapM| or |gmapQ| -- we must instead use |gfoldl| directly. We also make use of continuation passing style in some places.
 
-With this first improvement in place we perform much the same operations as SYB. But the overhead of list creation in |uniplate| makes traversals about 15\% slower than SYB.
+With this first improvement in place we perform much the same operations as SYB. But the overhead of structure creation in |uniplate| makes traversals about 15\% slower than SYB.
 
 The next optimisation relies on the extra information present in the |Uniplate| operations -- namely the target type. A boilerplate operation walks over a data structure, looking for target values to process. In SYB, the target values may be of \textit{any} type. For Uniplate the target is a \textit{single uniform} type. If a value is reached which is not a container for the target type, no further exploration is required of the values children. Computing which types are containers for the target type can be done relatively easily in the SYB framework \citep{lammel:syb2}:
 
@@ -1199,22 +1210,13 @@ Compared with SYB, Uniplate seems much more similar. For queries, Uniplate is ab
 This section compares the speed of solutions for the nine examples given in the previous section, along with hand-optimised versions, using no boilerplate removal library. We use four |Uniplate| instances, provided by:
 
 \begin{description}
-\item[Manual:] These are |Uniplate| and |Biplate| instances written by hand. We have chosen not to use continuation-passing to implement these instances, as it quickly becomes complex!
+\item[Manual:] These are |Uniplate| and |Biplate| instances written by hand.
 \item[Direct:] These instances use the direct combinators from \S\ref{secU:implement_playdirect}.
 \item[Typeable:] These instances use the |Typeable| combinators from \S\ref{secU:implement_playtypeable}.
 \item[Data:] These instances use the SYB |Data| instances directly, as described in \S\ref{secU:implement_playdata}.
 \end{description}
 
 For all data types we generate 100 values at random using QuickCheck \citep{quickcheck}. In order to ensure a fair comparison, we define one data type which is the same as the original, and one which is a GADT encoding. All operations take these original data types, transform them into the appropriate structure, apply the operation and then unwrap them. We measure all results as multiples of the time taken for a hand-optimised version. We compiled all programs with GHC 6.6 and -O2 on Windows XP.
-
-\begin{comment}
-\begin{figure}
-% http://csdl.ics.hawaii.edu/FAQ/chart-ps.html
-\includegraphics[scale=0.4]{graph.ps}
-\caption{Timing results, relative to Raw.}
-\label{figU:graph}
-\end{figure}
-\end{comment}
 
 The results are presented in Table \ref{tabU:uniplate_results}. Using Manual or Direct instances, Uniplate is roughly the same speed as Compos -- but about 50\% slower than hand-optimised versions. Using the Data instances provided by SYB, we are able to outperform SYB itself! See \S\ref{secU:performance} for details of some of the optimisations used.
 
