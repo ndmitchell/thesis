@@ -16,11 +16,11 @@
 
 \chapter*{Abstract}
 
-This thesis deals with the transformation and analysis of functional programs. We show how to make functional programs shorter, faster and safer. Throughout, we work on a core lazy functional language, to which Haskell programs can be reduced. We present examples, develop prototype tools and show detailed results for sample program.
+This thesis describes techniques for transforming and analysing functional programs. We operate on a core language, to which Haskell programs can be reduced. We present a range of techniques, all of which have been implemented and evaluated.
 
-We make programs \textit{shorter} by defining a library which abstracts over common data traversal patterns, removing \textit{boilerplate} code. Our library restricts traversals to have value-specific behaviour for just one type, allowing a simpler programming model. Our library allows concise expression of traversals with competitive performance.
+We make programs \textit{shorter} by defining a library which abstracts over common data traversal patterns, removing \textit{boilerplate} code. This library restricts traversals to have value-specific behaviour for just one type, allowing a simpler programming model. Our library allows concise expression of traversals with competitive performance.
 
-We make programs \textit{faster} by applying a variant of \textit{supercompilation} to core programs. We have implemented a supercompiler, and test it using standard Haskell benchmarks. As a result of our practical experiments, we have identified modifications to the standard supercompilation techniques -- particularly with respect to let bindings and the generalisation technique.
+We make programs \textit{faster} by applying a variant of \textit{supercompilation}. As a result of practical experiments, we have identified modifications to the standard supercompilation techniques -- particularly with respect to let bindings and the generalisation technique.
 
 We make programs \textit{safer} by automatically checking for potential pattern-match errors. We define a transformation that takes a higher-order program and produces an equivalent program with fewer functional values, typically a first-order program. We then define an analysis on a first-order language which checks statically that, despite the possible use of partial (or non-exhaustive) pattern matching, no pattern-match failure can occur.
 
@@ -35,10 +35,10 @@ Throughout the PhD I have been supported by an EPSRC PhD studentship. I would li
 
 Many people in the Haskell community have made technical contributions, of both ideas and code, have encouraged my progress, and have answered my questions. Included in this list are Bj\"{o}rn Bringert, Brandon Moore, Damien Sereni, Duncan Coutts, Eric Mertens, J\"{u}rgen Doser, Jules Bean, Koen Claessen, Matthew Danish, Peter Jonsson, Simon Marlow, Simon Peyton Jones, Stefan O'Rear, Tim Chevalier and the whole of the Haskell community, particularly \verb"#haskell". The vast number of people who have helped ensures that I have certainly forgotten many people.
 
-While doing a PhD, I have appreciated the presence of many friends -- including all the members of the York University Karate Club, and the many residents of 232 Melrosegate. Thank to Emily for everything. Lastly, thanks to my parents, who have given me the freedom to make my own decisions, and an occasional email to check on my wellbeing.
+While doing a PhD, I have appreciated the presence of many friends -- including all the members of the York University Karate Club, and the many residents of 232 Melrosegate. Thanks to Emily for everything. Lastly, thanks to my parents, who have given me the freedom to make my own decisions, and an occasional email to check on my wellbeing.
 
 \chapter*{Declaration}
 
-Chapter \ref{chp:background} has some overlap with material published in \cite{me:yhc_core}. Chapter \ref{chp:uniplate} is based on the paper \cite{me:uniplate}, which appeared at the Haskell Workshop 2007. Chapter \ref{chp:supero} is based on the paper \cite{me:supero_ifl} which was presented at IFL 2007, and the revised paper \cite{me:supero} which has been accepted into the post proceedings. Chapter \ref{chp:firstify} is based on the paper \cite{me:firstify_icfp} which has been submitted to ICFP 2008. Chapter \ref{chp:catch} follows on from the original papers \cite{me:catch_tfp_original,me:catch_tfp} presented at TFP 2005 and appearing in the post proceedings, and is based on the paper \cite{me:catch_icfp} submitted to ICFP 2008.
+Chapter \ref{chp:background} has some overlap with material published in \cite{me:yhc_core}. Chapter \ref{chp:uniplate} is based on the paper \cite{me:uniplate}, which appeared at the Haskell Workshop 2007. Chapter \ref{chp:supero} is based on the paper \cite{me:supero_ifl} which was presented at IFL 2007, and the revised paper \cite{me:supero} which has been accepted into the post proceedings. Chapter \ref{chp:firstify} is based on the paper \cite{me:firstify_icfp} which has been submitted to ICFP 2008. Chapter \ref{chp:catch} builds on work from the papers \cite{me:catch_tfp_original,me:catch_tfp} presented at TFP 2005 and appearing in the post proceedings, and is based on the paper \cite{me:catch_icfp} submitted to ICFP 2008.
 
 Apart from the above cases and where stated, all of the work contained within this thesis represents the original contribution of the author.
