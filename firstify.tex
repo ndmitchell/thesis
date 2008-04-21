@@ -25,7 +25,7 @@ primNeqInt, primEqInt :: Int -> Int -> Bool
 
 
 
-\chapter{First-Order Reduction}
+\chapter{Defunctionalisation}
 \label{chp:firstify}
 
 This chapter deals with the reduction from a higher-order Core language to a primarily first-order Core language. Unlike Reynolds style defunctionalisation, it does not introduce any new data types, and the results are more amenable to subsequent analysis operations. Our motivation is that the Catch analysis tool (see Chapter \ref{chp:catch}) is designed to work only upon a first-order language, but our method may have wider applicability such as termination checking \cite{sereni:higher_order_termination}.
@@ -1121,7 +1121,7 @@ We measured program size by taking the number of nodes in the abstract syntax tr
 \label{secF:related}
 
 \subsection{Reynolds style defunctionalisation}
- 
+
 Reynolds style defunctionalisation \cite{reynolds:defunc} is the seminal method for generating a first-order equivalent of a higher-order program.
 
 \begin{example}
