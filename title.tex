@@ -18,7 +18,7 @@
 
 This thesis describes techniques for transforming and analysing functional programs. We operate on a core language, to which Haskell programs can be reduced. We present a range of techniques, all of which have been implemented and evaluated.
 
-We make programs \textit{shorter} by defining a library which abstracts over common data traversal patterns, removing \textit{boilerplate} code. This library restricts traversals to have value-specific behaviour for just one type, allowing a simpler programming model. Our library allows concise expression of traversals with competitive performance.
+We make programs \textit{shorter} by defining a library which abstracts over common data traversal patterns, removing \textit{boilerplate} code. This library only supports traversals having value-specific behaviour for one type, allowing a simpler programming model. Our library allows concise expression of traversals with competitive performance.
 
 We make programs \textit{faster} by applying a variant of \textit{supercompilation}. As a result of practical experiments, we have identified modifications to the standard supercompilation techniques -- particularly with respect to let bindings and the generalisation technique.
 
