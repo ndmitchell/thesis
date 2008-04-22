@@ -1,7 +1,5 @@
 %include paper.fmt
 
-\todo{Koen's extensions to use a Tree type}
-
 %format target = "\textsc{target}"
 %format unit = "\textsc{unit}"
 %format |- = "\mathbin{\vdash}"
@@ -50,6 +48,7 @@ data Expr  =  Add  Expr  Expr  |  Val  Int
 
 The |Expr| type represents a small language for integer expressions, which permits free variables. Suppose we need to extract a list of all the variable occurrences in an expression:
 
+\begin{onepage}
 \begin{code}
 variables :: Expr -> [String]
 variables (Var  x    ) = [x]
@@ -60,6 +59,7 @@ variables (Sub  x y  ) = variables x ++ variables y
 variables (Mul  x y  ) = variables x ++ variables y
 variables (Div  x y  ) = variables x ++ variables y
 \end{code}
+\end{onepage}
 
 This definition has the following undesirable characteristics: (1) adding a new constructor would require an additional equation; (2) the code is repetitive, the last four right-hand sides are identical; (3) the code cannot be shared with other similar operations. This problem is referred to as the \textit{boilerplate} problem. Using the Uniplate library, the above example can be rewritten as:
 
@@ -409,8 +409,8 @@ strList (One  x    ) = [x]
 strList (Two  x y  ) = strList x ++ strList y
 
 listStr :: [alpha] -> Str alpha
-listStr (x:xs) = Two (One x) (listStr xs)
-listStr [] = Zero
+listStr []      = Zero
+listStr (x:xs)  = Two (One x) (listStr xs)
 \end{code}
 \caption{|Str| data type.}
 \label{figU:str}
@@ -433,7 +433,7 @@ propId x = x == context children
 \subsection{Operations in terms of |uniplate|}
 \label{secU:using_replacechildren}
 
-All ten operations of \S\ref{secU:use_play} can be defined in terms of |uniplate|. We define four functions as examples.
+All ten operations from \S\ref{secU:use_play} can be defined in terms of |uniplate|. We define four functions as examples.
 
 \begin{code}
 children :: Uniplate alpha => alpha -> [alpha]
@@ -506,11 +506,7 @@ _N {-" \mbox{ is an injection to fresh variables} "-}
 \label{figU:derive}
 \end{figure}
 
-
-We model the derivation of an instance by describing a derivation from a data type to a set of declarations. The derivation rules are given in Figure \ref{figU:derive}. The |_D| rule takes a data type declaration, and defines a function over that data type. The |_C| rule defines a case alternative for each constructor. The |_T| rule defines type specific behaviour: a type is either the target type on which an instance is being defined, or a primitive such as |Char|, or an algebraic data type, or a free type variable.
-
-Applying |_D| to |Expr|, the result is:
-
+\begin{figure}
 \begin{code}
 _N $| Expr |$ \? x = case x of
     Val  y_1      -> (Zero `Two` a_1, \(Zero `Two` z_1) -> Val (b_1 z_1)
@@ -536,8 +532,13 @@ _N $| List |$ \? v_1 x = case x of
         where  (a_1,b_1) = v_1 y_1
                (a_2,b_2) =  _N $| List |$ \? v_1 y_2
 \end{code}
+\caption{The result of applying |_D| to |Expr|.}
+\label{figU:d_expr}
+\end{figure}
 
-We can now define a Uniplate instance for the |Expr| type with:
+We model the derivation of an instance by describing a derivation from a data type to a set of declarations. The derivation rules are given in Figure \ref{figU:derive}. The |_D| rule takes a data type declaration, and defines a function over that data type. The |_C| rule defines a case alternative for each constructor. The |_T| rule defines type specific behaviour: a type is either the target type on which an instance is being defined, or a primitive such as |Char|, or an algebraic data type, or a free type variable.
+
+The result of applying |_D| to |Expr| is given in Figure \ref{figU:d_expr}. Given these definitions we can define a Uniplate instance for the |Expr| type with:
 
 \begin{code}
 instance Uniplate Expr where
@@ -765,7 +766,7 @@ instance PlateAll Stmt Expr where
     plateAll (While     a b    ) = plate While     |*   a |+  b
 \end{code}
 
-From the definitions of |PlateOne| and |PlateAll| the library can define |Uniplate| and |Biplate| instances. The information provided by uses of | ||-| and | ||+| avoids redundant exploration down branches that do not have the target type. The use of | ||||*| is an optimisation which allows a list of the target type to be directly manipulated with |biplate| instead of producing and consuming this list twice. The use of | ||||+| avoids the definition of additional instances.
+From the definitions of |PlateOne| and |PlateAll| the library can define |Uniplate| and |Biplate| instances. The information provided by uses of | ||-| and | ||+| avoids redundant exploration down branches that do not have the target type. The use of | ||||*| and | ||||+| avoid the definition of additional instances.
 
 In the worst case, this approach requires an instance for each container/contained pair. In reality few traversal pairs are actually needed. The restricted pairing of types in |Biplate| instances also gives increased type safety; instances such as \ignore|Biplate Expr Stmt| do not exist.
 
@@ -869,7 +870,7 @@ The code in Figure \ref{figU:playdata} is not optimised for speed. Uses of |spli
 \section{Performance Improvements}
 \label{secU:performance}
 
-This section describes some of the performance improvements we have been able to make. First we focus on our optimisation of |universe|, using continuation passing and some |foldr|/|build| fusion properties \cite{spj:rules}. Next we turn to our |Data| class based instances, improving them enough to outperform SYB itself.
+This section describes some of the performance improvements we have been able to make. First we focus on our optimisation of |universe|, using |foldr|/|build| fusion properties \cite{spj:rules}. Next we turn to our |Data| class based instances, improving them enough to outperform SYB itself.
 
 \subsection{Optimising the |universe| function}
 \label{secU:optimise_everything}
@@ -883,6 +884,7 @@ universe x = x : concatMap universe (children x)
 
 A disadvantage is that |concatMap| produces and consumes a list at every level in the data structure. We can fix this by calling the |uniplate| method directly, and building the list with a tail:
 
+\begin{onepage}
 \begin{code}
 universe :: Uniplate on => on -> [on]
 universe x = f (One x) []
@@ -890,6 +892,7 @@ universe x = f (One x) []
            f (One  x    ) res = x : g (fst $ uniplate x) res
            f (Two  x y  ) res = f x (f y res)
 \end{code}
+\end{onepage}
 
 Now we only perform one reconstruction. We can do even better using GHC's list fusion \cite{spj:rules}. The user of |universe| is often a list comprehension, which is a \textit{good consumer}. We can make |f| a \textit{good producer}:
 
@@ -905,12 +908,11 @@ universe x = build f
 \subsection{Optimising |PlateData|}
 \label{secU:optimise_playdata}
 
-Surprisingly, it is possible to layer |Uniplate| over the |Data| instances of SYB, with better performance than SYB itself. The first optimisation is to generate the two members of the |uniplate| pair with only one pass over the data value. We cannot use SYB's |gmapM| or |gmapQ| -- we must instead use |gfoldl| directly. We also make use of continuation passing style in some places.
-
-With this first improvement in place we perform much the same operations as SYB. But the overhead of structure creation in |uniplate| makes traversals about 15\% slower than SYB.
+Surprisingly, it is possible to layer |Uniplate| over the |Data| instances of SYB, with better performance than SYB itself. The first optimisation is to generate the two members of the |uniplate| pair with only one pass over the data value. We cannot use SYB's |gmapM| or |gmapQ| -- we must instead use |gfoldl| directly. With this first improvement in place we perform much the same operations as SYB. But the overhead of structure creation in |uniplate| makes traversals about 10\% slower than SYB.
 
 The next optimisation relies on the extra information present in the |Uniplate| operations -- namely the target type. A boilerplate operation walks over a data structure, looking for target values to process. In SYB, the target values may be of \textit{any} type. For Uniplate the target is a \textit{single uniform} type. If a value is reached which is not a container for the target type, no further exploration is required of the values children. Computing which types are containers for the target type can be done relatively easily in the SYB framework \citep{lammel:syb2}:
 
+\begin{onepage}
 \ignore\begin{code}
 data DataBox = forall alpha `o` (Typeable alpha, Data alpha) => DataBox alpha
 
@@ -921,6 +923,7 @@ contains x = if isAlgType dtyp then concatMap f ctrs else []
         ctrs = dataTypeConstrs dtyp
         dtyp = dataTypeOf x
 \end{code}
+\end{onepage}
 
 The \ignore|contains| function takes a \textit{phantom} argument |x| which is never evaluated. It returns all the fields of all possible constructors of |x|'s type, along with a type representation from |typeOf|. Hence all types can be divided into three sets:
 
@@ -932,7 +935,7 @@ The \ignore|contains| function takes a \textit{phantom} argument |x| which is ne
 
 We compute these sets for each type only once, by using a CAF inside the class to store it. The cost of computing them is small. When examining a value, if its type is a member of set 3 we can prune the search. This trick is surprisingly effective. Take for example an operation over |Bool| on the value |(True,"Haskell")|. The SYB approach finds 16 subcomponents, Uniplate touches only 3 subcomponents.
 
-With all these optimisations we can usually perform both queries and transformations faster than SYB. In the benchmarks we range from 4\% worse to 127\% better, with an average of 56\% faster. Full details are presented in \S\ref{secU:results_speed}.
+With all these optimisations we can usually perform both queries and transformations faster than SYB. In the benchmarks we improve on SYB by between 30\% and 225\%, with an average of 145\% faster. Full details are presented in \S\ref{secU:results_speed}.
 
 
 \section{Results and Evaluation}
@@ -1177,7 +1180,7 @@ Here the Uniplate solution wins by being able to use a list comprehension to sel
 \vspace{3mm}
 \newlength{\maxany}
 \settowidth{\maxany}{00.00}
-\begin{tabular*}{\textwidth}{@@{}lrrrrrrrrrrrr}
+\begin{tabular*}{\textwidth}{@@{\extracolsep{\fill}}lrrrrrrrrrrrr@@{\extracolsep{0cm}}}
 & \makebox[\maxany][r]{simp} & \makebox[\maxany][r]{var} & \makebox[\maxany][r]{zero} & \makebox[\maxany][r]{const} & \makebox[\maxany][r]{ren} & \makebox[\maxany][r]{syms} & \makebox[\maxany][r]{bill} & \makebox[\maxany][r]{incr} & \makebox[\maxany][r]{incr1} & \textbf{Query} & \textbf{Transform} & \makebox[\maxany][r]{\textbf{All}} \\
 \textbf{Lexemes} \\
 Uniplate   & 40 & 12 & 18 & 27 & 16 & 17 & 13 & 21 & 30 &  60 & 134 & 194 \\
@@ -1185,12 +1188,12 @@ SYB        & 43 & 29 & 29 & 30 & 19 & 34 & 21 & 24 & 56 & 113 & 172 & 285 \\
 Compos     & 71 & 30 & 32 & 54 & 27 & 36 & 25 & 33 & 40 & 123 & 225 & 348 \\
 \\
 \textbf{Performance} \\
-Compos             &  1.34 &  1.17 &  1.74 &  1.28 &  1.22 &  1.30 &  2.49 &  1.52 &  1.57 &  1.68 &  1.39 &  1.51 \\
-Uniplate Manual    &  1.16 &  1.44 &  2.64 &  1.27 &  1.36 &  1.48 &  2.28 &  1.27 &  1.08 &  1.96 &  1.23 &  1.55 \\
-Uniplate Direct    &  1.22 &  1.61 &  3.28 &  1.21 &  1.18 &  1.38 &  2.35 &  1.19 &  1.16 &  2.15 &  1.19 &  1.62 \\
-Uniplate Typeable  &  1.43 &  2.09 &  4.81 &  1.42 &  1.37 &  2.63 &  5.86 &  1.53 &  1.53 &  3.85 &  1.46 &  2.52 \\
-Uniplate Data      &  2.30 &  4.64 & 12.70 &  1.84 &  1.89 &  3.60 & 10.70 &  2.07 &  1.69 &  7.91 &  1.96 &  4.60 \\
-SYB            &  2.21 &  5.88 & 16.62 &  2.30 &  2.13 &  5.56 & 24.29 &  3.12 &  2.35 & 13.09 &  2.42 &  7.16 \\
+Uniplate Manual    & 1.26 & 1.31 & 1.89 & 1.25 & 1.25 & 1.33 & 2.18 & 1.28 & 1.15 & 1.68 & 1.24 & 1.43 \\
+Uniplate Direct    & 1.30 & 1.37 & 2.17 & 1.34 & 1.36 & 1.28 & 2.89 & 1.40 & 1.24 & 1.93 & 1.33 & 1.59 \\
+Compos             & 1.50 & 1.17 & 1.65 & 1.50 & 1.38 & 1.46 & 3.70 & 1.65 & 1.60 & 2.00 & 1.53 & 1.73 \\
+Uniplate Typeable  & 1.50 & 1.72 & 2.86 & 2.09 & 2.00 & 3.10 & 9.49 & 1.74 & 1.81 & 4.29 & 1.83 & 2.92 \\
+Uniplate Data      & 2.35 & 3.76 & 7.52 & 2.31 & 2.50 & 4.10 & 16.72 & 2.08 & 2.03 & 8.03 & 2.25 & 4.81 \\
+SYB                & 3.24 & 7.28 & 16.33 & 3.69 & 3.33 & 9.75 & 54.70 & 4.09 & 3.70 & 22.02 & 3.61 & 11.79 \\
 \\
 \end{tabular*}
 
@@ -1216,9 +1219,9 @@ This section compares the speed of solutions for the nine examples given in the 
 \item[Data:] These instances use the SYB |Data| instances directly, as described in \S\ref{secU:implement_playdata}.
 \end{description}
 
-For all data types we generate 100 values at random using QuickCheck \citep{quickcheck}. In order to ensure a fair comparison, we define one data type which is the same as the original, and one which is a GADT encoding. All operations take these original data types, transform them into the appropriate structure, apply the operation and then unwrap them. We measure all results as multiples of the time taken for a hand-optimised version. We compiled all programs with GHC 6.6 and -O2 on Windows XP.
+For all data types we generate 100 values at random using QuickCheck \citep{quickcheck}. In order to ensure a fair comparison, we define one data type which is the same as the original, and one which is a GADT encoding. All operations take these original data types, transform them into the appropriate structure, apply the operation and then unwrap them. We measure all results as multiples of the time taken for a hand-optimised version. We compiled all programs with GHC 6.8.2 and -O2 on Windows XP.
 
-The results are presented in Table \ref{tabU:uniplate_results}. Using Manual or Direct instances, Uniplate is roughly the same speed as Compos -- but about 50\% slower than hand-optimised versions. Using the Data instances provided by SYB, we are able to outperform SYB itself! See \S\ref{secU:performance} for details of some of the optimisations used.
+The results are presented in Table \ref{tabU:uniplate_results}. Using Manual or Direct instances, Uniplate is slightly faster than Compos -- but about 50\% slower than hand-optimised versions. Using the Data instances provided by SYB, we are able to substantially outperform SYB itself! See \S\ref{secU:performance} for details of some of the optimisations used.
 
 
 \section{Related Work}
