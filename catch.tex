@@ -376,8 +376,7 @@ This predicate states that the invocation of |null xs| must be safe, and either 
 \ignore\begin{code}
 precond  :: FuncName -> Prop (Sat ArgPos)
 precond Rec0   f =  if f == "error" then propFalse else propTrue
-precond RecN1  f =  precond RecN f `propAnd`
-                    reduce (pre{precond RecN} (body f))
+precond RecN1  f =  precond RecN f `propAnd` reduce (pre{precond RecN} (body f))
 \end{code}
 \caption{Precondition calculation.}
 \label{figC:precond_fixp}
