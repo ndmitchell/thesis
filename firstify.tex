@@ -588,12 +588,14 @@ map_id v_1 =  let  f   = \x -> x
 
 \noindent After the simplification rules from Figure \ref{figF:lambda_simplify}, we obtain:
 
+\begin{onepage}
 \begin{code}
 map_id v_1 =  let  xs = v_1
               in   case  xs of
                          []    -> []
                          y:ys  -> y : map (\x -> x) ys
 \end{code}
+\end{onepage}
 \end{examplerevisit}
 
 \subsubsection{Using Templates}

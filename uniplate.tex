@@ -759,6 +759,7 @@ Five infix combinators (| ||*|, | ||+|, | ||-|, | ||||*| and | ||||+|) indicate 
 
 This style of definition naturally expands to the multi-type traversal. For example:
 
+\begin{onepage}
 \begin{code}
 instance PlateAll Stmt Expr where
     plateAll (Assign    a b    ) = plate Assign    |-   a |*  b
@@ -766,6 +767,7 @@ instance PlateAll Stmt Expr where
     plateAll (If        a b c  ) = plate If        |*   a |+  b |+ c
     plateAll (While     a b    ) = plate While     |*   a |+  b
 \end{code}
+\end{onepage}
 
 From the definitions of |PlateOne| and |PlateAll| the library can define |Uniplate| and |Biplate| instances. The information provided by uses of | ||-| and | ||+| avoids redundant exploration down branches that do not have the target type. The use of | ||||*| and | ||||+| avoid the definition of additional instances.
 
@@ -973,7 +975,9 @@ Only Compos needs a type signature, due to the use of GADTs. List comprehensions
 
 \ignore\begin{code}
 uni_zeroCount x = length [() | Div _ (Val 0) <- universe x]
-
+\end{code}
+\begin{onepage}
+\ignore\begin{code}
 syb_zeroCount = everything (+) (0 `mkQ` f)
     where  f (Div _ (Val 0))  = 1
            f _                = 0
@@ -983,6 +987,7 @@ com_zeroCount x = case x of
     Div y (Val 0) -> 1 + com_zeroCount y
     _ -> composOpFold 0 (+) com_zeroCount x
 \end{code}
+\end{onepage}
 
 In the Uniplate solution the list of |()| is perhaps inelegant. However, Uniplate is the only scheme that is able to use the standard |length| function: the other two express the operation as a fold. Compos requires additional boilerplate to continue the operation on |Div y|.
 \end{examplerevisit}
@@ -1056,12 +1061,15 @@ uni_symbols x = [(v,t) | SDecl t v <- universeBi x]
 syb_symbols = everything (++) ([] `mkQ` f)
     where  f (SDecl t v)  = [(v,t)]
            f _            = []
-
+\end{code}
+\begin{onepage}
+\ignore\begin{code}
 com_symbols :: Tree c -> [(Tree Var, Tree Typ)]
 com_symbols x = case x of
     SDecl t v -> [(v,t)]
     _ -> composOpMonoid com_symbols x
 \end{code}
+\end{onepage}
 
 Whereas the Compos solution explicitly manages the traversal, the Uniplate solution is able to use the built-in |universeBi| function. The use of lists again benefits Uniplate over SYB.
 \end{examplename}

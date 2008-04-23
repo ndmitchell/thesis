@@ -384,11 +384,13 @@ repeat x =  letrec xs = \dummy ->  x : xs dummy
 
 Then we lambda lift:
 
+\begin{onepage}
 \begin{code}
 repeat x = f dummy x
 
 f dummy x = x : f dummy x
 \end{code}
+\end{onepage}
 
 Optionally, we can remove the |dummy| arguments:
 
