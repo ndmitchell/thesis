@@ -463,7 +463,7 @@ For these benchmarks it is important to clarify which optimisations are performe
 \subsection{Compile Time}
 \label{secS:compile_time}
 
-The compile times for the benchmarks presented in Table \ref{tabS:haskell_results} vary between 1 minute and 12 minutes. These compile times are unsuitable for general development. Profiling shows that 25\% of the time is spent applying simplification rules, and 65\% is spent testing for a homeomorphic embedding. We suspect both these costs can be reduced, although we have not yet done so.
+The compile times for the benchmarks presented in Table \ref{tabS:haskell_results} vary between 1 minute and 12 minutes. These compile times are unsuitable for general development. Profiling shows that 25\% of the time is spent applying simplification rules, and 65\% is spent testing for a homeomorphic embedding. We suspect both these costs can be reduced, although we have not yet tried to do so.
 
 \paragraph{Simplification Time} The rules from \S\ref{secB:core_simplify} are applied using the Uniplate library, in particular using the bottom-up rewrite strategy described in \S\ref{secU:rewrite_bottom}. After each function inlining, the rules are applied everywhere within the expression -- despite much of the expression remaining unchanged. By targeting the application of rules more precisely, compile times would decrease.
 
