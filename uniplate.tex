@@ -70,7 +70,7 @@ variables x = [y | Var y <- universe x]
 
 The type signature is optional, and would be inferred automatically if left absent. This example assumes a |Uniplate| instance for the |Expr| data type, given in \S\ref{secU:play_instances}. This example requires only Haskell 98. For more advanced examples we require multi-parameter type classes -- but no functional dependencies, rank-2 types or GADTs.
 
-The central idea is to exploit a common property of many traversals: they only require value-specific behaviour for a \textit{single uniform type}. In the |variables| example, the only type of interest is |Expr|. In practical applications, this pattern is common\footnote{Most examples in boilerplate removal papers meet this restriction, even though the systems being discussed do not depend on it.}. By focusing only on uniform type traversals, we are able to exploit well-developed techniques in list processing.
+The central idea is to exploit a common property of many traversals: they only require value-specific behaviour for a \textit{single uniform type}. Looking at the |variables| example, the only type of interest is |Expr|. In practical applications, this pattern is common\footnote{Most examples in boilerplate removal papers meet this restriction, even though the systems being discussed do not depend on it.}. By focusing only on uniform type traversals, we are able to exploit well-developed techniques in list processing.
 
 \subsection{Contribution}
 
@@ -267,7 +267,7 @@ always :: (alpha -> Maybe alpha) -> (alpha -> alpha)
 always r x = fromMaybe x (r x)
 \end{code}
 
-What restrictions on |r| ensure that the property \ignore|rewrite r x == transform (always r) x| holds? It is sufficient that the constructors on the right-hand side of |r| do not overlap with the constructors on the left-hand side.
+What restrictions on |r| ensure that \ignore|rewrite r x == transform (always r) x| holds? It is sufficient that the constructors on the right-hand side of |r| do not overlap with the constructors on the left-hand side.
 
 \begin{examplerevisit}{\ref{exU:simplify}}
 
@@ -423,7 +423,7 @@ uniplate :: Uniplate alpha => alpha -> (Str alpha, Str alpha -> alpha)
 uniplate x = (children,context)
 \end{code}
 
-The original Uniplate paper \cite{uniplate} used lists of items, but we instead use the |Str| data type to collect items -- which simplifies the definition of instances. The |children| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has the same structure as the result of |children|. The result pair splits the information in the value, but by combining the |context| with the |children| the original value can be recovered:
+The original Uniplate paper \cite{me:uniplate} used lists of items, but we instead use the |Str| data type to collect items -- which simplifies the definition of instances. The |children| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has the same structure as the result of |children|. The result pair splits the information in the value, but by combining the |context| with the |children| the original value can be recovered:
 
 \begin{code}
 propId x = x == context children
@@ -769,7 +769,7 @@ instance PlateAll Stmt Expr where
 
 From the definitions of |PlateOne| and |PlateAll| the library can define |Uniplate| and |Biplate| instances. The information provided by uses of | ||-| and | ||+| avoids redundant exploration down branches that do not have the target type. The use of | ||||*| and | ||||+| avoid the definition of additional instances.
 
-In the worst case, this approach requires an instance for each container/contained pair. In reality few traversal pairs are actually needed. The restricted pairing of types in |Biplate| instances also gives increased type safety; instances such as \ignore|Biplate Expr Stmt| do not exist.
+In the worst case, this approach requires a |PlateAll| instance for each container/contained pair. In reality few traversal pairs are actually needed. The restricted pairing of types in |Biplate| instances also gives increased type safety; instances such as \ignore|Biplate Expr Stmt| do not exist.
 
 In our experience definitions using these combinators offer similar performance to hand-tuned instances; see \S\ref{secU:results_speed} for measurements.
 
@@ -810,7 +810,7 @@ instance (Typeable alpha, Uniplate alpha) => PlateAll Stmt alpha where
 
 The | ||+| combinator is the most common, denoting that the value on the right may be of the target type, or may contain values of the target type. However, if we were to use | ||+| when the right-hand value was an |Int|, or other primitive type we did not wish to examine, we would require a |PlateAll| definition for |Int|. To omit these unnecessary instances, we can use | ||-| to indicate that the type is not of interest.
 
-The |Data.Generics.PlateTypeable| module is able to automatically infer |Biplate| instances given a |PlateAll| instance. Alas this is not the case for |Uniplate|. Instead we must explicitly declare:
+The |Data.Generics.PlateTypeable| module is able to infer a |Biplate| instance given a |PlateAll| instance. Alas this is not the case for |Uniplate|. Instead we must explicitly declare:
 
 \begin{code}
 instance Uniplate Expr where

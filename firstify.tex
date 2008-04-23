@@ -63,7 +63,7 @@ incList (x:xs)  = x+1 : incList xs
 Although this first-order variant of |incList| is much longer, it is also more amenable to certain types of analysis. The method presented in this chapter transforms the higher-order definition into the first-order one automatically.
 \end{example}
 
-Our defunctionalisation method processes the whole program to remove functional values, without changing the semantics of the program. This idea is not new. As far back as 1972 Reynolds gave a solution, now known as \textit{Reynolds style defunctionalisation} \cite{reynolds:defunc}. Unfortunately, Reynolds method effectively introduces a mini-interpreter, which causes problems for analysis tools. Our method produces a program closer to what a human might have written, if denied the use of functional values.
+Our defunctionalisation method processes the whole program to remove functional values, without changing the semantics of the program. This idea is not new. As far back as 1972 Reynolds gave a solution, now known as \textit{Reynolds style defunctionalisation} \cite{reynolds:defunc}. Unfortunately, this method effectively introduces a mini-interpreter, which causes problems for analysis tools. Our method produces a program closer to what a human might have written, if denied the use of functional values.
 
 
 \subsection{Contributions}
@@ -236,7 +236,7 @@ We define a number of goals: some are \textit{essential}, and others are \textit
 
 \paragraph{Minimize the size of the program.} Previous defunctionalisation methods have reflected a concern to avoid undue code-size increase \cite{chin:higher_order_removal}. A smaller resultant program would be desirable, but not at the cost of clarity.
 
-\paragraph{Make the transformation fast.} The implementation must be fast enough to permit proper evaluation. Ideally the implementation should be fast enough not to impact on the speed of any subsequent analysis.
+\paragraph{Make the transformation fast.} The implementation must be sufficiently fast to permit proper evaluation. Ideally the implementation should be fast enough not to impact on the speed of any subsequent analysis.
 
 
 \section{Method in Detail}
@@ -960,7 +960,7 @@ To ensure we only specialise a finite number of times we use a homeomorphic embe
 One of the conditions for termination of homeomorphic embedding is that there is only a finite alphabet. During the process of specialisation we create new functions, and these new functions are new symbols in our language. So we only use function names from the original input program. Every template has a correspondence with an expression in the original program. We perform the homeomorphic embedding test only after transforming all templates into their original equivalent expression.
 
 \begin{examplerevisit}{\ref{exF:wrap}}
-Using homeomorphic embedding, we again generate the specialised variant of |f (Value head)|. Next we would generate the template |f (Wrap (Value head))|. However, |f (Value head)| $\unlhd{}$ |f (Wrap (Value head))|, so the new template would not be used.
+Using homeomorphic embedding, we again generate the specialised variant of |f (Value head)|. Next we generate the template |f (Wrap (Value head))|. However, |f (Value head)| $\unlhd{}$ |f (Wrap (Value head))|, so the new template would not be used.
 \end{examplerevisit}
 
 While homeomorphic embedding is sufficient to achieve full defunctionalisation in most simple examples, there are examples where it terminates prematurely.

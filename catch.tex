@@ -127,7 +127,7 @@ The contributions of this chapter include:
 \begin{itemize}
 \item A method for reasoning about pattern-match failures, in terms of a parameterisable constraint language. The method calculates \textit{preconditions} of functions.
 \item Two separate constraint languages that can be used with our method.
-\item Details of the Catch implementation which handles the complete Haskell 98 language \cite{haskell}, by transforming Haskell 98 programs to a first-order language.
+\item Details of the Catch implementation which supports the full Haskell 98 language \cite{haskell}, by transforming Haskell 98 programs to a first-order language.
 \item Results showing success on a number of small examples drawn from the Nofib suite \cite{nofib}, and for three larger examples, investigating the scalability of the checker.
 \end{itemize}
 
@@ -460,15 +460,14 @@ case  xs of
       y:ys  -> tail y
 \end{code}
 
-Here the initial precondition will be |y -< [":"]|, which evaluates to |y `Sat` Con ":" [Any,Any]|. The |var| function on |y| will return |Right (xs,(":",0))|. After the application of | ||>| the result will be |xs `Sat` Con ":" [Con ":" [Any,Any], Any]|. We have gone from a constraint on |y|, using the knowledge that |y| is bound to a portion of |xs|, to a constraint on |xs|.
+Here the initial precondition will be |y -< [":"]|, which evaluates to the result |y `Sat` Con ":" [Any,Any]|. The |var| function on |y| gives |Right (xs,(":",0))|. After the application of | ||>| the revised constraint refers to |xs| instead of |y|, and will be |xs `Sat` Con ":" [Con ":" [Any,Any], Any]|. We have gone from a constraint on |y|, using the knowledge that |y| is bound to a portion of |xs|, to a constraint on |xs|.
 \end{example}
 
 \para{The |Make| rule} deals with an application of a constructor. The |<||| operator splits a constraint on an entire structure into a proposition combining constraints on each part.
 
 \begin{code}
 c <| Any         =  propTrue
-c <| Con c_2 xs  =  propBool (c_2 == c) `propAnd`
-                    propAnds (map propLit (zipWith Sat [0..] xs))
+c <| Con c_2 xs  =  propBool (c_2 == c) `propAnd` propAnds (map propLit (zipWith Sat [0..] xs))
 \end{code}
 
 The intuition is that given knowledge of the root constructor of a data value, we can reformulate the constraint in terms of what the constructor fields must satisfy. Some sample applications:
@@ -486,8 +485,7 @@ The intuition is that given knowledge of the root constructor of a data value, w
 \ignore\begin{code}
 prePost :: FuncName -> Constraint -> Prop (Sat ArgPos)
 prePost Rec0   f k =  propTrue
-prePost RecN1  f k =  prePost RecN f k `propAnd`
-                      reduce{prePost RecN} (propLit $ body f `Sat` k)
+prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $ body f `Sat` k)
 \end{code}
 \caption{Fixed point calculation for |prePost|.}
 \label{figC:property_fixp}
@@ -516,8 +514,7 @@ satisfies Bottom        k = True
 satisfies (Value c xs)  k = satisfiesP $ substP xs (c <| k)
 
 satisfiesP :: Prop (Sat Value) -> Bool
-satisfiesP x =  (propTrue :: Prop ()) ==
-                propMap (\(Sat v k) -> propBool $ satisfies v k) x
+satisfiesP x =  (propTrue :: Prop ()) == propMap (\(Sat v k) -> propBool $ satisfies v k) x
 \end{code}
 \end{onepage}
 
@@ -982,6 +979,8 @@ evalSafe x@(Make c xs) | all (sat . pre) xs = Val c (map evalSafe xs)
 
 \paragraph{Transforming |evalSafe|, |Call| equation.}
 
+This is the |Call| equation.
+
 \begin{code}
 evalSafe x@(Call f xs) | sat (pre x) = eval x
     -- where introduction
@@ -1044,7 +1043,9 @@ subst/pre probably requires:
 \end{code}
 
 
-We know that |precond "error" == false| as the initial value of |precond "error"| is |false|, and the values only get more restrictive, and |false| is the most restrictive value. Therefore |f == "error" ==> wrong (precond "error")|. We can now strengthen the |Call| alternative with:
+We know that |precond "error" == false|
+
+as the initial value of |precond "error"| is |false|, and the values only get more restrictive, and |false| is the most restrictive value. Therefore |f == "error" ==> wrong (precond "error")|. We can now strengthen the |Call| alternative with:
 
 \todo{The case for case}
 

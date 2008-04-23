@@ -18,7 +18,7 @@ This thesis has three main objectives: making functional programs shorter, faste
 Haskell is a strongly typed language, ensuring that a large class of errors are caught at compile time. Despite all the guarantees that the type system provides, programs may still fail in three ways:
 
 \begin{description}
-\item[Wrong Behaviour] Detecting incorrect behaviour requires annotations from the programmer to describe the desired behaviour. Mandatory annotations increase the effort required to make use of a tool, and therefore reduce the potential number of users.
+\item[Wrong Behaviour] Detecting incorrect behaviour requires the programmer to provide annotations describing the desired behaviour. Mandatory annotations increase the effort required to make use of a tool, and therefore reduce the potential number of users.
 \item[Non-termination] The issue of non-termination has been investigated extensively -- one particularly impressive tool is the AProVE framework \cite{aprove_haskell}.
 \item[Calling |error|] The final cause of failure is calling |error|, often as the result of an incomplete pattern-match. This issue has not received as much attention, with suggestions that programmers only use exhaustive patterns \cite{turner:total}, or local analysis to decide which patterns are exhaustive \cite{maranget:pattern_warnings}. The problem of calling |error| is a practical one, with such failures being a common occurrence when developing a Haskell program.
 \end{description}

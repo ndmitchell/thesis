@@ -276,8 +276,8 @@ The fv function in the first rule calculates the free variables of an expression
 
 Some examples of our generalisation method, and the msg generalisation, are:
 
-\begin{tabular}{@@{}r@@{ $\unlhd$ }l@@{\hspace{7mm}(}l@@{, }l@@{, }l@@{)\hspace{7mm} |let|\hspace{1mm}}l@@{\hspace{1mm}|in|\hspace{1mm}}l}
-\multicolumn{2}{l}{\hspace{-2mm}Embedding} & \multicolumn{3}{l}{\hspace{-3mm}msg} & \multicolumn{2}{l}{\hspace{-8mm}$\bowtie$} \vspace{2mm} \\
+\begin{tabular}{@@{}r@@{ $\unlhd$ }l@@{\hspace{7mm}(}l@@{, }l@@{, }l@@{)\hspace{5.5mm} |let|\hspace{1mm}}l@@{\hspace{1mm}|in|\hspace{1mm}}l}
+\multicolumn{2}{l}{\hspace{-2mm}Embedding} & \multicolumn{3}{l}{\hspace{-3mm}msg} & \multicolumn{2}{l}{\hspace{-7.5mm}$\bowtie$} \vspace{2mm} \\
 $a$ & $b(a)$ & $x$ & $\{x = a\}$ & $\{x = b(a)\}$ & $f = b(a)$ & $f$ \\
 $c(b)$ & $c(a(b))$ & $c(x)$ & $\{x = b\}$ & $\{x = a(b))\}$ & $x = a(b)$ & $c(x)$ \\
 $b(a)$ & $c(b(a))$ & $x$ & $\{x = b(a)\}$ & $\{x = c(b(a))\}$ & $f = b(a)$ & $c(f)$
