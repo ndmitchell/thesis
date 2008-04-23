@@ -32,6 +32,12 @@
 \addtolength{\topmargin}{-5mm}
 \addtolength{\textheight}{10mm}
 
+\newlength{\swapmargins}
+\setlength{\swapmargins}{\oddsidemargin}
+\setlength{\oddsidemargin}{\evensidemargin}
+\setlength{\evensidemargin}{\swapmargins}
+
+
 \newenvironment{console}
     {\begin{singlespace}\sf}
     {\end{singlespace}}
