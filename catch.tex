@@ -495,7 +495,7 @@ prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $
 \subsection{Semantics of Constraints}
 \label{secC:constraint_semantics}
 
-\todo{Remove this section}
+% \todo{Remove this section}
 
 The semantics of a constraint are determined by which values satisfy it. We can model values in our first-order Core with the data type:
 
@@ -849,50 +849,82 @@ We have implemented both constraint systems in Catch. Factors to consider when c
 \section{Argument for Correctness}
 \label{secC:correct}
 
-We do not give a formal proof of correctness, but instead sketch an outline of how such a proof might proceed. We first show that the algorithm is correct given certain conditions on the constraint language, then that each of the three constraint languages satisfy the necessary conditions.
+\todo{Argument for Correctness}
+
+%if 0
+
+\newcommand{\theorem}[2]{#2  \hspace{5mm} \textsf{#1} \\}
+\newcommand{\proof}[1]{\paragraph{\textsf{#1}}}
+%format subst a b c = c "[" a "\backslash" b "]"
+
+We first show that the algorithm is correct given certain conditions on the constraint language, then that each of the three constraint languages satisfy the necessary conditions.
 
 \subsection{Correctness of Algorithm}
 
-The algorithm is correct if given a function application whose arguments meet the precondition, it will not call |error|. The proof is structured as an evaluator with an explicit |bottom| within it -- if this case is encountered the program crashes. We use equational reasoning upon the evaluator to show that the |bottom| case can be eliminated by introducing a check on the first precondition. This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
+The algorithm is correct if given a function application whose arguments meet the precondition, it will not call |error|. The proof is structured as an evaluator with an explicit |Bottom| within it -- if this case is encountered the program crashes. We use equational reasoning upon the evaluator to show that the |bottom| case can be eliminated by introducing a check on the first precondition. This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
 
-The idea is that as we tranform code we leave impossible cases out, which means we can reason about which things to ignore. We insert |bottom| in the impossible cases, then remove it later, as necessary.
+The idea is that as we transform code we leave impossible cases out, which means we can reason about which things to ignore. We insert |bottom| in the impossible cases, then remove it later, as necessary.
 
 \subsubsection{Helper Functions}
 
+First we introduce functions and definitions which will be required later.
+
 \begin{code}
-data Val = Val CtorName [Val]
-         | Bottom
+data Val  =  Val CtorName [Val]
+          |  Bottom
 
 isBottom, notBottom :: Expr -> Bool
 isBottom Bottom = True
 isBottom (Val c xs) = any isBottom xs
 notBottom = not . isBottom
 
+reduce' :: FuncName -> Prop (Sat VarName)
+reduce' f = substP (args f) $ reduce (body f)
+
+precond' :: FuncName -> Prop (Sat VarName)
+precond' f = substP (args f) $ precond f
+
 sat :: Prop (Sat Expr) -> Bool
-
-satPrecond :: FuncName -> [Expr] -> Bool
-satPrecond ...
-
-reduce' :: ...
-
-eval :: Expr -> Val
-eval = defined later
 \end{code}
+
+We define the following helper functions.
+
+We start by outlining an evaluator:
+
+\begin{code}
+eval :: Expr -> Val
+eval (Make c xs_   ) = Val c (map eval xs_)
+eval (Call f xs_)  | f == "error" = Bottom
+                   | otherwise = eval $ (body f)[args f / xs_]
+eval (Case x as_  ) = case eval x of
+    Val c xs_ -> head [y [vs_ / xs_] | Alt c' vs_ y <- as_, c == c']
+    Bottom -> Bottom
+
+evalPre x | sat (pre x) = evalSafe
+evalPre x = Bottom
+
+evalSafe x | sat $ pre x = eval x
+\end{code}
+
+We use |subst vs_ xs_| to denote replacing the free variables |vs_| with |xs_|.
+
+There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as |subst| will remove them. We maintain the correctness of the evaluator is we replace cases which were defined with |Bottom|. We define more restrictive evaluators: We can argue that |evalSafe| will not fail, and requires no additional clauses.
 
 \subsubsection{Theorems}
 
 We wish to prove:
 
-\begin{code}
-(pre/eval)   forall (x :: Expr) . pre x ==> notBottom (eval x)
-\end{code}
+\theorem{(pre/eval)}
+{|forall x `o` sat (pre x) ==> notBottom (eval x)|}
 
 To do this, we will need to prove the following theorems:
 
-\begin{code}
-(pre/evalPre)   forall (x :: Expr) . pre x ==> notBottom (evalPre x)
-(evalPre/eval)  forall (x :: Expr) . let r = evalPre x in isBottom r || (r == eval x)
+\theorem{(pre/evalPre)}
+{|forall x `o` sat (pre x) ==> notBottom (evalPre x)|}
+\theorem{(evalPre/eval)}
+{|forall x `o` let r = evalPre x in isBottom r |||| (r == eval x)|}
 
+\begin{code}
 (sat/all)       forall (xs :: [Sat Expr]) . sat (andP xs) == all (sat xs)
 (evalPre/evalSafe)    pre x ==> (evalPre x == evalSafe x)
 (error/precond)  f == "error" ==> not (satPrecond "error" xs)
@@ -922,43 +954,16 @@ sat x && all sat ys => sat $ subst (zip vs ys) x
 sat $ subst' sub
 \end{code}
 
-The axiom (evalPre/eval) says that |evalPre| returns either the same result as |eval|, or a |Bottom| containing result. Therefore the condition (pre/evalPre) implies (pre/eval). In order to prove these conditions, we will need a selection of other lemmas which we apply as needed and prove. In addition, we will require lemmas about the constraint language, which we state, and then prove later for each particular constraint language.
-
-\subsubsection{An Evaluator}
-
-We start by outlining an evaluator:
-
-\begin{code}
-eval :: Expr -> Val
-eval (Make c xs_   ) = Val c (map eval xs_)
-eval (Call f xs_)  | f == "error" = Bottom
-                   | otherwise = eval $ subst (zip (args f) xs_) (body f)
-eval (Case x as_  ) = case eval x of
-    Val c xs_ -> head [subst y (zip vs_ xs_) | Alt c' vs_ y <- as_, c == c']
-    Bottom -> Bottom
-
-subst :: [(VarName,Expr)] -> Expr -> Expr
-subst r (Var x) = fromMaybe (Var x) (lookup x r)
-subst r (Make c xs_) = Make c (map (subst r) xs_)
-subst r (Call f xs_) = Call f (map (subst r) xs_)
-subst r (Case x as_) = Case (subst r x)
-    [Alt n vs (subst r' e) | Alt n vs e <- xs
-    ,let r' = filter ((`notElem` vs) . fst) r]
-\end{code}
-
-There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as |subst| will remove them. We maintain the correctness of the evaluator is we replace cases which were defined with |Bottom|.
-
 \subsubsection{The Proof}
 
+We prove each lemma in turn.
+
+\prove{(evalPre/eval)}
+
+The axiom (evalPre/eval) says that |evalPre| returns either the same result as |eval|, or a |Bottom| containing result. Therefore the condition (pre/evalPre) implies (pre/eval).
+
+
 \paragraph{Defining |evalPre|.} We first define |evalPre| and |evalSafe|:
-
-\begin{code}
-evalPre x | not $ sat (pre x) = Bottom
-evalPre x = evalSafe x
-
-evalSafe x | sat $ pre x = eval x
-evalSafe _ = bottom
-\end{code}
 
 It is clear from the definition that (evalPre/eval) is true, as only additional |Bottom| results are produced. The |bottom| inserted into |evalSafe| is safe as it will never be evaluated. The intention is that |evalSafe| represents a call which does not produce |Bottom|. By transforming |evalSafe| we can show this, which proves the (pre/evalPre) lemma. While transforming |evalSafe| we can change any result from.
 
@@ -1110,6 +1115,7 @@ eval (Call f xs_)   | not $ satisfiesP $ subst (precond f) xs_ = bottom
 
 \subsection{Correctness of MP-constraints}
 
+%endif
 
 
 \section{Results and Evaluation}
