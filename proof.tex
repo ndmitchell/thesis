@@ -1,0 +1,402 @@
+%include thesis.fmt
+
+%format <| = "\mathbin{\lhd}"
+%format |> = "\mathbin{\rhd}"
+%format -< = "\mbox{\ensuremath{<\hspace{-1em}-}}"
+%format :- = "\!\rightsquigarrow{}\!"
+%format :* = "\star{}"
+%format :| = "\ddagger{}"
+%format ^. = "\!\cdot{}\!"
+%format ^* = "^\ast{}\!"
+%format ^ = "\;\hat{}\;"
+%format undefined   = "\Varid{undefined}"
+%format `mergeVal` = "\sqcap{}"
+%format mergeVal = "(\sqcap{})"
+%format && = "\mathrel{\hbox{\textsf{\& \hspace{-1em} \&}}}"
+%format || = "\mathrel{||}"
+
+%format `propAnd` = "\;\ensuremath{\wedge}\;"
+%format `propOr` = "\;\ensuremath{\vee}\;"
+%format propAnd = "(\ensuremath{\wedge})"
+%format propOr = "(\ensuremath{\vee})"
+%format propAnds = "\mathsf{andP}"
+%format propOrs = "\mathsf{orP}"
+%format propLit = "\mathsf{lit}"
+%format propMap = "\mathsf{mapP}"
+%format propTrue = "\mathsf{true}"
+%format propFalse = "\mathsf{false}"
+%format propBool = "\mathsf{bool}"
+%format propIsTrue = "\mathsf{isTrue}"
+%format propIsFalse = "\mathsf{isFalse}"
+%format `propImp` = "\ensuremath{\Longrightarrow}"
+%format propImp = "(\ensuremath{\Longrightarrow})"
+%format ==> = "\ensuremath{\Rightarrow}"
+
+%format pre' = pre "^{\prime}"
+
+%format `Sat` = "\backtick{Sat}"
+
+\newcommand{\rec}[1]{\hspace{-0.75ex}_{#1}}
+%format Rec0 = "\rec{\mathrm{0}}"
+%format RecN = "\rec{\Varid{n}}"
+%format RecN1 = "\rec{\Varid{n}\text{\tiny{+}}\mathrm{1}}"
+
+
+\newcommand{\para}[1]{\vspace{2mm}\noindent\textbf{#1}}
+
+
+\chapter{Pattern Match Analysis Proof}
+
+\section{Preliminaries}
+
+\begin{code}
+type Selector  =  (CtorName, Int)
+type ArgPos    =  Int
+
+var    :: VarName   -> Either ArgPos (Expr, Selector)
+isRec  :: Selector  -> Bool
+\end{code}
+
+\begin{code}
+data Prop alpha
+
+propAnd, propOr           :: Prop alpha -> Prop alpha -> Prop alpha
+propAnds, propOrs         :: [Prop alpha] -> Prop alpha
+propMap                   :: (alpha -> Prop beta) -> Prop alpha -> Prop beta
+propTrue, propFalse       :: Prop alpha
+propBool                  :: Bool -> Prop alpha
+propLit                   :: alpha -> Prop alpha
+\end{code}
+
+\begin{code}
+data Sat alpha = Sat alpha Constraint
+
+(-<)  :: alpha -> [CtorName] -> Prop (Sat alpha)
+(|>)  :: Selector -> Constraint -> Constraint
+(<|)  :: CtorName -> Constraint -> Prop (Sat ArgPos)
+\end{code}
+
+\begin{code}
+precond   :: FuncName -> Prop (Sat ArgPos)
+prePost   :: FuncName -> Constraint -> Prop (Sat ArgPos)
+reduce    :: Prop (Sat Expr) -> Prop (Sat ArgPos)
+
+substP ::  [alpha] -> Prop (Sat ArgPos) -> Prop (Sat alpha)
+substP xs p = propMap (\(Sat i k ) -> propLit $ Sat (xs!!i) k) p
+\end{code}
+
+\begin{code}
+data Constraint  =  Any
+                 |  Con CtorName [Constraint]
+\end{code}
+
+\begin{code}
+pre ::  Expr -> Prop (Sat Expr)
+pre (EVar v       ) = propTrue
+pre (ECon c xs_   ) = propAnds (map pre xs_)
+pre (EFun f xs_   ) = pre' f xs `propAnd` propAnds (map pre xs_)
+    where pre' f xs = substP xs (precond f)
+pre (ECase x as_  ) = pre x `propAnd` propAnds (map alt as_)
+    where alt (EAlt c vs_ y) = on -< (ctors c \\ [c]) `propOr` pre y
+\end{code}
+
+\ignore\begin{code}
+precond  :: FuncName -> Prop (Sat ArgPos)
+precond Rec0   f =  if f == "error" then propFalse else propTrue
+precond RecN1  f =  precond RecN f `propAnd` reduce (pre{precond RecN} (body f))
+\end{code}
+
+\begin{code}
+reduce :: Prop (Sat Expr) -> Prop (Sat ArgPos)
+reduce = propMap (\(Sat x k) -> red x k)
+
+red :: Expr -> Constraint -> Prop (Sat ArgPos)
+red (EVar   v     )  k =  case var v of
+                            Left   i       -> propLit (i `Sat` k)
+                            Right  (on,c)  -> red on (c |> k)
+red (ECon c xs_   )  k =  reduce $ substP xs_ (c <| k)
+red (EFun f xs_   )  k =  reduce $ substP xs_ (prePost f k)
+red (ECase x as_  )  k =  propAnds (map alt as_)
+    where alt (EAlt c vs_ y) = reduce (on -< (ctors c \\ [c])) `propOr` red y k
+\end{code}
+
+\ignore\begin{code}
+prePost :: FuncName -> Constraint -> Prop (Sat ArgPos)
+prePost Rec0   f k =  propTrue
+prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $ body f `Sat` k)
+\end{code}
+
+
+
+\section{Argument for Correctness}
+\label{secC:correct}
+
+\newcommand{\theorem}[2]{#2  \hspace{5mm} (\textit{#1}) \\}
+\newcommand{\proof}[1]{\paragraph{(\textit{#1})}}
+%format subst a b c = c "[" a "\backslash" b "]"
+
+We first show that the algorithm is correct given certain conditions on the constraint language, then that each of the three constraint languages satisfy the necessary conditions.
+
+\subsection{Correctness of Algorithm}
+
+The algorithm is correct if given a function application whose arguments meet the precondition, it will not call |error|. The proof is structured as an evaluator with an explicit |Bottom| within it -- if this case is encountered the program crashes. We use equational reasoning upon the evaluator to show that the |bottom| case can be eliminated by introducing a check on the first precondition. This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
+
+The idea is that as we transform code we leave impossible cases out, which means we can reason about which things to ignore. We insert |bottom| in the impossible cases, then remove it later, as necessary.
+
+\subsubsection{Helper Functions}
+
+First we introduce functions and definitions which will be required later.
+
+\begin{code}
+data Val  =  Val CtorName [Val]
+          |  Bottom
+
+isBottom, notBottom :: Expr -> Bool
+isBottom Bottom = True
+isBottom (Val c xs) = any isBottom xs
+notBottom = not . isBottom
+
+reduce' :: FuncName -> Prop (Sat VarName)
+reduce' f = substP (args f) $ reduce (body f)
+
+precond' :: FuncName -> Prop (Sat VarName)
+precond' f = substP (args f) $ precond f
+
+sat :: Prop (Sat Expr) -> Bool
+\end{code}
+
+We define the following helper functions.
+
+We start by outlining an evaluator:
+
+\begin{code}
+data Expr = Make CtorName [Expr]
+          | Call FuncName [Expr]
+          | Var  VarName
+          | Case Expr [Alt]
+
+data Alt = Alt CtorName [VarName] Expr
+
+eval :: Expr -> Val
+eval (Make c xs_   ) = Val c (map eval xs_)
+eval (Call f xs_)  | f == "error" = Bottom
+                   | otherwise = eval $ (body f)[args f / xs_]
+eval (Case x as_  ) = case eval x of
+    Val c xs_ -> head [y [vs_ / xs_] | Alt c' vs_ y <- as_, c == c']
+    Bottom -> Bottom
+\end{code}
+
+We use |subst vs_ xs_| to denote replacing the free variables |vs_| with |xs_|.
+
+There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as |subst| will remove them.
+
+\subsubsection{Theorems}
+
+We wish to prove:
+
+\theorem{pre/eval}
+{|sat (pre x) ==> notBottom (eval x)|}
+
+To do this, we will need to prove the following theorems:
+
+\theorem{sat/and}
+{|sat (x `propAnd` y) = sat x && sat y|}
+
+
+%\begin{code}
+%(sat/all)       forall (xs :: [Sat Expr]) . sat (andP xs) == all (sat xs)
+%(evalPre/evalSafe)    pre x ==> (evalPre x == evalSafe x)
+%(error/precond)  f == "error" ==> not (satPrecond "error" xs)
+%
+%(satPrecond/sat)
+%satPrecond f xs
+%sat $ substP xs $ reduce (pre (body f))
+%
+%(subst/subst')
+%substP xs y == subst' (zip vs xs) (substP vs y)
+%-- provided length xs == length vs and all vs are otherwise not used
+%
+%reduce' = reduce but not changing var's to Int's
+%subst' = subst but over a predicate
+%
+%(reduce/reduce')
+%substP xs (reduce x) == subst' (zip vs xs) (reduce' x)
+%where vs are the free variables in vs
+%
+%(sat/reduce)
+%sat $ reduce x => sat x
+%
+%(sat/subst)
+%sat x && all sat ys => sat $ subst (zip vs ys) x
+%
+%
+%sat $ subst' sub
+%\end{code}
+
+
+\subsubsection{The Proof}
+
+We prove each lemma in turn.
+
+\proof{pre/eval}
+
+By induction on possible expressions:
+
+
+
+
+The axiom (evalPre/eval) says that |evalPre| returns either the same result as |eval|, or a |Bottom| containing result. Therefore the condition (pre/evalPre) implies (pre/eval).
+
+
+\paragraph{Defining |evalPre|.} We first define |evalPre| and |evalSafe|:
+
+It is clear from the definition that (evalPre/eval) is true, as only additional |Bottom| results are produced. The |bottom| inserted into |evalSafe| is safe as it will never be evaluated. The intention is that |evalSafe| represents a call which does not produce |Bottom|. By transforming |evalSafe| we can show this, which proves the (pre/evalPre) lemma. While transforming |evalSafe| we can change any result from.
+
+\paragraph{Transforming |evalSafe|, |Make| equation.} We start by performing a pattern match on the expression passed to |evalSafe|, and looking at each equation in turn.
+
+\begin{code}
+evalSafe x@(Make c xs) | sat (pre x) = eval x
+    -- inline eval
+evalSafe x@(Make c xs) | sat (andP (map pre xs)) = Val c (map eval xs_)
+    -- (evalPre/eval)
+evalSafe x@(Make c xs) | sat (andP (map pre xs)) = Val c (map evalPre xs_)
+    -- (sat/all)
+evalSafe x@(Make c xs) | all (sat . pre) xs = Val c (map evalPre xs)
+    -- (evalPre/evalSafe)
+evalSafe x@(Make c xs) | all (sat . pre) xs = Val c (map evalSafe xs)
+\end{code}
+
+\paragraph{Transforming |evalSafe|, |Call| equation.}
+
+This is the |Call| equation.
+
+\begin{code}
+evalSafe x@(Call f xs) | sat (pre x) = eval x
+    -- where introduction
+evalSafe x@(Call f xs) | sat (pre x) = eval x
+    where  arg = args f
+           sub = zip args xs
+           bod = body f
+    -- inline pre
+evalSafe (Call f xs) | satPrecond f xs && all (sat xs) = eval x
+    -- inline transform with negation to the inverse
+evalSafe (Call f xs) | not $ satPrecond f xs && all (sat . pre) xs = bottom
+                     | otherwise = eval x
+    -- inline eval
+evalSafe (Call f xs) | not $ satPrecond f xs && all (sat . pre) xs = bottom
+                     | f == "error" = Bottom
+                     | otherwise = eval $ subst sub bod
+    -- (error/satPrecond)
+evalSafe (Call f xs) | not $ satPrecond f xs && all (sat . pre) xs = bottom
+                     | otherwise = eval $ subst sub bod
+    -- split the |bottom| case
+evalSafe (Call f xs) | not $ satPrecond f xs = bottom
+                     | not $ all (sat . pre) xs = bottom
+                     | otherwise = eval $ subst sub bod
+    -- (satPrecond/sat)
+evalSafe (Call f xs) | not $ sat $ substP xs $ reduce (pre bod) = bottom
+                     | not $ all (sat . pre) xs = bottom
+                     | otherwise = eval $ subst sub bod
+    -- (reduce/reduce')
+evalSafe (Call f xs) | not $ sat $ subst' sub $ reduce' (pre bod) = bottom
+                     | not $ all (sat . pre) xs = bottom
+                     | otherwise = eval $ subst sub bod
+    -- (sat/subst)
+evalSafe (Call f xs) | not $ sat $ reduce' (pre bod) = bottom
+                     | not $ all (sat . pre) xs = bottom
+                     | otherwise = eval $ subst sub bod
+    -- (sat/reduce)
+evalSafe (Call f xs) | not $ sat $ pre bod = bottom
+                     | not $ all (sat . pre) xs = bottom
+                     | otherwise = eval $ subst sub bod
+    -- (sat/subst)
+evalSafe (Call f xs) | not $ sat $ subst sub $ pre bod = Bottom
+                     | not $ all (sat . pre) xs = bottom
+                     | otherwise = eval $ subst sub bod
+
+-- sat/reduce => sat
+evalSafe (Call f xs) | not $ sat $ subst' s $ pre $ y = Bottom
+                     ....
+
+-- subst/pre => pre/subst
+evalSafe (Call f xs) | not $ sat $ pre $ subst s y = Bottom
+                     ....
+
+-- now can call evalSafe
+\end{code}
+
+subst/pre probably requires:
+
+\begin{code}
+(subst' xs $ pre $ body x) && all sat xs => pre $ subst xs $ body x
+\end{code}
+
+
+We know that |precond "error" == false|
+
+as the initial value of |precond "error"| is |false|, and the values only get more restrictive, and |false| is the most restrictive value. Therefore |f == "error" ==> wrong (precond "error")|. We can now strengthen the |Call| alternative with:
+
+\todo{The case for case}
+
+\todo{Now prove sat/reduce => sat lemma}
+
+
+\begin{comment}
+\begin{code}
+preEval x | reduce (pre x) == false = bottom
+          | otherwise = eval x
+\end{code}
+
+Obviously this code is less defined than |eval|, and produces |bottom| in more places, so is a safe restriction.
+
+Now we can case expand |preEval|:
+
+\begin{code}
+preEval x@(Make c xs_) | reduce (pre x) == false = bottom
+                     | otherwise = eval x
+\end{code}
+
+\begin{code}
+preEval (Make c xs_) | reduce (andP (map pre xs_)) == false = bottom
+                     | otherwise = Val c (map eval xs_)
+\end{code}
+
+If we assume that |reduce x ==> x|, [is that true?] given no free variables, then we can rewrite to:
+
+\begin{code}
+preEval (Make c xs_) = Val c (map preEval xs_)
+\end{code}
+
+Now we can deal with the other cases:
+
+
+
+Finally, we prove that is a function meets its precondition, it is satisfied.
+
+
+
+
+
+Which we can now see is an implication
+
+
+
+\begin{code}
+eval (Make c xs_   ) = Val c (map eval xs_)
+eval (Case x as_  ) = head [subst y (zip vs_ xs_) | Alt c' vs_ y <- as_, c == c']
+    where Val c xs_ = eval x
+eval (Call f xs_)   | not $ satisfiesP $ subst (precond f) xs_ = bottom
+                   | otherwise = subst (zip (args f) xs_) (body f)
+\end{code}
+\end{comment}
+
+
+
+\subsection{Correctness of BP-constraints}
+
+
+\subsection{Correctness of RE-constraints}
+
+
+\subsection{Correctness of MP-constraints}
+
