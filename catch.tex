@@ -849,12 +849,8 @@ We have implemented both constraint systems in Catch. Factors to consider when c
 \section{Argument for Correctness}
 \label{secC:correct}
 
-\todo{Argument for Correctness}
-
-%if 0
-
-\newcommand{\theorem}[2]{#2  \hspace{5mm} \textsf{#1} \\}
-\newcommand{\proof}[1]{\paragraph{\textsf{#1}}}
+\newcommand{\theorem}[2]{#2  \hspace{5mm} (\textit{#1}) \\}
+\newcommand{\proof}[1]{\paragraph{(\textit{#1})}}
 %format subst a b c = c "[" a "\backslash" b "]"
 
 We first show that the algorithm is correct given certain conditions on the constraint language, then that each of the three constraint languages satisfy the necessary conditions.
@@ -892,6 +888,13 @@ We define the following helper functions.
 We start by outlining an evaluator:
 
 \begin{code}
+data Expr = Make CtorName [Expr]
+          | Call FuncName [Expr]
+          | Var  VarName
+          | Case Expr [Alt]
+
+data Alt = Alt CtorName [VarName] Expr
+
 eval :: Expr -> Val
 eval (Make c xs_   ) = Val c (map eval xs_)
 eval (Call f xs_)  | f == "error" = Bottom
@@ -899,66 +902,67 @@ eval (Call f xs_)  | f == "error" = Bottom
 eval (Case x as_  ) = case eval x of
     Val c xs_ -> head [y [vs_ / xs_] | Alt c' vs_ y <- as_, c == c']
     Bottom -> Bottom
-
-evalPre x | sat (pre x) = evalSafe
-evalPre x = Bottom
-
-evalSafe x | sat $ pre x = eval x
 \end{code}
 
 We use |subst vs_ xs_| to denote replacing the free variables |vs_| with |xs_|.
 
-There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as |subst| will remove them. We maintain the correctness of the evaluator is we replace cases which were defined with |Bottom|. We define more restrictive evaluators: We can argue that |evalSafe| will not fail, and requires no additional clauses.
+There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as |subst| will remove them.
 
 \subsubsection{Theorems}
 
 We wish to prove:
 
-\theorem{(pre/eval)}
-{|forall x `o` sat (pre x) ==> notBottom (eval x)|}
+\theorem{pre/eval}
+{|sat (pre x) ==> notBottom (eval x)|}
 
 To do this, we will need to prove the following theorems:
 
-\theorem{(pre/evalPre)}
-{|forall x `o` sat (pre x) ==> notBottom (evalPre x)|}
-\theorem{(evalPre/eval)}
-{|forall x `o` let r = evalPre x in isBottom r |||| (r == eval x)|}
-
-\begin{code}
-(sat/all)       forall (xs :: [Sat Expr]) . sat (andP xs) == all (sat xs)
-(evalPre/evalSafe)    pre x ==> (evalPre x == evalSafe x)
-(error/precond)  f == "error" ==> not (satPrecond "error" xs)
-
-(satPrecond/sat)
-satPrecond f xs
-sat $ substP xs $ reduce (pre (body f))
-
-(subst/subst')
-substP xs y == subst' (zip vs xs) (substP vs y)
--- provided length xs == length vs and all vs are otherwise not used
-
-reduce' = reduce but not changing var's to Int's
-subst' = subst but over a predicate
-
-(reduce/reduce')
-substP xs (reduce x) == subst' (zip vs xs) (reduce' x)
-where vs are the free variables in vs
-
-(sat/reduce)
-sat $ reduce x => sat x
-
-(sat/subst)
-sat x && all sat ys => sat $ subst (zip vs ys) x
+\theorem{sat/and}
+{|sat (x `propAnd` y) = sat x && sat y|} 
 
 
-sat $ subst' sub
-\end{code}
+%\begin{code}
+%(sat/all)       forall (xs :: [Sat Expr]) . sat (andP xs) == all (sat xs)
+%(evalPre/evalSafe)    pre x ==> (evalPre x == evalSafe x)
+%(error/precond)  f == "error" ==> not (satPrecond "error" xs)
+%
+%(satPrecond/sat)
+%satPrecond f xs
+%sat $ substP xs $ reduce (pre (body f))
+%
+%(subst/subst')
+%substP xs y == subst' (zip vs xs) (substP vs y)
+%-- provided length xs == length vs and all vs are otherwise not used
+%
+%reduce' = reduce but not changing var's to Int's
+%subst' = subst but over a predicate
+%
+%(reduce/reduce')
+%substP xs (reduce x) == subst' (zip vs xs) (reduce' x)
+%where vs are the free variables in vs
+%
+%(sat/reduce)
+%sat $ reduce x => sat x
+%
+%(sat/subst)
+%sat x && all sat ys => sat $ subst (zip vs ys) x
+%
+%
+%sat $ subst' sub
+%\end{code}
+
 
 \subsubsection{The Proof}
 
 We prove each lemma in turn.
 
-\prove{(evalPre/eval)}
+\proof{pre/eval}
+
+By induction on possible expressions:
+
+\case{Make}
+
+
 
 The axiom (evalPre/eval) says that |evalPre| returns either the same result as |eval|, or a |Bottom| containing result. Therefore the condition (pre/evalPre) implies (pre/eval).
 
@@ -1114,8 +1118,6 @@ eval (Call f xs_)   | not $ satisfiesP $ subst (precond f) xs_ = bottom
 
 
 \subsection{Correctness of MP-constraints}
-
-%endif
 
 
 \section{Results and Evaluation}
