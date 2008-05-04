@@ -167,7 +167,7 @@ uneval (Val c xs_)  = Make c (map uneval xs_)
 uneval Bottom       = Call "error" []
 \end{code}
 
-We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs_,ys_)| to denote replacing the free variables |vs_| in |x| with |ys_|. There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as substitution will remove them.
+We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs_,ys_)| to denote replacing the free variables |vs_| in |x| with |ys_|. There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as substitution will remove them. We can assume the argument to |eval| has no free variables. The free variables of a function are its arguments.
 
 We also make use of a number of auxiliaries throughout the proof:
 
@@ -185,13 +185,16 @@ precond' :: FuncName -> Prop (Sat VarName)
 precond' f = substP (args f) $ precond f
 
 sat :: Prop (Sat Expr) -> Bool
-sat x = (propTrue :: Prop ()) == propMap (propBool . satisfies) x
+sat (propTrue) = True
+sat (propFalse) = False
+sat (x `propOr` y) = sat x || sat y
+sat (x `propAnd` y) = sat x && sat y
+sat (propLit x) = satisfies x
 
 satisfies :: Sat Expr -> Bool
 \end{code}
 
-Of these functions, |satisfies| is primitive and different for each constraint language.
-
+Of these functions, |satisfies| is primitive and different for each constraint language. We assume |satisfies (Sat v k)| is always True, although in reality it never gets tried.
 
 \subsection{Theorems}
 
@@ -206,9 +209,8 @@ HERE THEY GO
 
 We will also need the following general theorems:
 
-\theorem{sat/and}
-{|sat (x `propAnd` y) = sat x && sat y|}
-
+\theorem{pre/subst}
+{|sat (pre x / (freeVars x, ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
 
 %\begin{code}
 %(sat/all)       forall (xs :: [Sat Expr]) . sat (andP xs) == all (sat xs)
@@ -263,7 +265,7 @@ This does not produce |Bottom| if all recursive calls to |eval| are on values wh
 sat $ pre $ Make c xs_  ==> all (sat . pre) xs_
     -- inline |pre|
 sat $ andP $ map pre xs_ ==> all (sat . pre) xs_
-    -- \lemma{sat/and} theorem
+    -- inline |sat|
 and $ map sat $ map pre xs_  ==> all (sat . pre) xs_
     -- |map f . map g == map (f . g)|
 and $ map (sat . pre) xs_ ==> all (sat . pre) xs_
@@ -288,12 +290,14 @@ We can use the theorem \lemma{pre/error} to show that |f| is never |"error"|, an
 sat $ pre $ Call f xs_ ==> sat $ pre $ (body f)[args f / xs_]
     -- inline pre on LHS
 sat $ (precond' f) [args f / xs_] `propAnd` propAnds (map pre xs_) ==> sat $ pre $ (body f)[args f / xs_]
-    -- \lemma{sat/and}
+    -- inline |sat|
 sat ((precond' f) [args f / xs_] && all (sat . pre) xs_ ==> sat $ pre $ (body f)[args f / xs_]
     -- \lemma{precond}
 sat ((reduce' $ pre $ body f) [args f / xs_] && all (sat . pre) xs_ ==> sat $ pre $ (body f)[args f / xs_]
     -- \lemma{reduce}
 sat ((pre $ body f) [args f / xs_] && all (sat . pre) xs_ ==> sat $ pre $ (body f)[args f / xs_]
+    -- \lemma{sat/subst}
+sat (pre $ body f) && all (sat . pre) xs_ ==> sat $ pre $ (body f)[args f / xs_]
     -- \lemma{pre/subst}
 True
 \end{code}
@@ -314,7 +318,7 @@ We first prove that the explicit |Bottom| is not reached, assuming the initial e
 sat $ pre $ Case x as_ ==> sat $ pre x
     -- inline |pre|
 sat $ pre x `propAnd` andP (map alt as_) ==> sat $ pre x
-    -- \lemma{sat/and}
+    -- inline |sat|
 sat (pre x) && andP (map alt as_) ==> sat $ pre x
     -- |a && b ==> a|
 True
@@ -323,15 +327,67 @@ True
 We now need to ensure that the other call to |eval| meets its precondition:
 
 \begin{code}
-eval $ head [y / (vs_, map uneval xs_) | Alt c' vs_ y <- as_, c == c']
+sat $ pre $ Case x as_ ==> sat $ pre $ y / (vs_, map uneval xs_)
 \end{code}
+
+First we can work on the RHS only:
+
+\begin{code}
+sat $ pre $ y / (vs_, map uneval xs_)
+    -- \lemma{pre/subst}
+sat (pre y) && all (sat . pre) (map uneval xs)
+    -- |all f . map g == all (f . g)|
+sat (pre y) && all (sat . pre . uneval) xs
+    -- \lemma{pre/uneval}
+sat (pre y) && all (sat . const true) xs
+    -- inline |sat|
+sat (pre y) && all (const True) xs
+    -- |all (const True) xs == True|
+sat (pre y)
+\end{code}
+
+We can now return to the whole thing, assuming that the constructor is the first to be chosen:
+
+\begin{code}
+sat $ pre $ Case x (Alt c vs_ y : as_) ==> sat $ pre y
+    -- inline |pre|
+sat $ pre x `propAnd` propAnds (map alt (Alt c vs_ y : as_)) ==> sat $ pre y
+    -- inline |sat|
+sat (pre x) && all (sat . alt) (Alt c vs_ y : as_) ==> sat $ pre y
+    -- inline |all|
+sat (pre x) && sat (alt (Alt c vs_ y)) && all (sat . alt) as_ ==> sat $ pre y
+    -- weaken the implication
+sat $ alt $ Alt c vs_ y ==> sat $ pre y
+    -- inline |alt|
+sat $ x :< (ctors c \ [c]) `propOr` pre y ==> sat $ pre y
+    -- inline |sat|
+sat (x :< (ctors c \ [c]))) || sat (pre y) ==> sat $ pre y
+
+
+sat (pre x) && all (sat .  `propAnd` andP (map alt as_) ==> sat $ pre y
+    -- discard some information
+sat $ alt $ Alt c vs y ==> pre y
+    -- expand alt
+x :< (ctors c \ [c]) 
+\end{code}
+
+
+\begin{code}
+
+
 
 We can rewrite this as:
 
 \begin{code}
-sat (pre $ Case x as_) && c == c' ==> 
+sat (pre $ Case x as_) && c == c' ==> sat $ pre $ y / (vs_, map uneval xs_)
 
-eval $ head 
+sat (pre x / (freeVars x, ys)
+
+
+{|sat (pre x / (freeVars x, ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
+
+
+eval $ head
 \end{code}
 
 We can assume c
