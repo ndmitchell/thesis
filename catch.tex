@@ -342,7 +342,7 @@ pre (ECon c xs_   ) = propAnds (map pre xs_)
 pre (EFun f xs_   ) = pre' f xs `propAnd` propAnds (map pre xs_)
     where pre' f xs = substP xs (precond f)
 pre (ECase x as_  ) = pre x `propAnd` propAnds (map alt as_)
-    where alt (EAlt c vs_ y) = on -< (ctors c \\ [c]) `propOr` pre y
+    where alt (EAlt c vs_ y) = x -< (ctors c \\ [c]) `propOr` pre y
 \end{code}
 \caption{Precondition of an expression, |pre|.}
 \label{figC:precondition}
@@ -918,7 +918,7 @@ We wish to prove:
 To do this, we will need to prove the following theorems:
 
 \theorem{sat/and}
-{|sat (x `propAnd` y) = sat x && sat y|} 
+{|sat (x `propAnd` y) = sat x && sat y|}
 
 
 %\begin{code}
