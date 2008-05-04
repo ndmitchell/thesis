@@ -205,42 +205,26 @@ We wish to prove:
 
 In particular this requires the following theorems about the constraint language:
 
-HERE THEY GO
+\theorem{sat/|:<|}
+{|sat (x :< cs) => ctor x `elem` cs|}
+
 
 We will also need the following general theorems:
 
 \theorem{pre/subst}
-{|sat (pre x / (freeVars x, ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
+{|sat (pre x) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
 
-%\begin{code}
-%(sat/all)       forall (xs :: [Sat Expr]) . sat (andP xs) == all (sat xs)
-%(evalPre/evalSafe)    pre x ==> (evalPre x == evalSafe x)
-%(error/precond)  f == "error" ==> not (satPrecond "error" xs)
-%
-%(satPrecond/sat)
-%satPrecond f xs
-%sat $ substP xs $ reduce (pre (body f))
-%
-%(subst/subst')
-%substP xs y == subst' (zip vs xs) (substP vs y)
-%-- provided length xs == length vs and all vs are otherwise not used
-%
-%reduce' = reduce but not changing var's to Int's
-%subst' = subst but over a predicate
-%
-%(reduce/reduce')
-%substP xs (reduce x) == subst' (zip vs xs) (reduce' x)
-%where vs are the free variables in vs
-%
-%(sat/reduce)
-%sat $ reduce x => sat x
-%
-%(sat/subst)
-%sat x && all sat ys => sat $ subst (zip vs ys) x
-%
-%
-%sat $ subst' sub
-%\end{code}
+\theorem{sat/subst}
+{|sat (pre x / (freeVars x // ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
+
+\theorem{reduce}
+{|reduce' x ==> x ... -- substitution |}
+
+\theorem{precond'}
+{|precond' f ==> reduce' $ pre $ body f|}
+
+\theorem{pre/uneval}
+{|notBottom x ==> sat (pre (uneval x))|}
 
 
 \subsubsection{The Proof}
@@ -346,7 +330,7 @@ sat (pre y) && all (const True) xs
 sat (pre y)
 \end{code}
 
-We can now return to the whole thing, assuming that the constructor is the first to be chosen:
+We can now return to the whole thing, assuming that the constructor is the first to be chosen. We can reorder the alternatives because they have no order and are processed in a map in the code. We can assume that |x| matches |Val c _| because that branch has been picked.
 
 \begin{code}
 sat $ pre $ Case x (Alt c vs_ y : as_) ==> sat $ pre y
@@ -362,50 +346,28 @@ sat $ alt $ Alt c vs_ y ==> sat $ pre y
 sat $ x :< (ctors c \ [c]) `propOr` pre y ==> sat $ pre y
     -- inline |sat|
 sat (x :< (ctors c \ [c]))) || sat (pre y) ==> sat $ pre y
-
-
-sat (pre x) && all (sat .  `propAnd` andP (map alt as_) ==> sat $ pre y
-    -- discard some information
-sat $ alt $ Alt c vs y ==> pre y
-    -- expand alt
-x :< (ctors c \ [c]) 
+    -- \lemma{sat/|:<|}
+ctor x `elem` (ctors c \\ [c]) || sat (pre y) ==> sat $ pre y
+    -- |ctor x == c|
+c `elem` (ctors c \\ [c]) || sat (pre y) ==> sat $ pre y
+    -- \lemma{elem/diff}
+False || sat (pre y) ==> sat $ pre y
+    -- inline |(||||)|
+sat (pre y) ==> sat $ pre y
+    -- implication
+True
 \end{code}
 
 
-\begin{code}
 
 
-
-We can rewrite this as:
+\proof{elem/diff}
 
 \begin{code}
-sat (pre $ Case x as_) && c == c' ==> sat $ pre $ y / (vs_, map uneval xs_)
-
-sat (pre x / (freeVars x, ys)
-
-
-{|sat (pre x / (freeVars x, ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
-
-
-eval $ head
+x `elem` (ys \\ [x]) == False
 \end{code}
 
-We can assume c
-
-
-This is safe if:
-
-\begin{code}
-sat $ pre (y [vs_ / xs_])
-\end{code}
-
-We can show that |xs_| is safe because it is the result of transforming |eval| over it. Therefore we have:
-
-\begin{code}
-c == c' && all (sat . pre) xs_ ==> sat $ pre (y [vs_ / xs_])
-\end{code}
-
-Need to continue here.
+The |elem| application is only true if |ys \\ [x]| contains |x|. The expression cannot contain |x|, as if it existed in |ys| it was removed, therefore this application is always |False|.
 
 
 
