@@ -133,7 +133,7 @@ prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $
 
 \newcommand{\lemma}[1]{(\textit{#1})}
 \newcommand{\theorem}[2]{#2  \hspace{5mm} \lemma{#1} \\}
-\newcommand{\proof}[2][]{\paragraph{\lemma{#2} #1}}
+\newcommand{\proof}[2][]{\paragraph{\lemma{#2} \textsf{#1}}}
 
 The algorithm is correct if given a function application whose arguments meet the precondition, it will not call |error|. The proof is structured as an evaluator with an explicit |Bottom| within it -- if this case is encountered the program crashes. We reason about the evaluator to show satisfying a precondition ensures that |Bottom| will not be reached. This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
 
@@ -247,13 +247,9 @@ We prove each lemma in turn.
 
 \proof{pre/eval}
 
-By induction on possible expressions:
+By induction. We do not need to consider |Var| as |eval| cannot be called on expressions with free variables.
 
-\proof[|Var|]{pre/eval}
-
-Not necessary, as |eval| is never called on variables.
-
-\proof[|Make|]{pre/eval}
+\proof[|Make|:]{pre/eval}
 
 The initial definition is:
 
@@ -261,7 +257,7 @@ The initial definition is:
 eval (Make c xs_   ) = Val c (map eval xs_)
 \end{code}
 
-This is safe if all recursive calls to |eval| are on values which satisfy |pre|. We can write this as:
+This does not produce |Bottom| if all recursive calls to |eval| are on values which satisfy |pre|. We can write this as:
 
 \begin{code}
 sat $ pre $ Make c xs_  ==> all (sat . pre) xs_
@@ -269,11 +265,15 @@ sat $ pre $ Make c xs_  ==> all (sat . pre) xs_
 sat $ andP $ map pre xs_ ==> all (sat . pre) xs_
     -- \lemma{sat/and} theorem
 and $ map sat $ map pre xs_  ==> all (sat . pre) xs_
+    -- |map f . map g == map (f . g)|
+and $ map (sat . pre) xs_ ==> all (sat . pre) xs_
+    -- |and . map f == all f|
+all (sat . pre) xs_ ==> all (sat . pre) xs_
+    -- equal
+True
 \end{code}
 
-This lemma is now true, in this particular case the two sides are equal.
-
-\proof[|Call|]{pre/eval}
+\proof[|Call|:]{pre/eval}
 
 The initial definition is:
 
@@ -282,7 +282,7 @@ eval (Call f xs_)  | f == "error" = Bottom
                    | otherwise = eval $ (body f)[args f / xs_]
 \end{code}
 
-We can use the theorem \lemma{pre/error} to show that the initial value is not taken. This leaves us with the obligation that:
+We can use the theorem \lemma{pre/error} to show that |f| is never |"error"|, and the first alternative is never taken. This leaves us with the obligation that:
 
 \begin{code}
 sat $ pre $ Call f xs_ ==> sat $ pre $ (body f)[args f / xs_]
@@ -294,19 +294,21 @@ sat ((precond' f) [args f / xs_] && all (sat . pre) xs_ ==> sat $ pre $ (body f)
 sat ((reduce' $ pre $ body f) [args f / xs_] && all (sat . pre) xs_ ==> sat $ pre $ (body f)[args f / xs_]
     -- \lemma{reduce}
 sat ((pre $ body f) [args f / xs_] && all (sat . pre) xs_ ==> sat $ pre $ (body f)[args f / xs_]
+    -- \lemma{pre/subst}
+True
 \end{code}
 
-This is then true using the \lemma{pre/subst} theorem.
-
-\proof[|Case|]{pre/eval}
+\proof[|Case|:]{pre/eval}
 
 \begin{code}
 eval (Case x as_  ) = case eval x of
-    Val c xs_ -> head [y [vs_ / xs_] | Alt c' vs_ y <- as_, c == c']
+    Val c xs_ -> eval $ head [y / (vs_, map uneval xs_) | Alt c' vs_ y <- as_, c == c']
     Bottom -> Bottom
 \end{code}
 
-We can ignore the |Bottom| alternative if we ensure that |x| meets its precondition. Given this, we also need to prove that the subst in the |Val| alternative is safe.
+This equation may generate |Bottom| in two ways -- either the explicit |Bottom| may be taken, or the nested |eval| may be taken. In both cases, if we can prove the expression passed to |eval| satisfies its precondition, then we can eliminate the possibility of |Bottom|.
+
+We first prove that the explicit |Bottom| is not reached, assuming the initial expression does not violate the precondition check.
 
 \begin{code}
 sat $ pre $ Case x as_ ==> sat $ pre x
@@ -314,13 +316,26 @@ sat $ pre $ Case x as_ ==> sat $ pre x
 sat $ pre x `propAnd` andP (map alt as_) ==> sat $ pre x
     -- \lemma{sat/and}
 sat (pre x) && andP (map alt as_) ==> sat $ pre x
+    -- |a && b ==> a|
+True
 \end{code}
 
-We now need to ensure that the recursive call to |eval| meets its precondition:
+We now need to ensure that the other call to |eval| meets its precondition:
 
 \begin{code}
-eval $ head [y [vs_ / xs_] | Alt c' vs_ y <- as_, c == c']
+eval $ head [y / (vs_, map uneval xs_) | Alt c' vs_ y <- as_, c == c']
 \end{code}
+
+We can rewrite this as:
+
+\begin{code}
+sat (pre $ Case x as_) && c == c' ==> 
+
+eval $ head 
+\end{code}
+
+We can assume c
+
 
 This is safe if:
 
