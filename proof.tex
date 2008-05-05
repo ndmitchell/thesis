@@ -319,15 +319,15 @@ First we can work on the RHS only:
 \begin{code}
 sat $ pre $ y / (vs_, map uneval xs_)
     -- \lemma{pre/subst}
-sat (pre y) && all (sat . pre) (map uneval xs)
+sat (pre y / (vs_, map uneval xs)) && all (sat . pre) (map uneval xs)
     -- |all f . map g == all (f . g)|
-sat (pre y) && all (sat . pre . uneval) xs
+sat (pre y / (vs_, map uneval xs)) && all (sat . pre . uneval) xs
     -- \lemma{pre/uneval}
-sat (pre y) && all (sat . const true) xs
+sat (pre y / (vs_, map uneval xs)) && all (sat . const true) xs
     -- inline |sat|
-sat (pre y) && all (const True) xs
+sat (pre y / (vs_, map uneval xs)) && all (const True) xs
     -- |all (const True) xs == True|
-sat (pre y)
+sat (pre y / (vs_, map uneval xs))
 \end{code}
 
 We can now return to the whole thing, assuming that the constructor is the first to be chosen. We can reorder the alternatives because they have no order and are processed in a map in the code. We can assume that |x| matches |Val c _| because that branch has been picked.
@@ -353,7 +353,7 @@ c `elem` (ctors c \\ [c]) || sat (pre y) ==> sat $ pre y
     -- \lemma{elem/diff}
 False || sat (pre y) ==> sat $ pre y
     -- inline |(||||)|
-sat (pre y) ==> sat $ pre y
+sat $ pre y ==> sat $ pre y
     -- implication
 True
 \end{code}
