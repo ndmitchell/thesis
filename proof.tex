@@ -343,9 +343,9 @@ sat (pre x) && sat (alt (Alt c vs_ y)) && all (sat . alt) as_ ==> sat $ pre y
     -- weaken the implication
 sat $ alt $ Alt c vs_ y ==> sat $ pre y
     -- inline |alt|
-sat $ x :< (ctors c \ [c]) `propOr` pre y ==> sat $ pre y
+sat $ x :< (ctors c \\ [c]) `propOr` pre y ==> sat $ pre y
     -- inline |sat|
-sat (x :< (ctors c \ [c]))) || sat (pre y) ==> sat $ pre y
+sat (x :< (ctors c \\ [c]))) || sat (pre y) ==> sat $ pre y
     -- \lemma{sat/|:<|}
 ctor x `elem` (ctors c \\ [c]) || sat (pre y) ==> sat $ pre y
     -- |ctor x == c|
