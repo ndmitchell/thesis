@@ -147,17 +147,17 @@ First we introduce functions and definitions which will be required later.
 data Val  =  Val CtorName [Val]
           |  Bottom
 
-data Expr = Make CtorName [Expr]
-          | Call FuncName [Expr]
-          | Var  VarName
-          | Case Expr [Alt]
+data Expr  =  Make CtorName [Expr]
+           |  Call FuncName [Expr]
+           |  Var  VarName
+           |  Case Expr [Alt]
 
 data Alt = Alt CtorName [VarName] Expr
 
 eval :: Expr -> Val
 eval (Make c xs_   ) = Val c (map eval xs_)
 eval (Call f xs_)  | f == "error" = Bottom
-                   | otherwise = eval $ subst (zip (args f) xs_) $ body f
+                   | otherwise = eval $ body f / (args f, xs_)
 eval (Case x as_  ) = case eval x of
     Val c xs_ -> eval $ head [y / (vs_, map uneval xs_) | Alt c' vs_ y <- as_, c == c']
     Bottom -> Bottom
@@ -172,17 +172,9 @@ We make use of |(/)|, which we have redefined as a substitution operator -- we w
 We also make use of a number of auxiliaries throughout the proof:
 
 \begin{code}
-isBottom, notBottom :: Expr -> Bool
+isBottom :: Expr -> Bool
 isBottom Bottom = True
 isBottom (Val c xs) = any isBottom xs
-
-notBottom = not . isBottom
-
-reduce' :: FuncName -> Prop (Sat VarName)
-reduce' f = substP (args f) $ reduce (body f)
-
-precond' :: FuncName -> Prop (Sat VarName)
-precond' f = substP (args f) $ precond f
 
 sat :: Prop (Sat Expr) -> Bool
 sat (propTrue) = True
@@ -194,22 +186,32 @@ sat (propLit x) = satisfies x
 satisfies :: Sat Expr -> Bool
 \end{code}
 
-Of these functions, |satisfies| is primitive and different for each constraint language. We assume |satisfies (Sat v k)| is always True, although in reality it never gets tried.
+Of these functions, |satisfies| is primitive and different for each constraint language.
 
 \subsection{Theorems}
 
 We wish to prove:
 
 \theorem{pre/eval}
-{|sat (pre x) ==> notBottom (eval x)|}
+{|sat $ pre x ==> not $ isBottom $ eval x|}
 
 In particular this requires the following theorems about the constraint language:
 
 \theorem{sat/|:<|}
-{|sat (x :< cs) => ctor x `elem` cs|}
+{|sat $ x :< cs ==> ctor x `elem` cs|}
 
 
 We will also need the following general theorems:
+
+\theorem{precond/error}
+{|precond "error" == false|}
+
+\theorem{precond}
+{|precond f ==> reduce $ pre $ body f|}
+
+\theorem{reduce}
+{|reduce' x ==> x|}
+
 
 \theorem{pre/subst}
 {|sat (pre x) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
@@ -240,7 +242,7 @@ By induction. We do not need to consider |Var| as |eval| cannot be called on exp
 The initial definition is:
 
 \begin{code}
-eval (Make c xs_   ) = Val c (map eval xs_)
+eval (Make c xs_) = Val c (map eval xs_)
 \end{code}
 
 This does not produce |Bottom| if all recursive calls to |eval| are on values which satisfy |pre|. We can write this as:
@@ -268,23 +270,108 @@ eval (Call f xs_)  | f == "error" = Bottom
                    | otherwise = eval $ (body f)[args f / xs_]
 \end{code}
 
-We can use the theorem \lemma{pre/error} to show that |f| is never |"error"|, and the first alternative is never taken. This leaves us with the obligation that:
+There are two ways to get |Bottom| from this fragment. The first is the explicit |Bottom|, and the second is the recursive call to |eval|. The first |Bottom| is avoided under the condition:
 
 \begin{code}
-sat $ pre $ Call f xs_ ==> sat $ pre $ (body f)[args f / xs_]
-    -- inline pre on LHS
-sat $ (precond' f) [args f / xs_] `propAnd` propAnds (map pre xs_) ==> sat $ pre $ (body f)[args f / xs_]
+sat $ pre $ Call f xs_ ==> f /= "error"
+    -- inline |pre|
+sat $ substP xs (precond f) `propAnd` propAnds (map pre xs_) ==> f /= "error"
     -- inline |sat|
-sat ((precond' f) [args f / xs_] && all (sat . pre) xs_ ==> sat $ pre $ (body f)[args f / xs_]
+sat (substP xs (precond f)) && all (sat . pre) xs_ ==> f /= "error"
+    -- weaken implication
+sat (substP xs (precond f)) ==> f /= "error"
+\end{code}
+
+We can now perform case analysis on |f|, assuming it either is, or is not, equal to |"error"|.
+
+\begin{code}
+sat (substP xs (precond f)) ==> f /= "error"
+    -- assume |f /= "error"|
+sat (substP xs (precond f)) ==> True
+    -- implication
+True
+\end{code}
+
+\begin{code}
+sat (substP xs (precond f)) ==> f /= "error"
+    -- assume |f == "error"|
+sat (substP xs (precond "error")) ==> False
+    -- implication
+not $ sat $ substP xs $ precond "error"
+    -- \lemma{precond/error}
+not $ sat $ substP xs $ false
+    -- inline |substP|
+not $ sat $ false
+    -- inline |sat|
+not $ False
+    -- inline |not|
+True
+\end{code}
+
+This leaves us with the call to |eval|, namely:
+
+\begin{code}
+sat $ pre $ Call f xs_ ==> sat $ pre $ body f / (args f, xs)
+    -- inline pre on LHS
+sat $ (precond f / (argsN f / xs_)) `propAnd` propAnds (map pre xs_) ==> sat $ pre $ body f / (args f, xs)
+    -- inline |sat|
+sat (precond f / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
     -- \lemma{precond}
-sat ((reduce' $ pre $ body f) [args f / xs_] && all (sat . pre) xs_ ==> sat $ pre $ (body f)[args f / xs_]
+sat ((reduce $ pre $ body f) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
     -- \lemma{reduce}
-sat ((pre $ body f) [args f / xs_] && all (sat . pre) xs_ ==> sat $ pre $ (body f)[args f / xs_]
-    -- \lemma{sat/subst}
-sat (pre $ body f) && all (sat . pre) xs_ ==> sat $ pre $ (body f)[args f / xs_]
+sat (pre (body f) / (args f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
     -- \lemma{pre/subst}
 True
 \end{code}
+
+
+\begin{code}
+sat ((reduce $ pre $ body f) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+\end{code}
+
+We can now do case analysis on the body of f.
+
+\begin{code}
+    -- body f == Var v
+sat ((reduce $ pre $ Var v) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ v / (args f, xs)
+    -- apply the substitution
+sat ((reduce $ pre $ Var v) / (argsN f / xs_)) && all (sat . pre) xs_ && y `elem` xs ==> sat $ pre y
+    -- weaken the precondition
+all (sat . pre) xs_ && y `elem` xs ==> sat $ pre y
+    -- \lemma{all/elem}
+sat $ pre y ==> sat $ pre y
+    -- implication
+True
+\end{code}
+
+\begin{code}
+    -- body f == Make c ys
+sat ((reduce $ pre $ Make c ys) / (argsN f, xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+    -- inline |pre| on RHS
+sat ((reduce $ propAnd $ map pre ys) / (argsN f, xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+    -- inline |reduce|
+sat (propAnds (map (reduce . pre) ys) / (argsN f, xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+    -- inline |(/)| on LHS
+sat (propAnds (map ((/ (argsN f, xs_)) . reduce . pre) ys)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+    -- inline |sat|
+all (sat . ((/ (argsN f, xs_)) . reduce . pre) ys) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+    -- inline |(/)| on RHS
+all (sat . ((/ (argsN f, xs_)) . reduce . pre) ys) && all (sat . pre) xs_ ==> sat $ pre $ Make c $ map (/ (args f, xs)) ys
+    -- inline |pre| on RHS
+all (sat . ((/ (argsN f, xs_)) . reduce . pre) ys) && all (sat . pre) xs_ ==> all (sat. pre . (/ (args f, xs))) ys
+    -- inductive hypothesis
+True
+\end{code}
+
+
+
+
+\begin{code}
+all (sat . reduce . pre) ys sat (propAnds (map (reduce . pre) ys) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+
+sat ((reduce $ pre $ Make c ys) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+\end{code}
+
 
 \proof[|Case|:]{pre/eval}
 
@@ -304,14 +391,16 @@ sat $ pre $ Case x as_ ==> sat $ pre x
 sat $ pre x `propAnd` andP (map alt as_) ==> sat $ pre x
     -- inline |sat|
 sat (pre x) && andP (map alt as_) ==> sat $ pre x
-    -- |a && b ==> a|
+    -- weaken implication
+sat $ pre x ==> sat $ pre x
+    -- equal
 True
 \end{code}
 
 We now need to ensure that the other call to |eval| meets its precondition:
 
 \begin{code}
-sat $ pre $ Case x as_ ==> sat $ pre $ y / (vs_, map uneval xs_)
+sat (pre (Case x as_)) && (eval x == Val c xs_) ==> sat $ pre $ y / (vs_, map uneval xs_)
 \end{code}
 
 First we can work on the RHS only:
@@ -359,8 +448,6 @@ True
 \end{code}
 
 
-
-
 \proof{elem/diff}
 
 \begin{code}
@@ -368,6 +455,66 @@ x `elem` (ys \\ [x]) == False
 \end{code}
 
 The |elem| application is only true if |ys \\ [x]| contains |x|. The expression cannot contain |x|, as if it existed in |ys| it was removed, therefore this application is always |False|.
+
+
+\theorem{precond/error}
+{|precond "error" == false|}
+
+
+\theorem{precond}
+{|precond f ==> reduce $ pre $ body f|}
+
+
+\proof{sat/reduce}
+
+\begin{code}
+reduce
+
+sat (reduce' x) ==> sat x
+    -- inline reduce'
+sat reduce $
+reduce' :: FuncName -> Prop (Sat VarName)
+reduce' f = substP (args f) $ reduce (body f)
+
+
+
+
+sat ((reduce $ pre $ body f) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+    -- \lemma{reduce}
+sat (pre (body f) / (args f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+\end{code}
+
+
+
+
+
+\proof{sat/reduce}
+
+\begin{code}
+sat (x / (vs, ys)) ==> sat (reduce x /# (vs, ys))
+\end{code}
+
+By case analysis on |x|.
+
+% sat (v :< k)
+
+
+
+
+
+% sat (reduce' [[ x ]] ) ==> sat [[ reduce' x ]]
+
+
+\proof{subst/pre}
+
+% sat [[pre x]] ^ all (sat . pre) xs ==> sat (pre [[x]] )
+
+
+\proof{sat/pre}
+
+% sat [[pre x]] ^ all (sat . pre) xs ==> sat (pre [[x]] )
+
+
 
 
 
