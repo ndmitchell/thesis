@@ -410,7 +410,7 @@ reduce = propMap (\(Sat x k) -> red x k)
 red :: Expr -> Constraint -> Prop (Sat ArgPos)
 red (EVar   v     )  k =  case var v of
                             Left   i       -> propLit (i `Sat` k)
-                            Right  (on,c)  -> red on (c |> k)
+                            Right  (on,s)  -> red on (s |> k)
 red (ECon c xs_   )  k =  reduce $ substP xs_ (c <| k)
 red (EFun f xs_   )  k =  reduce $ substP xs_ (prePost f k)
 red (ECase x as_  )  k =  propAnds (map alt as_)
