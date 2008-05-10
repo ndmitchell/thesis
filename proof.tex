@@ -132,7 +132,7 @@ prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $
 \label{secC:correct}
 
 \newcommand{\lemma}[1]{(\textit{#1})}
-\newcommand{\theorem}[2]{#2  \hspace{5mm} \lemma{#1} \\}
+\newcommand{\theorem}[2]{#2 \hspace{5mm} \lemma{#1} \\}
 \newcommand{\proof}[2][]{\paragraph{\lemma{#2} \textsf{#1}}}
 
 The algorithm is correct if given a function application whose arguments meet the precondition, it will not call |error|. The proof is structured as an evaluator with an explicit |Bottom| within it -- if this case is encountered the program crashes. We reason about the evaluator to show satisfying a precondition ensures that |Bottom| will not be reached. This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
@@ -184,9 +184,14 @@ sat (x `propAnd` y) = sat x && sat y
 sat (propLit x) = satisfies x
 
 satisfies :: Sat Expr -> Bool
+satisfies (Sat x k) = sats (eval x) k
+
+hasCtor :: Val -> CtorName -> Bool
+hasCtor Bottom c = True
+hasCtor (Val c' xs_) = c == c'
 \end{code}
 
-Of these functions, |satisfies| is primitive and different for each constraint language.
+Of these functions, |sats| is primitive and different for each constraint language. All the expressions given to |sat| must have no free variables.
 
 \subsection{Theorems}
 
@@ -198,7 +203,13 @@ We wish to prove:
 In particular this requires the following theorems about the constraint language:
 
 \theorem{sat/|:<|}
-{|sat $ x :< cs ==> ctor x `elem` cs|}
+{|sat $ x :< cs ==> any (hasCtor x) cs}|}
+
+\theorem{sat/| ||> |}
+{|sats (Val c xs) ((c,i) |> k) ==> sats (xs !! i) k|}
+
+\theorem{sat/| <|| |}
+{|sats (c <| k /# (xs, xs)) ==> sat (c xs) k|}
 
 
 We will also need the following general theorems:
@@ -210,7 +221,7 @@ We will also need the following general theorems:
 {|precond f ==> reduce $ pre $ body f|}
 
 \theorem{reduce}
-{|reduce' x ==> x|}
+{|sat (reduce x /# (vs, xs)) ==> sat (x / (vs, xs))|}
 
 
 \theorem{pre/subst}
@@ -313,11 +324,11 @@ This leaves us with the call to |eval|, namely:
 \begin{code}
 sat $ pre $ Call f xs_ ==> sat $ pre $ body f / (args f, xs)
     -- inline pre on LHS
-sat $ (precond f / (argsN f / xs_)) `propAnd` propAnds (map pre xs_) ==> sat $ pre $ body f / (args f, xs)
+sat $ (precond f / (args f /# xs_)) `propAnd` propAnds (map pre xs_) ==> sat $ pre $ body f / (args f, xs)
     -- inline |sat|
-sat (precond f / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+sat (precond f / (args f /# xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
     -- \lemma{precond}
-sat ((reduce $ pre $ body f) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+sat ((reduce $ pre $ body f) / (args f /# xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
     -- \lemma{reduce}
 sat (pre (body f) / (args f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
     -- \lemma{pre/subst}
@@ -488,32 +499,114 @@ sat (pre (body f) / (args f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body 
 
 
 
-\proof{sat/reduce}
+\proof{reduce}
+
+\theorem{reduce}
+{|sat (reduce x /# (vs, xs)) ==> sat (x / (vs, xs))|}
 
 \begin{code}
-sat (x / (vs, ys)) ==> sat (reduce x /# (vs, ys))
+sat (reduce x /# (vs, xs)) ==> sat (x / (vs, xs))
+    -- inline |reduce|
+sat (propMap (\(Sat x k) -> red x k) x /# (vs, xs)) ==> sat (x / (vs, xs))
+    -- inline |(/#)| on LHS
+sat (propMap (\(Sat x k) -> red x k /# (vs, xs)) x) ==> sat (x / (vs, xs))
+    -- promote |sat|
+bool $ propMap (\(Sat x k) -> sat $ red x k /# (vs, xs)) x ==> sat (x / (vs, xs))
+    -- \lemma{red}
+bool $ propMap (\(Sat x k) -> sat $ red x k /# (vs, xs)) x ==> bool $ propMap
+
 \end{code}
 
-By case analysis on |x|.
+\begin{code}
+let foo = (\(Sat x k) -> red x k /# (vs, xs))
 
-% sat (v :< k)
-
-
-
+sat (propMap foo x) ==> sat (x / (vs, xs))
 
 
-% sat (reduce' [[ x ]] ) ==> sat [[ reduce' x ]]
+sat (propMap (f . (/# (vs,xs))) x) ==> sat (x / (vs, xs))
+\end{code}
 
+\proof{red}
 
-\proof{subst/pre}
+\theorem{red}
+{|sat (red x k /# (vs, xs)) ==> satisfies (x / (vs, xs)) k|}
 
-% sat [[pre x]] ^ all (sat . pre) xs ==> sat (pre [[x]] )
+By induction on x:
 
+\proof[|Var|:]{red}
 
-\proof{sat/pre}
+Now, either |var v| is equal to |Left i| or |Right (on,c)|. We deal with each case in turn.
 
-% sat [[pre x]] ^ all (sat . pre) xs ==> sat (pre [[x]] )
+\begin{code}
+sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
+    -- inline |red|, assuming |var v == Left i|
+sat (lit (Sat i k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
+    -- inline both substitutions
+sat (lit (Sat x k)) ==> satisfies x k
+    -- inline |sat|
+satisfies x k ==> satisfies x k
+    -- implication
+True
+\end{code}
 
+Now lets assume it is equal to the |Right|. If |var v == Right (on,(c,i))|, we therefore know that |v| is not a free variable, and the substitution |(/)| will not apply. We also know that |on == Val c xs|, where |xs_i == v|.
+
+\begin{code}
+sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
+    -- inline |red|, assuming |var v == Right (on,(c,i))|
+sat (red on ((c,i) |> k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
+    -- knowledge about |on == Val c xs|
+sat (red (Make c ys) ((c,i) |> k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
+    -- \lemma{| ||> |}
+sat (red ys_i k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
+    -- knowledge that |ys_i == v|
+sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
+    -- \lemma{red}
+sat (v / (vs, xs)) k ==> satisfies (v / (vs, xs)) k
+    -- equals
+True
+\end{code}
+
+\proof[|Make|:]{red}
+
+\begin{code}
+sat (red (Make c xs) k /# (vs, zs)) ==> satisfies (Make c xs / (vs, zs)) k
+    -- inline |red|
+sat (reduce ((c <| k) /# xs) /# (vs, zs)) ==> satisfies (Make c xs / (vs, zs)) k
+    -- \lemma{reduce}
+sat (((c <| k) /# xs) / (vs, zs)) ==> satisfies (Make c xs / (vs, zs)) k
+    -- \lemma{sat/| <|| |}
+sat (Val c xs / (vs, zs)) k ==> satisfies (Make c xs / (vs, zs)) k
+    -- continue
+\end{code}
+
+\proof[|Call|:]{red}
+
+\begin{code}
+sat (red (Call f xs) k /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
+    -- inline |red|
+sat (reduce (prePost f k /# xs) /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
+    -- \lemma{reduce}
+sat ((prePost f k /# xs) / (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
+    -- \lemma{prePost}
+sat ((reduce (body f `Sat` k) /# xs) / (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
+    -- \lemma{reduce}
+    -- continue
+\end{code}
+
+\proof[|Case|:]{red}
+
+\begin{code}
+sat (red (Call f xs) k /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
+    -- inline |red|
+sat (reduce (prePost f k /# xs) /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
+    -- \lemma{reduce}
+sat ((prePost f k /# xs) / (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
+    -- \lemma{prePost}
+sat ((reduce (body f `Sat` k) /# xs) / (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
+    -- \lemma{reduce}
+    -- continue
+\end{code}
 
 
 
