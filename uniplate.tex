@@ -444,7 +444,7 @@ universe x = x : concatMap universe (children x)
 
 descend :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
 descend f x = context $ fmap f children
-    where children, context) = uniplate x
+    where (children, context) = uniplate x
 
 transform :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
 transform f = f . descend (transform f)
@@ -567,7 +567,7 @@ Running the Derive tool over this file, the generated code is:
 \begin{code}
 instance Uniplate Term where
     uniplate (Apply x_1 x_2)  =  (Two (One x_1) (One x_2)
-                                 ,\(Two (One x_1) (One x_2) -> Apply x_1 x_2)
+                                 ,\(Two (One x_1) (One x_2)) -> Apply x_1 x_2)
     uniplate x                =  (Zero, \_ -> x)
 \end{code}
 \end{example}
