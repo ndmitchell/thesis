@@ -9,13 +9,35 @@
 %format ||+ = "\mathsf{\hspace{1mm}||\hspace{-0.5mm}\hbox{\small{+}}\;}"
 
 
+\hsdef{\begin{comment}
+import GHC.Exts(build)
+import Control.Monad.State
+import Data.Maybe
+import Data.Monoid
+import Data.Typeable
+import Data.Generics hiding (Unit)
+instance Eq Expr
+instance Eq (a -> b)
+instance Eq (Str a)
+instance Typeable Expr
+instance Typeable Stmt
+Char,Bool,Float,Data
+Traversable
+UniplateOn,On,Bi
+f,x,x',x_i,y,e,e',k
+_D,_C,_T
+warnAssign
+increase,incrOne,com_increase,syb_increase,syb_incrOne
+Data.Generics.PlateDirect,Data.Generics.PlateTypeable,PlateData
+\end{comment}}
+
 \begin{comment}
 % extra code needed for tex2hs
-\begin{code}
+\ignore\begin{code}
 class Uniplate x where
 	uniplate :: x -> (Str x, Str x -> x)
 \end{code}
-\begin{code}
+\ignore\begin{code}
 class Uniplate x where
 \end{code}
 \begin{code}
@@ -24,6 +46,16 @@ transform' x = transform x
 \begin{code}
 children = undefined
 context = undefined
+\end{code}
+\begin{code}
+class Compos t where
+    compos :: (forall a. a -> m a) -> (forall a b. m (a -> b) -> m a -> m b) -> (forall a. t a -> m (t a)) -> t c -> m (t c)
+composOp :: Compos t => (forall a. t a -> t a) -> t c -> t c
+composOpM :: (Compos t, Monad m) => (forall a. t a -> m (t a)) -> t c -> m (t c)
+composOpM_ :: (Compos t, Monad m) => (forall a. t a -> m ()) -> t c -> m ()
+composOpMonoid :: (Compos t, Monoid m) => (forall a. t a -> m) -> t c -> m
+composOpMPlus :: (Compos t, MonadPlus m) => (forall a. t a -> m b) -> t c -> m b
+composOpFold :: Compos t => b -> (b -> b -> b) -> (forall a. t a -> b) -> t c -> b
 \end{code}
 \end{comment}
 
@@ -39,7 +71,7 @@ Generic traversals over recursive data structures are often referred to as \text
 
 Take a simple example of a recursive data type:
 
-\begin{code}
+\h{#!expr2}\begin{code}
 data Expr  =  Add  Expr  Expr  |  Val  Int
            |  Sub  Expr  Expr  |  Var  String
            |  Mul  Expr  Expr  |  Neg  Expr
@@ -210,15 +242,19 @@ descend :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
 The result of |descend f x| is obtained by replacing each |alpha|-child |x_i| in |x| by |f x_i|. Unlike |everywhere'|, there is \textit{no recursion} within |descend|.
 
 \begin{comment}
-\begin{code}
-data Expr = Var String | Let String Expr Expr | Add Expr Expr
+\h{#expr2}\begin{code}
+data Expr =  Let String Expr Expr
+          |  Add  Expr  Expr  |  Val  Int
+          |  Sub  Expr  Expr  |  Var  String
+          |  Mul  Expr  Expr  |  Neg  Expr
+          |  Div  Expr  Expr
 \end{code}
 \end{comment}
 
 \begin{example}
 Consider the addition of a constructor \ignore|Let String Expr Expr|. Now let us define a function |subst| to replace free variables with given expressions. In order to determine which variables are free, we need to ``remember'' variables that are bound as we descend\footnote{For simplicity, we ignore issues of hygienic substitution that may arise if substituted expressions themselves contain free variables.}. We can define |subst| using a descend transformation:
 
-\begin{code}
+\h{#expr2}\begin{code}
 subst :: [(String,Expr)] -> Expr -> Expr
 subst rep x =
     case  x of
@@ -370,7 +406,7 @@ propId        x = all (== x) [b a | (a,b) <- contexts x]
 \subsection{Summary}
 
 \begin{figure}
-\begin{code}
+\h{#*}\begin{code}
 module Data.Generics.Uniplate where
 
 children    :: Uniplate alpha => alpha -> [alpha]
@@ -395,7 +431,7 @@ We present signatures for all our methods in Figure \ref{figU:play}, including s
 \label{secU:implement_play}
 
 \begin{figure}
-\begin{code}
+\h{#*}\begin{code}
 data Str alpha = Zero | One alpha | Two (Str alpha) (Str alpha)
 
 instance Functor Str where
@@ -418,7 +454,7 @@ listStr (x:xs)  = Two (One x) (listStr xs)
 
 Requiring each instance of the |Uniplate| class to implement ten separate methods would be an undue imposition. Instead, given a type specific instance for a \textit{single} auxiliary method with a pair as result, we can define \textit{all ten} operations generically, at the class level. The auxiliary use of the |Str| data type from Figure \ref{figU:str}, and is defined as:
 
-\begin{code}
+\ignore\begin{code}
 uniplate :: Uniplate alpha => alpha -> (Str alpha, Str alpha -> alpha)
 uniplate x = (children,context)
 \end{code}
@@ -456,9 +492,9 @@ The common pattern is to call |uniplate|, then operate on the current children, 
 \label{secU:play_instances}
 
 \begin{figure}
-\begin{code}
+\h{#*}\begin{code}
 class Uniplate alpha where
-    uniplate :: alpha -> ([alpha], [alpha] -> alpha)
+    uniplate :: alpha -> (Str alpha, Str alpha -> alpha)
 
 instance Uniplate Expr where
     uniplate (Neg  a    )  =  (One a, \(One a') -> Neg  a')
@@ -507,7 +543,7 @@ _N {-" \mbox{ is an injection to fresh variables} "-}
 \end{figure}
 
 \begin{figure}
-\begin{code}
+\ignore\begin{code}
 _N $| Expr |$ \? x = case x of
     Val  y_1      -> (Zero `Two` a_1, \(Zero `Two` z_1) -> Val (b_1 z_1)
         where (a_1,b_1) = (\x -> (Zero, \Zero -> x)) y_1
@@ -540,7 +576,7 @@ We model the derivation of an instance by describing a derivation from a data ty
 
 The result of applying |_D| to |Expr| is given in Figure \ref{figU:d_expr}. Given these definitions we can define a Uniplate instance for the |Expr| type with:
 
-\begin{code}
+\ignore\begin{code}
 instance Uniplate Expr where
     uniplate = _N $| Expr |$
 \end{code}
@@ -579,7 +615,7 @@ instance Uniplate Term where
 We have introduced the |Uniplate| class and an instance of it for type |Expr|. Now let us imagine that |Expr| is merely the expression type in a language with statements:
 
 \begin{onepage}
-\begin{code}
+\h{#*}\begin{code}
 data Stmt  =  Assign    String  Expr
            |  Sequence  [Stmt]
            |  If        Expr    Stmt Stmt
@@ -598,7 +634,7 @@ We first introduce |UniplateOn|, which requires an explicit function to find the
 We define operations, including |universeOn| and |transformOn|, which take an extra argument relative to the standard |Uniplate| operators. We call this extra argument |biplate|: it is a function from the containing type (|beta|) to the contained type (|alpha|).
 
 \begin{comment}
-\begin{code}
+\ignore\begin{code}
 type BiplateType beta alpha = beta -> (Str alpha, Str alpha -> beta)
 \end{code}
 \end{comment}
@@ -619,7 +655,7 @@ We can now define |universeOn| and |transformOn|. Each takes a |biplate| functio
 
 \begin{code}
 universeOn :: Uniplate alpha => BiplateType beta alpha -> beta -> [alpha]
-universeOn biplate x = concatMap universe $ strList $ biplate x
+universeOn biplate x = concatMap universe $ strList $ fst $ biplate x
 
 transformOn  ::  Uniplate alpha => BiplateType beta alpha -> (alpha -> alpha) -> beta -> beta
 transformOn biplate f x = context $ fmap (transform f) children
@@ -649,7 +685,7 @@ data CoreExpr  =  CoreVar   String
                   -- other constructors
 \end{code}
 
-Most traversals are performed on the |CoreExpr| type. However, it is often convenient to start from one of the other types. For example, |coreSimplify :: CoreExpr -> CoreExpr| may be applied not just to an individual expression, but to all expressions in a function definition, or a complete program. If we are willing to freeze the type of the second argument to |biplate| as |CoreExpr| we can write a class:
+Most traversals are performed on the |CoreExpr| type. However, it is often convenient to start from one of the other types. For example, \h{stmt}|coreSimplify :: CoreExpr -> CoreExpr| may be applied not just to an individual expression, but to all expressions in a function definition, or a complete program. If we are willing to freeze the type of the second argument to |biplate| as |CoreExpr| we can write a class:
 
 \begin{code}
 class  UniplateExpr beta where
@@ -730,7 +766,7 @@ All three methods can be fully automated using the Derive tool, and all provide 
 Writing direct instances requires the |Data.Generics.PlateDirect| module to be imported. This style requires a maximum of $n^2$ instance definitions, where $n$ is the number of types which contain each other, but gives the highest performance and most type-safety. The instances still depend on the type of each field, but are easier to define than the |Uniplate| instance discussed in \S\ref{secU:play_instances}. Here is a possible instance for the |Expr| type:
 
 \begin{comment}
-\begin{code}
+\h{#direct}\begin{code}
 class PlateAll from to where
     plateAll :: from -> Type from to
 class PlateOne to where
@@ -745,7 +781,7 @@ plate :: from -> Type from to
 \end{code}
 \end{comment}
 
-\begin{code}
+\h{#direct}\begin{code}
 instance PlateOne Expr where
     plateOne (Neg  a    )  = plate Neg  |* a
     plateOne (Add  a b  )  = plate Add  |* a |* b
@@ -755,12 +791,12 @@ instance PlateOne Expr where
     plateOne x             = plate x
 \end{code}
 
-Five infix combinators (| ||*|, | ||+|, | ||-|, | ||||*| and | ||||+|) indicate the structure of the field to the right. The | ||*| combinator says that the value on the right is of the target type, | ||+| says that a value of the target type \textit{may occur} in the right operand, | ||-| says that values of the target type \textit{cannot occur} in the right operand. | ||||*| and | ||||+| are versions of | ||*| and | ||+| used when the value to the right is a \textit{list} either of the target type, or of a type that may contain target values. The law |plate f ||- x == plate (f x)| justifies the definition presented above.
+Five infix combinators (| ||*|, | ||+|, | ||-|, | ||||*| and | ||||+|) indicate the structure of the field to the right. The | ||*| combinator says that the value on the right is of the target type, | ||+| says that a value of the target type \textit{may occur} in the right operand, | ||-| says that values of the target type \textit{cannot occur} in the right operand. | ||||*| and | ||||+| are versions of | ||*| and | ||+| used when the value to the right is a \textit{list} either of the target type, or of a type that may contain target values. The law \h{#direct}|plate f ||- x == plate (f x)| justifies the definition presented above.
 
 This style of definition naturally expands to the multi-type traversal. For example:
 
 \begin{onepage}
-\begin{code}
+\h{#direct}\begin{code}
 instance PlateAll Stmt Expr where
     plateAll (Assign    a b    ) = plate Assign    |-   a |*  b
     plateAll (Sequence  a      ) = plate Sequence  ||+  a
@@ -782,9 +818,9 @@ In our experience definitions using these combinators offer similar performance 
 Instead of writing $O(n^2)$ class instances to locate values of the target type, we can use the |Typeable| class to \textit{test at runtime} whether we have reached the target type. We present derivations much as before, based this time only on combinators | ||+| and | ||-|:
 
 \begin{comment}
-\begin{code}
-type Type from to = ([to] -> [to], [to] -> (from,[to]))
-uniplateAll :: PlateAll a b => a -> ([b],[b] -> a)
+\h{#typeable}\begin{code}
+type Type from to = (Str to, Str to -> from)
+uniplateAll :: PlateAll a b => a -> (Str b, Str b -> a)
 class PlateAll from to where
     plateAll :: from -> Type from to
 plate :: from -> Type from to
@@ -794,14 +830,14 @@ instance (PlateAll from to, Typeable from, Typeable to, Uniplate to) => PlateAll
 \end{code}
 \end{comment}
 
-\begin{code}
+\h{#typeable}\begin{code}
 instance (Typeable alpha, Uniplate alpha) => PlateAll Expr alpha where
     plateAll (Neg a    )  = plate Neg  |+ a
     plateAll (Add a b  )  = plate Add  |+ a |+ b
     plateAll (Sub a b  )  = plate Sub  |+ a |+ b
     plateAll (Mul a b  )  = plate Mul  |+ a |+ b
     plateAll (Div a b  )  = plate Div  |+ a |+ b
-    plateAll _            = plate x
+    plateAll x            = plate x
 
 instance (Typeable alpha, Uniplate alpha) => PlateAll Stmt alpha where
     plateAll (Assign    a b    ) = plate Assign    |-  a |+ b
@@ -814,7 +850,7 @@ The | ||+| combinator is the most common, denoting that the value on the right m
 
 The |Data.Generics.PlateTypeable| module is able to infer a |Biplate| instance given a |PlateAll| instance. Alas this is not the case for |Uniplate|. Instead we must explicitly declare:
 
-\begin{code}
+\ignore\begin{code}
 instance Uniplate Expr where
     uniplate = uniplateAll
 
@@ -824,7 +860,7 @@ instance Uniplate Stmt where
 
 The reader may wonder why we cannot define:
 
-\begin{code}
+\h{#typeable}\begin{code}
 instance PlateAll alpha alpha => Uniplate alpha where
     uniplate = uniplateAll
 \end{code}
@@ -892,7 +928,7 @@ A disadvantage is that |concatMap| produces and consumes a list at every level i
 universe :: Uniplate on => on -> [on]
 universe x = f (One x) []
     where  f (Zero      ) res = res
-           f (One  x    ) res = x : g (fst $ uniplate x) res
+           f (One  x    ) res = x : f (fst $ uniplate x) res
            f (Two  x y  ) res = f x (f y res)
 \end{code}
 \end{onepage}
