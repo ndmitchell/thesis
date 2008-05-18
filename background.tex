@@ -314,14 +314,14 @@ This section informally discusses the relevant sharing properties of Haskell. In
 A let expression introduces \textit{sharing} of the computational result of expressions. Consider the expression:
 
 \begin{example}
-\begin{code}
+\ignore\begin{code}
 let x = f 1
 in x + x
 \end{code}
 
 The semantic rules for evaluating this expression result in:
 
-\begin{code}
+\ignore\begin{code}
 (x + x)[x / f 1]
 (f 1 + f 1)
 \end{code}
@@ -358,7 +358,7 @@ A recursive let binding is one where the bound variables are in scope during the
 
 \begin{example}
 \label{exB:repeat}
-\begin{code}
+\ignore\begin{code}
 repeat x =  letrec xs = x : xs
             in xs
 \end{code}
@@ -377,7 +377,7 @@ Our Core language does not allow recursive let bindings, for reasons of simplici
 \begin{examplerevisit}{\ref{exB:repeat}}
 Applying this to our example from before, we first add dummy arguments:
 
-\begin{code}
+\ignore\begin{code}
 repeat x =  letrec xs = \dummy ->  x : xs dummy
             in xs dummy
 \end{code}
