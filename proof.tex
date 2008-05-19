@@ -11,7 +11,7 @@
 
 The algorithm is correct if given a function application whose arguments meet the precondition, it will not call |error|. The proof is structured as an evaluator with an explicit |Bottom| within it -- if this case is encountered the program crashes. We reason about the evaluator to show satisfying a precondition ensures that |Bottom| will not be reached. This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
 
-To perform the proof, we require various laws about the |:<|, | ||>| and |<||| operators, which we then show hold for each of the three constraint systems.
+To perform the proof, we require various laws about the |-<|, | ||>| and |<||| operators, which we then show hold for each of the three constraint systems.
 
 \subsection{Evaluator}
 
@@ -51,11 +51,7 @@ isBottom Bottom = True
 isBottom (Val c xs) = any isBottom xs
 
 sat :: Prop (Sat Expr) -> Bool
-sat (propTrue) = True
-sat (propFalse) = False
-sat (x `propOr` y) = sat x || sat y
-sat (x `propAnd` y) = sat x && sat y
-sat (propLit x) = satisfies x
+sat x = propBool $ propMapThingy satisfies
 
 satisfies :: Sat Expr -> Bool
 satisfies (Sat x k) = sats (eval x) k
@@ -76,14 +72,14 @@ We wish to prove:
 
 In particular this requires the following theorems about the constraint language:
 
-\theorem{sat/|:<|}
-{|sat $ x :< cs ==> any (hasCtor x) cs}|}
+\theorem{sat/|-<|}
+{|sat $ x -< cs ==> any (hasCtor x) cs|}
 
 \theorem{sat/| ||> |}
-{|sats (Val c xs) ((c,i) |> k) ==> sats (xs !! i) k|}
+{|sats (Val c xs) ((c,i) ||> k) ==> sats (xs !! i) k|}
 
 \theorem{sat/| <|| |}
-{|sats (c <| k /# (xs, xs)) ==> sat (c xs) k|}
+{|sats (c <|| k /# (xs, xs)) ==> sat (c xs) k|}
 
 
 We will also need the following general theorems:
@@ -105,7 +101,7 @@ We will also need the following general theorems:
 {|sat (pre x / (freeVars x // ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
 
 \theorem{reduce}
-{|reduce' x ==> x ... -- substitution |}
+{\ignore|reduce' x ==> x ... -- substitution |}
 
 \theorem{precond'}
 {|precond' f ==> reduce' $ pre $ body f|}
@@ -132,7 +128,7 @@ eval (Make c xs_) = Val c (map eval xs_)
 
 This does not produce |Bottom| if all recursive calls to |eval| are on values which satisfy |pre|. We can write this as:
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat $ pre $ Make c xs_  ==> all (sat . pre) xs_
     -- inline |pre|
 sat $ andP $ map pre xs_ ==> all (sat . pre) xs_
@@ -157,7 +153,7 @@ eval (Call f xs_)  | f == "error" = Bottom
 
 There are two ways to get |Bottom| from this fragment. The first is the explicit |Bottom|, and the second is the recursive call to |eval|. The first |Bottom| is avoided under the condition:
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat $ pre $ Call f xs_ ==> f /= "error"
     -- inline |pre|
 sat $ substP xs (precond f) `propAnd` propAnds (map pre xs_) ==> f /= "error"
@@ -169,7 +165,7 @@ sat (substP xs (precond f)) ==> f /= "error"
 
 We can now perform case analysis on |f|, assuming it either is, or is not, equal to |"error"|.
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat (substP xs (precond f)) ==> f /= "error"
     -- assume |f /= "error"|
 sat (substP xs (precond f)) ==> True
@@ -177,7 +173,7 @@ sat (substP xs (precond f)) ==> True
 True
 \end{code}
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat (substP xs (precond f)) ==> f /= "error"
     -- assume |f == "error"|
 sat (substP xs (precond "error")) ==> False
@@ -195,7 +191,7 @@ True
 
 This leaves us with the call to |eval|, namely:
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat $ pre $ Call f xs_ ==> sat $ pre $ body f / (args f, xs)
     -- inline pre on LHS
 sat $ (precond f / (args f /# xs_)) `propAnd` propAnds (map pre xs_) ==> sat $ pre $ body f / (args f, xs)
@@ -210,13 +206,13 @@ True
 \end{code}
 
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat ((reduce $ pre $ body f) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
 \end{code}
 
 We can now do case analysis on the body of f.
 
-\begin{code}
+\h{exprlist}\begin{code}
     -- body f == Var v
 sat ((reduce $ pre $ Var v) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ v / (args f, xs)
     -- apply the substitution
@@ -229,7 +225,7 @@ sat $ pre y ==> sat $ pre y
 True
 \end{code}
 
-\begin{code}
+\h{exprlist}\begin{code}
     -- body f == Make c ys
 sat ((reduce $ pre $ Make c ys) / (argsN f, xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
     -- inline |pre| on RHS
@@ -251,7 +247,7 @@ True
 
 
 
-\begin{code}
+\h{exprlist}\begin{code}
 all (sat . reduce . pre) ys sat (propAnds (map (reduce . pre) ys) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
 
 sat ((reduce $ pre $ Make c ys) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
@@ -270,7 +266,7 @@ This equation may generate |Bottom| in two ways -- either the explicit |Bottom| 
 
 We first prove that the explicit |Bottom| is not reached, assuming the initial expression does not violate the precondition check.
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat $ pre $ Case x as_ ==> sat $ pre x
     -- inline |pre|
 sat $ pre x `propAnd` andP (map alt as_) ==> sat $ pre x
@@ -284,13 +280,13 @@ True
 
 We now need to ensure that the other call to |eval| meets its precondition:
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat (pre (Case x as_)) && (eval x == Val c xs_) ==> sat $ pre $ y / (vs_, map uneval xs_)
 \end{code}
 
 First we can work on the RHS only:
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat $ pre $ y / (vs_, map uneval xs_)
     -- \lemma{pre/subst}
 sat (pre y / (vs_, map uneval xs)) && all (sat . pre) (map uneval xs)
@@ -306,7 +302,7 @@ sat (pre y / (vs_, map uneval xs))
 
 We can now return to the whole thing, assuming that the constructor is the first to be chosen. We can reorder the alternatives because they have no order and are processed in a map in the code. We can assume that |x| matches |Val c _| because that branch has been picked.
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat $ pre $ Case x (Alt c vs_ y : as_) ==> sat $ pre y
     -- inline |pre|
 sat $ pre x `propAnd` propAnds (map alt (Alt c vs_ y : as_)) ==> sat $ pre y
@@ -317,10 +313,10 @@ sat (pre x) && sat (alt (Alt c vs_ y)) && all (sat . alt) as_ ==> sat $ pre y
     -- weaken the implication
 sat $ alt $ Alt c vs_ y ==> sat $ pre y
     -- inline |alt|
-sat $ x :< (ctors c \\ [c]) `propOr` pre y ==> sat $ pre y
+sat $ x -< (ctors c \\ [c]) `propOr` pre y ==> sat $ pre y
     -- inline |sat|
-sat (x :< (ctors c \\ [c]))) || sat (pre y) ==> sat $ pre y
-    -- \lemma{sat/|:<|}
+sat (x -< (ctors c \\ [c])) || sat (pre y) ==> sat $ pre y
+    -- \lemma{sat/|-<|}
 ctor x `elem` (ctors c \\ [c]) || sat (pre y) ==> sat $ pre y
     -- |ctor x == c|
 c `elem` (ctors c \\ [c]) || sat (pre y) ==> sat $ pre y
@@ -335,7 +331,7 @@ True
 
 \proof{elem/diff}
 
-\begin{code}
+\h{exprlist}\begin{code}
 x `elem` (ys \\ [x]) == False
 \end{code}
 
@@ -352,7 +348,7 @@ The |elem| application is only true if |ys \\ [x]| contains |x|. The expression 
 
 \proof{sat/reduce}
 
-\begin{code}
+\ignore\begin{code}
 reduce
 
 sat (reduce' x) ==> sat x
@@ -378,7 +374,7 @@ sat (pre (body f) / (args f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body 
 \theorem{reduce}
 {|sat (reduce x /# (vs, xs)) ==> sat (x / (vs, xs))|}
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat (reduce x /# (vs, xs)) ==> sat (x / (vs, xs))
     -- inline |reduce|
 sat (propMap (\(Sat x k) -> red x k) x /# (vs, xs)) ==> sat (x / (vs, xs))
@@ -391,7 +387,7 @@ bool $ propMap (\(Sat x k) -> sat $ red x k /# (vs, xs)) x ==> bool $ propMap
 
 \end{code}
 
-\begin{code}
+\ignore\begin{code}
 let foo = (\(Sat x k) -> red x k /# (vs, xs))
 
 sat (propMap foo x) ==> sat (x / (vs, xs))
@@ -411,7 +407,7 @@ By induction on x:
 
 Now, either |var v| is equal to |Left i| or |Right (on,c)|. We deal with each case in turn.
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
     -- inline |red|, assuming |var v == Left i|
 sat (lit (Sat i k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
@@ -425,7 +421,7 @@ True
 
 Now lets assume it is equal to the |Right|. If |var v == Right (on,(c,i))|, we therefore know that |v| is not a free variable, and the substitution |(/)| will not apply. We also know that |on == Val c xs|, where |xs_i == v|.
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
     -- inline |red|, assuming |var v == Right (on,(c,i))|
 sat (red on ((c,i) |> k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
@@ -443,7 +439,7 @@ True
 
 \proof[|Make|:]{red}
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat (red (Make c xs) k /# (vs, zs)) ==> satisfies (Make c xs / (vs, zs)) k
     -- inline |red|
 sat (reduce ((c <| k) /# xs) /# (vs, zs)) ==> satisfies (Make c xs / (vs, zs)) k
@@ -456,7 +452,7 @@ sat (Val c xs / (vs, zs)) k ==> satisfies (Make c xs / (vs, zs)) k
 
 \proof[|Call|:]{red}
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat (red (Call f xs) k /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
     -- inline |red|
 sat (reduce (prePost f k /# xs) /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
@@ -470,7 +466,7 @@ sat ((reduce (body f `Sat` k) /# xs) / (vs, zs)) ==> satisfies (Call f xs / (vs,
 
 \proof[|Case|:]{red}
 
-\begin{code}
+\h{exprlist}\begin{code}
 sat (red (Call f xs) k /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
     -- inline |red|
 sat (reduce (prePost f k /# xs) /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
