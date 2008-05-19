@@ -13,13 +13,34 @@
      \noindent\textbf{Definition:}}
     {\noexample}
 
+\hsdef{\begin{comment}
+import Prelude hiding (map)
+import Data.List hiding (map)
+Show
+f,x,y,g,v,e,s_0,l',b',n,l_n,s,l_n'
+app,lam
+\end{comment}}
 \begin{comment}
-% for paper haskell
 \begin{code}
-f = undefined
-\end{code}
-\begin{code}
-primNeqInt, primEqInt :: Int -> Int -> Bool
+data Expr = EVar String
+          | ECon String [Expr]
+          | EFun String [Expr]
+          | EApp Expr [Expr]
+          | ELam String Expr
+          | ELet String Expr Expr
+          | ECase Expr [Alt]
+data Alt = EAlt String [String] Expr
+
+instance Eq Expr           
+
+type FuncName = String
+body   :: FuncName  -> Expr
+rhs    :: Alt       -> Expr
+
+data World = World
+expensive :: a -> b
+primEqInt, primNeqInt :: Int -> Int -> Bool
+primCatch :: alpha -> (IOError -> alpha) -> alpha
 \end{code}
 \end{comment}
 
@@ -540,7 +561,7 @@ tem seen y =  let tem' = tem seen in case y of
     where
         tem' = tem seen
         tems' = map tem'
-        alt (Alt c vs_ x) = Alt c vs_ (tem (vs_++seen) x)
+        alt (EAlt c vs_ x) = EAlt c vs_ (tem (vs_++seen) x)
 
 apply :: ([Expr] -> Expr) -> [Expr] -> Expr
 apply f xs = if all (== underscore) xs then underscore else f xs
@@ -1074,13 +1095,14 @@ This function is invoked with the IO monad, so the |return ()| expression is a f
 % for paper haskell
 \begin{code}
 data PrettyRep = PrettyRep
+ppBeside :: Pretty -> Pretty -> Pretty
 \end{code}
 \end{comment}
 \begin{code}
 type Pretty = Int -> Bool -> PrettyRep
 
 ppBesides :: [Pretty] -> Pretty
-ppBesides = foldr1 f nil
+ppBesides = foldr1 ppBeside
 \end{code}
 
 Here |ppBesides| evaluates to |undefined| if the input list to |foldr1| is |[]|. The |undefined| value will be of type |Pretty|, and will be given further arguments, which can be functional arguments. In reality, the code ensures that the input list is never |[]|, so the program will never fail with this error.
