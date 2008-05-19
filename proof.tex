@@ -216,14 +216,12 @@ eval (Call f xs)  | f == "error" = Bottom
 
 There are two ways to get |Bottom| from this fragment. The first is the explicit |Bottom|, and the second is the recursive call to |eval|. The first |Bottom| is avoided under the condition:
 
-%if 0
-
 \h{exprlist}\begin{code}
 satE' $ pre $ Call f xs ==> f /= "error"
     -- inline |pre|
 satE' $ (precond f / (args f, xs)) `propAnd` propAnds (map pre xs) ==> f /= "error"
     -- inline |satE'|
-satE' (precond f / (args f, xs)) && all (sat . pre) xs ==> f /= "error"
+satE' (precond f / (args f, xs)) && all (satE' . pre) xs ==> f /= "error"
     -- weaken implication
 satE' (precond f / (args f, xs)) ==> f /= "error"
 \end{code}
@@ -243,7 +241,7 @@ satE' (precond f / (args f, xs)) ==> f /= "error"
     -- assume |f == "error"|
 satE' (precond f / (args f, xs)) ==> False
     -- implication
-not $ satE' $ satE' (precond "error" / (args f, xs))
+not $ satE' (precond "error" / (args f, xs))
     -- \lemma{precond/error}
 not $ satE' $ (propFalse / (args f, xs))
     -- inline |(/)|
@@ -253,6 +251,8 @@ not $ False
     -- inline |not|
 True
 \end{code}
+
+%if 0
 
 This leaves us with the call to |eval|, namely:
 
