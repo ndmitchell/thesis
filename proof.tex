@@ -12,8 +12,11 @@ import Data.List
 
 infixr 1  $
 infixr 0  ==>
-(==>) :: Bool -> Bool -> Bool
+class Implies a where (==>) :: a -> a -> Bool
 ($) :: (a -> b) -> a -> b
+
+instance Implies Bool
+instance Implies (Prop a)
 
 type FuncName = String
 type CtorName = String
@@ -52,12 +55,13 @@ propLit                   :: alpha -> Prop alpha
 
 data Constraint = Constraint
 
-class Subst a b c | c -> b, a -> b where (/) :: a -> b -> c
+class Subst a b c | c -> b, c -> a, a -> b where (/) :: a -> b -> c
 instance Subst Expr ([VarName], [Expr]) Expr
 instance Subst a b c => Subst (Prop a) b (Prop c)
 instance (Eq a, Eq b) => Subst (Sat a) ([a], [b]) (Sat b)
 
 instance Eq Val
+instance Eq Expr
 \end{code}
 \end{comment}
 
@@ -150,9 +154,7 @@ In particular this requires the following theorems about the constraint language
 {|sat (Val c xs) ((c,i) ||> k) ==> sat (xs !! i) k|}
 
 \theorem{sat/| <|| |}
-{|satV' ((c <|| k) / ([1..],xs)) ==> sat (Val c xs) k|}
-
-%if 0
+{|satV' $ (c <|| k) / ([1..],xs) ==> sat (Val c xs) k|}
 
 We will also need the following general theorems:
 
@@ -163,16 +165,13 @@ We will also need the following general theorems:
 {|precond f ==> reduce $ pre $ body f|}
 
 \theorem{reduce}
-{|satE' (reduce x /# xs) ==> satE' (x / (vs, xs))|}
+{|satE' $ reduce x / (vs,xs) ==> satE' $ x / (vs, xs)|}
 
-\theorem{pre/subst}
-{|sat (pre x) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
-
-\theorem{sat/subst}
-{|sat (pre x / (freeVars x, ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
+%\theorem{sat/subst}
+%{|sat (pre x / (freeVars x, ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
 
 \theorem{pre/uneval}
-{|not $ isBottom x ==> sat (pre (uneval x))|}
+{|not $ isBottom x ==> satE' $ pre $ uneval x|}
 
 \subsubsection{The Proof}
 
