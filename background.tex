@@ -1,5 +1,31 @@
 %include thesis.fmt
 
+\hsdef{\begin{comment}
+import Prelude hiding (repeat)
+import Data.List
+a,e,v_i,x_i,i
+Ord,letrec,xs,bottom
+\end{comment}}
+
+\begin{comment}
+\begin{code}
+data Expr = EVar String
+          | ECon String [Expr]
+          | EFun String [Expr]
+          | EApp Expr [Expr]
+          | ELam String [Expr]
+          | ELet String Expr Expr
+          | ECase Expr [Alt]
+
+data Alt = EAlt String [String] Expr
+
+unions = foldr1 union
+
+expensive = undefined
+dummy = ()
+\end{code}
+\end{comment}
+
 \chapter{Background}
 \label{chp:background}
 
@@ -10,7 +36,7 @@ In this chapter we introduce the background material and general notations used 
 
 \begin{figure}
 \renewcommand{\f}[1]{\text{\hspace{1cm}#1}}
-\begin{code}
+\ignore\begin{code}
 prog  ::=  fs_                 {-"\f{program}"-}
 
 func  ::=  f vs_ = x           {-"\f{function}"-}
@@ -31,11 +57,11 @@ Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over f
 \label{figB:core}
 \end{figure}
 
-The syntax of our Core language is given in Figure \ref{figB:core}. To specify a list of items of unspecified length we write either |x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. During future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation. The language is based upon Yhc.Core, a semantics for which is given in \cite{me:yhc_core}.
+The syntax of our Core language is given in Figure \ref{figB:core}. To specify a list of items of unspecified length we write either \ignore|x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. During future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation. The language is based upon Yhc.Core, a semantics for which is given in \cite{me:yhc_core}.
 
 A program is a list of functions, with a root function named |main|. A function is a name, a list of arguments and a body expression. Variables and lambda abstractions are much as they would be in any Core language.  Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary. We have three forms of application, all of which take two values: the first value may be either a constructor, a top-level named function, or any arbitrary expression; the second value is a list of arguments, which may be empty. These forms of application give rise to three equivalences:
 
-\begin{code}
+\ignore\begin{code}
 (x xs_) ys_ == x xs_ ys_
 (f xs_) ys_ == f xs_ ys_
 (c xs_) ys_ == c xs_ ys_
@@ -43,7 +69,7 @@ A program is a list of functions, with a root function named |main|. A function 
 
 We allow a list of variables to appear in a lambda abstraction and a list of bindings to appear in a let. This syntactic sugar can be translated away using the following rules:
 
-\begin{code}
+\ignore\begin{code}
 \v vs_ -> x              => \v -> (\vs_ -> x)
 let v = x ; binds_ in y  => let v = x in (let binds_ in y)
 let v vs_ = x xs_ in y   => let v = x in (let vs_ = xs_ in y)
@@ -84,15 +110,15 @@ ctors  :: CtorName  -> [CtorName]
 \label{figB:core_operations}
 \end{figure}
 
-Figure \ref{figB:core_operations} gives the signatures for helper functions over the core data types. We use the functions |body f| and |args f| to denote the body and arguments of |f|. We use the function |rhs| to extract the expression on the right of a case alternative. Every function and constructor has an arity, which can be obtained with the |arity| function. To determine alternative constructors the |ctors| function can be used; for example |ctors "True" = ["False", "True"]| and |ctors "[]" = ["[]",":"]|.
+Figure \ref{figB:core_operations} gives the signatures for helper functions over the core data types. We use the functions |body f| and |args f| to denote the body and arguments of |f|. We use the function |rhs| to extract the expression on the right of a case alternative. Every function and constructor has an arity, which can be obtained with the |arity| function. To determine alternative constructors the |ctors| function can be used; for example \h{stmt}|ctors "True" = ["False", "True"]| and \h{stmt}|ctors "[]" = ["[]",":"]|.
 
 
 \subsubsection{Substitution}
 
-We define |e[v / x]| to be the capture free substitution of the variable |v| for the expression |x| within the expression |e|. We define |e[v_1,...,v_n / x_1,...,x_n]| to be the simultaneous substitution of each variable |v_i| for each expression |x_i| in |e|.
+We define \ignore|e[v / x]| to be the capture free substitution of the variable |v| for the expression |x| within the expression |e|. We define \ignore|e[v_1,...,v_n / x_1,...,x_n]| to be the simultaneous substitution of each variable |v_i| for each expression |x_i| in |e|.
 
 \begin{example}
-\begin{code}
+\ignore\begin{code}
 (v + 1)[v / 2]               => 2 + 1
 (let v = 3 in v + 1)[v / 2]  => let v = 3 in v + 1
 \end{code}
@@ -146,31 +172,31 @@ In order to avoid accidental variable name clashes while performing transformati
 \end{code}}
 
 \simp{case-con}{
-\begin{code}
+\ignore\begin{code}
 case c xs_ of {... ; c vs_ -> y ; ...}
     => let vs_ = xs_ in y
 \end{code}}
 
 \simp{lam-app}{
-\begin{code}
+\ignore\begin{code}
 (\v -> x) y
     => let v = y in x
 \end{code}}
 
 \simp{case-app}{
-\begin{code}
+\ignore\begin{code}
 (case x of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n}) z
     => case x of {c_1 vs__1 -> y_1 z ; ... ; c_n vs__n -> y_n z}
 \end{code}}
 
 \simp{let-app}{
-\begin{code}
+\ignore\begin{code}
 (let v = x in y) z
     => let v = x in y z
 \end{code}}
 
 \simp{let-case}{
-\begin{code}
+\ignore\begin{code}
 let v = x in (case y of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n})
     => case y of  {  c_1 vs__1  -> let v = x in y_1
                   ;  ...
@@ -185,7 +211,7 @@ case (let v = x in y) of as_
 \end{code}}
 
 \simp{case-case}{
-\begin{code}
+\ignore\begin{code}
 case (case x of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n}) of as_
     => case x of  {  c_1 vs__1  -> case y_1 of as_
                   ;  ...
@@ -193,14 +219,14 @@ case (case x of {c_1 vs__1 -> y_1 ; ... ; c_n vs__n -> y_n}) of as_
 \end{code}}
 
 \simp{case-lam}{
-\begin{code}
+\ignore\begin{code}
 case x of {... ; c vs_ -> \v -> y ; ...}
     => \z -> case  x of
                    {... z ; c vs_ -> (\v -> y) z ; ... z}
 \end{code}}
 
 \simp{let}{
-\begin{code}
+\ignore\begin{code}
 let v = x in y
     => y[v/x]
     where x {-" \hbox{is used once in } "-} y
@@ -219,9 +245,9 @@ The (app-app), (fun-app) and (con-app) rules normalise applications. The (case-c
 \section{Semantics}
 \label{secB:semantics}
 
-The evaluation strategy of our Core language is lazy. We specify a reduction to weak-head normal form (WHNF) in Figure \ref{figB:whnf} and a reduction to normal form (NF) in \ref{figB:nf}. We have assumed that all applications are translated to general applications where the second value is a 1-element list. The |_F| function translates a function name to an associate expression incorporating the program arguments as variables in a lambda, and the body as the body of that lambda. The grammar for expressions in WHNF is:
+The evaluation strategy of our Core language is lazy. We specify a reduction to weak-head normal form (WHNF) in Figure \ref{figB:whnf} and a reduction to normal form (NF) in \ref{figB:nf}. We have assumed that all applications are translated to general applications where the second value is a 1-element list. The \ignore|_F| function translates a function name to an associate expression incorporating the program arguments as variables in a lambda, and the body as the body of that lambda. The grammar for expressions in WHNF is:
 
-\begin{code}
+\ignore\begin{code}
 r  =  c \< xs_ \>  {-" \text{  constructor} "-}
    |  \v -> x      {-" \text{  lambda} "-}
    |  bottom       {-" \text{  bottom/undefined} "-}
@@ -229,7 +255,7 @@ r  =  c \< xs_ \>  {-" \text{  constructor} "-}
 
 The grammar for expression in NF is:
 
-\begin{code}
+\ignore\begin{code}
 n  =  c \< ns_ \>  {-" \text{  constructor} "-}
    |  \v -> x      {-" \text{  lambda} "-}
    |  bottom       {-" \text{  bottom/undefined} "-}
@@ -247,31 +273,31 @@ n  =  c \< ns_ \>  {-" \text{  constructor} "-}
 \begin{figure}
 \begin{eqnarray}
 \sem
-    {|c => c \< \>|}
+    {\ignore|c => c \< \>|}
 \\ \semmm
-    {|_F(f) = x|}
-    {|x => r|}
-    {|f => r|}
+    {\ignore|_F(f) = x|}
+    {\ignore|x => r|}
+    {\ignore|f => r|}
 \\ \semm
-    {|x => bottom|}
-    {|x y => bottom|}
+    {\ignore|x => bottom|}
+    {\ignore|x y => bottom|}
 \\ \semm
-    {|x => c \< xs_ \>|}
-    {|x y => c \< xs_ y \>|}
+    {\ignore|x => c \< xs_ \>|}
+    {\ignore|x y => c \< xs_ y \>|}
 \\ \semmm
-    {|x => \v -> x'|}
-    {|x'[v/y] => r|}
-    {|x y => r|}
+    {\ignore|x => \v -> x'|}
+    {\ignore|x'[v/y] => r|}
+    {\ignore|x y => r|}
 \\ \semm
-    {|y[v/x] => r|}
-    {|let v = x in y => r|}
+    {\ignore|y[v/x] => r|}
+    {\ignore|let v = x in y => r|}
 \\ \semmm
-    {|x => c \< xs_ \>|}
-    {|y[vs_ / xs_] => r|}
-    {|case x of {... ; c vs_ -> y ; ...} => r|}
+    {\ignore|x => c \< xs_ \>|}
+    {\ignore|y[vs_ / xs_] => r|}
+    {\ignore|case x of {... ; c vs_ -> y ; ...} => r|}
 \\ \semm
-    {|x => bottom|}
-    {|case x of alts_ => bottom|}
+    {\ignore|x => bottom|}
+    {\ignore|case x of alts_ => bottom|}
 \end{eqnarray}
 \caption{Reduction to weak-head normal form, |(=>)|.}
 \label{figB:whnf}
@@ -280,25 +306,25 @@ n  =  c \< ns_ \>  {-" \text{  constructor} "-}
 \begin{figure}
 \begin{eqnarray}
 \semm
-    {|x => bottom|}
-    {|x =>* bottom|}
+    {\ignore|x => bottom|}
+    {\ignore|x =>* bottom|}
 \\ \semm
-    {|x => \v -> y|}
-    {|x =>* \v -> y|}
+    {\ignore|x => \v -> y|}
+    {\ignore|x =>* \v -> y|}
 \\ \semmm
-    {|x => c \< xs_ \>|}
-    {|xs_ =>* xs_' |}
-    {|x =>* c \< xs_' \>|}
+    {\ignore|x => c \< xs_ \>|}
+    {\ignore|xs_ =>* xs_' |}
+    {\ignore|x =>* c \< xs_' \>|}
 \end{eqnarray}
-\caption{Reduction to normal form, |(=>*)|.}
+\caption{Reduction to normal form, \ignore|(=>*)|.}
 \label{figB:nf}
 \end{figure}
 
 Our semantics does not respect sharing, this topic is dealt with in \S\ref{secB:sharing}. The evaluation of a program corresponds to reducing |main| to NF.
 
-We never descend below a bound variable without replacing that variable, therefore any remaining variable would have to be free in the definition of the program, which is not permitted. Consequently, there is no rule for a variable. We choose not evaluate inside a lambda, even on |=>*|, as this would generate a free variable. The |_F| mapping never crashes, as it is checked statically that all mentioned function names exist in the mapping.
+We never descend below a bound variable without replacing that variable, therefore any remaining variable would have to be free in the definition of the program, which is not permitted. Consequently, there is no rule for a variable. We choose not evaluate inside a lambda, even on \ignore|=>*|, as this would generate a free variable. The \ignore|_F| mapping never crashes, as it is checked statically that all mentioned function names exist in the mapping.
 
-The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. |_F(error) = \v -> bottom|. If a computation forces a |bottom| value, in the scrutinee of a case or the first argument of an application, the |bottom| is propagated.
+The only way an undefined value may be initially generated is by a call to the error function in the program, i.e. \ignore|_F(error) = \v -> bottom|. If a computation forces a |bottom| value, in the scrutinee of a case or the first argument of an application, the |bottom| is propagated.
 
 There is no rule for case of a lambda abstraction, as this situation is not permitted by the type system. Similarly, the type system plus the exhaustiveness of case branches means that if the scrutinee successfully evaluates, it will match exactly one alternative.
 \end{comment}
@@ -450,7 +476,7 @@ f x y = x == y || x /= y
 
 \noindent is translated by Yhc into
 
-\begin{code}
+\ignore\begin{code}
 f :: (alpha -> alpha -> Bool, alpha -> alpha -> Bool) -> alpha -> alpha -> Bool
 f dict x y = (||) (((==) dict) x y) (((/=) dict) x y)
 
