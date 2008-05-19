@@ -10,17 +10,6 @@
 
 
 \hsdef{\begin{comment}
-import GHC.Exts(build)
-import Control.Monad.State
-import Data.Maybe
-import Data.Monoid
-import Data.Typeable
-import Data.Generics hiding (Unit)
-instance Eq Expr
-instance Eq (a -> b)
-instance Eq (Str a)
-instance Typeable Expr
-instance Typeable Stmt
 Char,Bool,Float,Data
 Traversable
 UniplateOn,On,Bi
@@ -30,24 +19,21 @@ warnAssign
 increase,incrOne,com_increase,syb_increase,syb_incrOne
 Data.Generics.PlateDirect,Data.Generics.PlateTypeable,PlateData
 \end{comment}}
-
 \begin{comment}
-% extra code needed for tex2hs
-\ignore\begin{code}
-class Uniplate x where
-	uniplate :: x -> (Str x, Str x -> x)
-\end{code}
-\ignore\begin{code}
-class Uniplate x where
-\end{code}
-\begin{code}
-transform' x = transform x
-\end{code}
-\begin{code}
-children = undefined
-context = undefined
-\end{code}
-\begin{code}
+\h{#*}\begin{code}
+import GHC.Exts(build)
+import Control.Monad.State
+import Data.Maybe
+import Data.Monoid
+import Data.Typeable
+import Data.Generics hiding (Unit)
+
+instance Eq Expr
+instance Eq (a -> b)
+instance Eq (Str a)
+instance Typeable Expr
+instance Typeable Stmt
+
 class Compos t where
     compos :: (forall a. a -> m a) -> (forall a b. m (a -> b) -> m a -> m b) -> (forall a. t a -> m (t a)) -> t c -> m (t c)
 composOp :: Compos t => (forall a. t a -> t a) -> t c -> t c

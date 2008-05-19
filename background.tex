@@ -1,14 +1,14 @@
 %include thesis.fmt
 
 \hsdef{\begin{comment}
-import Prelude hiding (repeat)
-import Data.List
 a,e,v_i,x_i,i,f
 Ord,letrec,xs,bottom
 \end{comment}}
-
 \begin{comment}
 \begin{code}
+import Prelude hiding (repeat)
+import Data.List hiding (repeat)
+
 data Expr = EVar String
           | ECon String [Expr]
           | EFun String [Expr]

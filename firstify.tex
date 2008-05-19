@@ -14,14 +14,15 @@
     {\noexample}
 
 \hsdef{\begin{comment}
-import Prelude hiding (map)
-import Data.List hiding (map)
 Show
 f,x,y,g,v,e,s_0,l',b',n,l_n,s,l_n'
 app,lam
 \end{comment}}
 \begin{comment}
 \begin{code}
+import Prelude hiding (map)
+import Data.List hiding (map)
+
 data Expr = EVar String
           | ECon String [Expr]
           | EFun String [Expr]
@@ -31,7 +32,7 @@ data Expr = EVar String
           | ECase Expr [Alt]
 data Alt = EAlt String [String] Expr
 
-instance Eq Expr           
+instance Eq Expr
 
 type FuncName = String
 body   :: FuncName  -> Expr

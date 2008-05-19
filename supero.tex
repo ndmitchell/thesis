@@ -1,18 +1,19 @@
 %include thesis.fmt
 
 \hsdef{\begin{comment}
-import Prelude hiding (map,words,putStr,putChar)
-import Data.List hiding (map,words)
-import Data.Char
-import GHC.Exts(build)
 as,ds,f,ys,r,y,psi
 supercompile,generalise,terminate
 \end{comment}}
 \begin{comment}
 \begin{code}
+import Prelude hiding (map,words,putStr,putChar)
+import Data.List hiding (map,words)
+import Data.Char
+import GHC.Exts(build)
+
 data Expr = EFun String [Expr]
           | EApp Expr [Expr]
-          
+
 fv :: Expr -> [String]
 holes :: Expr -> [(Expr, Expr -> Expr)]
 inline :: String -> Expr
