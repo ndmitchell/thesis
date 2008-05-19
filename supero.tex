@@ -14,7 +14,7 @@ import GHC.Exts(build)
 data Expr = EFun String [Expr]
           | EApp Expr [Expr]
 
-fv :: Expr -> [String]
+freeVars :: Expr -> [String]
 holes :: Expr -> [(Expr, Expr -> Expr)]
 inline :: String -> Expr
 terminate :: Expr -> Bool
@@ -98,9 +98,9 @@ supercompile()
 tie(rho, x)
     if x `notElem` seen then
         seen := seen `union` {x}
-        bind := bind `union` {psi\!!(x) = \ fv\!!(x) -> drive\!!(rho,x)}
+        bind := bind `union` {psi\!!(x) = \ freeVars\!!(x) -> drive\!!(rho,x)}
     {-" \textsf{\textbf{endif}} "-}
-    {-" \textsf{\textbf{return }} "-} (psi\!!(x) fv\!!(x))
+    {-" \textsf{\textbf{return }} "-} (psi\!!(x) freeVars\!!(x))
 
 drive(rho, x)
     if terminate\!!(rho, x) then
@@ -110,7 +110,7 @@ drive(rho, x)
         {-" \textsf{\textbf{return }} "-} drive\!!(rho `union` {x}, unfold\!!(x))
 \end{code}
 
-Where |psi| is a mapping from expressions to function names, and \ignore|fv\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decides whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it.
+Where |psi| is a mapping from expressions to function names, and \ignore|freeVars\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decides whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it.
 \vspace{3mm}
 \caption{The |supercompile| function.}
 \label{figS:supercompile}
@@ -288,14 +288,14 @@ Our generalisation is characterised by $x \bowtie y$, which produces an expressi
 \ignore\begin{code}
 {-" x \bowtie \sigma^*(y), \text{if dive}(x,\sigma^*(y)) \wedge \text{couple}(x,y) "-}
         let f = \vs_ -> x in {-" \sigma^* "-}(f vs_)
-        {-" \text{where } "-}vs_{-" = \text{fv}(y) \backslash \text{fv}(\sigma^*(y)) "-}
+        {-" \text{where } "-}vs_{-" = \text{freeVars}(y) \backslash \text{freeVars}(\sigma^*(y)) "-}
 
 {-" x \bowtie y, \text{if couple}(x,y) "-}
         let {-" \theta_2 "-} in {-" t_g "-}
         {-" \text{where }(t_g,\theta_1,\theta_2) = \text{msg}(x,y) "-}
 \end{code}
 
-The fv function in the first rule calculates the free variables of an expression, and $\sigma^*(y)$ denotes a subexpression $y$ within a containing context $\sigma^*$. The first rule applies if the homeomorphic embedding first applied the dive rule. The idea is to descend to the element which matched, and then promote this to the top-level using a lambda. The second rule applies the most specific generalisation operation if the coupling rule was applied first.
+The |freeVars| function in the first rule calculates the free variables of an expression, and $\sigma^*(y)$ denotes a subexpression $y$ within a containing context $\sigma^*$. The first rule applies if the homeomorphic embedding first applied the dive rule. The idea is to descend to the element which matched, and then promote this to the top-level using a lambda. The second rule applies the most specific generalisation operation if the coupling rule was applied first.
 
 Some examples of our generalisation method, and the msg generalisation, are:
 
