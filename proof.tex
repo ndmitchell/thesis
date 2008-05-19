@@ -2,8 +2,8 @@
 %include catch.fmt
 
 \hsdef{\begin{comment}
-k,vs,zs,xs,f,c,v,i,on,xs_i,ys,x,ys_i
-vs_,xs_,y,as_,alt,ys_,cs
+k,f,c,v,i,on,xs_i,x,ys_i
+vs,xs,y,as,alt,ys,cs
 \end{comment}}
 \begin{comment}
 \begin{code}
@@ -93,19 +93,19 @@ data Expr  =  Make CtorName [Expr]
 data Alt = Alt CtorName [VarName] Expr
 
 eval :: Expr -> Val
-eval (Make c xs_   ) = Val c (map eval xs_)
-eval (Call f xs_)  | f == "error" = Bottom
-                   | otherwise = eval $ body f / (args f, xs_)
-eval (Case x as_  ) = case eval x of
-    Val c xs_ -> eval $ head [y / (vs_, map uneval xs_) | Alt c' vs_ y <- as_, c == c']
+eval (Make c xs   ) = Val c (map eval xs)
+eval (Call f xs)  | f == "error" = Bottom
+                  | otherwise = eval $ body f / (args f, xs)
+eval (Case x as   ) = case eval x of
+    Val c xs -> eval $ head [y / (vs, map uneval xs) | Alt c' vs y <- as, c == c']
     Bottom -> Bottom
 
 uneval :: Val -> Expr
-uneval (Val c xs_)  = Make c (map uneval xs_)
-uneval Bottom       = Call "error" []
+uneval (Val c xs)  = Make c (map uneval xs)
+uneval Bottom      = Call "error" []
 \end{code}
 
-We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs_,ys_)| to denote replacing the free variables |vs_| in |x| with |ys_|. There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as substitution will remove them. We can assume the argument to |eval| has no free variables. The free variables of a function are its arguments.
+We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs,ys)| to denote replacing the free variables |vs| in |x| with |ys|. We use |(/)| instead of |substP| in the proofs. There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as substitution will remove them. We can assume the argument to |eval| has no free variables. The free variables of a function are its arguments.
 
 We also make use of a number of auxiliaries throughout the proof:
 
@@ -115,7 +115,7 @@ isBottom Bottom = True
 isBottom (Val c xs) = any isBottom xs
 
 valCtor :: Val -> Maybe CtorName
-valCtor (Val c xs_) = Just c
+valCtor (Val c xs) = Just c
 valCtor Bottom = Nothing
 
 propTaut :: (alpha -> Bool) -> Prop alpha -> Bool
@@ -168,7 +168,7 @@ We will also need the following general theorems:
 {|satE' $ reduce x / (vs,xs) ==> satE' $ x / (vs, xs)|}
 
 %\theorem{sat/subst}
-%{|sat (pre x / (freeVars x, ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
+%{|sat (pre x / (freeVars x, ys)) && all (sat . pre) ys ==> sat $ pre $ x / (freeVars x, ys)|}
 
 \theorem{pre/uneval}
 {|not $ isBottom x ==> satE' $ pre $ uneval x|}
@@ -186,21 +186,21 @@ By induction. We do not need to consider |Var| as |eval| cannot be called on exp
 The initial definition is:
 
 \begin{code}
-eval (Make c xs_) = Val c (map eval xs_)
+eval (Make c xs) = Val c (map eval xs)
 \end{code}
 
 This does not produce |Bottom| if all recursive calls to |eval| are on values which satisfy |pre|. We can write this as:
 
 \h{exprlist}\begin{code}
-sat $ pre $ Make c xs_  ==> all (sat . pre) xs_
+satE' $ pre $ Make c xs  ==> all (satE' . pre) xs
     -- inline |pre|
-sat $ propAnd $ map pre xs_ ==> all (sat . pre) xs_
-    -- inline |sat|
-and $ map sat $ map pre xs_  ==> all (sat . pre) xs_
+satE' $ propAnds $ map pre xs ==> all (satE' . pre) xs
+    -- inline |satE'|
+and $ map satE' $ map pre xs  ==> all (satE' . pre) xs
     -- |map f . map g == map (f . g)|
-and $ map (sat . pre) xs_ ==> all (sat . pre) xs_
+and $ map (satE' . pre) xs ==> all (satE' . pre) xs
     -- |and . map f == all f|
-all (sat . pre) xs_ ==> all (sat . pre) xs_
+all (satE' . pre) xs ==> all (satE' . pre) xs
     -- equal
 True
 \end{code}
@@ -210,43 +210,45 @@ True
 The initial definition is:
 
 \begin{code}
-eval (Call f xs_)  | f == "error" = Bottom
-                   | otherwise = eval $ (body f)[args f / xs_]
+eval (Call f xs)  | f == "error" = Bottom
+                   | otherwise = eval $ body f / (args f, xs)
 \end{code}
 
 There are two ways to get |Bottom| from this fragment. The first is the explicit |Bottom|, and the second is the recursive call to |eval|. The first |Bottom| is avoided under the condition:
 
+%if 0
+
 \h{exprlist}\begin{code}
-sat $ pre $ Call f xs_ ==> f /= "error"
+satE' $ pre $ Call f xs ==> f /= "error"
     -- inline |pre|
-sat $ substP xs (precond f) `propAnd` propAnds (map pre xs_) ==> f /= "error"
-    -- inline |sat|
-sat (substP xs (precond f)) && all (sat . pre) xs_ ==> f /= "error"
+satE' $ (precond f / (args f, xs)) `propAnd` propAnds (map pre xs) ==> f /= "error"
+    -- inline |satE'|
+satE' (precond f / (args f, xs)) && all (sat . pre) xs ==> f /= "error"
     -- weaken implication
-sat (substP xs (precond f)) ==> f /= "error"
+satE' (precond f / (args f, xs)) ==> f /= "error"
 \end{code}
 
 We can now perform case analysis on |f|, assuming it either is, or is not, equal to |"error"|.
 
 \h{exprlist}\begin{code}
-sat (substP xs (precond f)) ==> f /= "error"
+satE' (precond f / (args f, xs)) ==> f /= "error"
     -- assume |f /= "error"|
-sat (substP xs (precond f)) ==> True
+satE' (precond f / (args f, xs)) ==> True
     -- implication
 True
 \end{code}
 
 \h{exprlist}\begin{code}
-sat (substP xs (precond f)) ==> f /= "error"
+satE' (precond f / (args f, xs)) ==> f /= "error"
     -- assume |f == "error"|
-sat (substP xs (precond "error")) ==> False
+satE' (precond f / (args f, xs)) ==> False
     -- implication
-not $ sat $ substP xs $ precond "error"
+not $ satE' $ satE' (precond "error" / (args f, xs))
     -- \lemma{precond/error}
-not $ sat $ substP xs $ propFalse
-    -- inline |substP|
-not $ sat $ propFalse
-    -- inline |sat|
+not $ satE' $ (propFalse / (args f, xs))
+    -- inline |(/)|
+not $ satE' propFalse
+    -- inline |satE'|
 not $ False
     -- inline |not|
 True
@@ -255,33 +257,33 @@ True
 This leaves us with the call to |eval|, namely:
 
 \h{exprlist}\begin{code}
-sat $ pre $ Call f xs_ ==> sat $ pre $ body f / (args f, xs)
+sat $ pre $ Call f xs ==> sat $ pre $ body f / (args f, xs)
     -- inline pre on LHS
-sat $ (precond f / (args f /# xs_)) `propAnd` propAnds (map pre xs_) ==> sat $ pre $ body f / (args f, xs)
+sat $ (precond f / (args f /# xs)) `propAnd` propAnds (map pre xs) ==> sat $ pre $ body f / (args f, xs)
     -- inline |sat|
-sat (precond f / (args f /# xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+sat (precond f / (args f /# xs)) && all (sat . pre) xs ==> sat $ pre $ body f / (args f, xs)
     -- \lemma{precond}
-sat ((reduce $ pre $ body f) / (args f /# xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+sat ((reduce $ pre $ body f) / (args f /# xs)) && all (sat . pre) xs ==> sat $ pre $ body f / (args f, xs)
     -- \lemma{reduce}
-sat (pre (body f) / (args f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+sat (pre (body f) / (args f / xs)) && all (sat . pre) xs ==> sat $ pre $ body f / (args f, xs)
     -- \lemma{pre/subst}
 True
 \end{code}
 
 
 \h{exprlist}\begin{code}
-sat ((reduce $ pre $ body f) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+sat ((reduce $ pre $ body f) / (argsN f / xs)) && all (sat . pre) xs ==> sat $ pre $ body f / (args f, xs)
 \end{code}
 
 We can now do case analysis on the body of f.
 
 \h{exprlist}\begin{code}
     -- body f == Var v
-sat ((reduce $ pre $ Var v) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ v / (args f, xs)
+sat ((reduce $ pre $ Var v) / (argsN f / xs)) && all (sat . pre) xs ==> sat $ pre $ v / (args f, xs)
     -- apply the substitution
-sat ((reduce $ pre $ Var v) / (argsN f / xs_)) && all (sat . pre) xs_ && y `elem` xs ==> sat $ pre y
+sat ((reduce $ pre $ Var v) / (argsN f / xs)) && all (sat . pre) xs && y `elem` xs ==> sat $ pre y
     -- weaken the precondition
-all (sat . pre) xs_ && y `elem` xs ==> sat $ pre y
+all (sat . pre) xs && y `elem` xs ==> sat $ pre y
     -- \lemma{all/elem}
 sat $ pre y ==> sat $ pre y
     -- implication
@@ -290,19 +292,19 @@ True
 
 \h{exprlist}\begin{code}
     -- body f == Make c ys
-sat ((reduce $ pre $ Make c ys) / (argsN f, xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+sat ((reduce $ pre $ Make c ys) / (argsN f, xs)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
     -- inline |pre| on RHS
-sat ((reduce $ propAnd $ map pre ys) / (argsN f, xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+sat ((reduce $ propAnd $ map pre ys) / (argsN f, xs)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
     -- inline |reduce|
-sat (propAnds (map (reduce . pre) ys) / (argsN f, xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+sat (propAnds (map (reduce . pre) ys) / (argsN f, xs)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
     -- inline |(/)| on LHS
-sat (propAnds (map ((/ (argsN f, xs_)) . reduce . pre) ys)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+sat (propAnds (map ((/ (argsN f, xs)) . reduce . pre) ys)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
     -- inline |sat|
-all (sat . ((/ (argsN f, xs_)) . reduce . pre) ys) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+all (sat . ((/ (argsN f, xs)) . reduce . pre) ys) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
     -- inline |(/)| on RHS
-all (sat . ((/ (argsN f, xs_)) . reduce . pre) ys) && all (sat . pre) xs_ ==> sat $ pre $ Make c $ map (/ (args f, xs)) ys
+all (sat . ((/ (argsN f, xs)) . reduce . pre) ys) && all (sat . pre) xs ==> sat $ pre $ Make c $ map (/ (args f, xs)) ys
     -- inline |pre| on RHS
-all (sat . ((/ (argsN f, xs_)) . reduce . pre) ys) && all (sat . pre) xs_ ==> all (sat. pre . (/ (args f, xs))) ys
+all (sat . ((/ (argsN f, xs)) . reduce . pre) ys) && all (sat . pre) xs ==> all (sat. pre . (/ (args f, xs))) ys
     -- inductive hypothesis
 True
 \end{code}
@@ -311,17 +313,17 @@ True
 
 
 \h{exprlist}\begin{code}
-all (sat . reduce . pre) ys sat (propAnds (map (reduce . pre) ys) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+all (sat . reduce . pre) ys sat (propAnds (map (reduce . pre) ys) / (argsN f / xs)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
 
-sat ((reduce $ pre $ Make c ys) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ Make c ys / (args f, xs)
+sat ((reduce $ pre $ Make c ys) / (argsN f / xs)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
 \end{code}
 
 
 \proof[|Case|:]{pre/eval}
 
 \begin{code}
-eval (Case x as_  ) = case eval x of
-    Val c xs_ -> eval $ head [y / (vs_, map uneval xs_) | Alt c' vs_ y <- as_, c == c']
+eval (Case x as  ) = case eval x of
+    Val c xs -> eval $ head [y / (vs, map uneval xs) | Alt c' vs y <- as, c == c']
     Bottom -> Bottom
 \end{code}
 
@@ -330,11 +332,11 @@ This equation may generate |Bottom| in two ways -- either the explicit |Bottom| 
 We first prove that the explicit |Bottom| is not reached, assuming the initial expression does not violate the precondition check.
 
 \h{exprlist}\begin{code}
-sat $ pre $ Case x as_ ==> sat $ pre x
+sat $ pre $ Case x as ==> sat $ pre x
     -- inline |pre|
-sat $ pre x `propAnd` propAnd (map alt as_) ==> sat $ pre x
+sat $ pre x `propAnd` propAnd (map alt as) ==> sat $ pre x
     -- inline |sat|
-sat (pre x) && propAnd (map alt as_) ==> sat $ pre x
+sat (pre x) && propAnd (map alt as) ==> sat $ pre x
     -- weaken implication
 sat $ pre x ==> sat $ pre x
     -- equal
@@ -344,37 +346,37 @@ True
 We now need to ensure that the other call to |eval| meets its precondition:
 
 \h{exprlist}\begin{code}
-sat (pre (Case x as_)) && (eval x == Val c xs_) ==> sat $ pre $ y / (vs_, map uneval xs_)
+sat (pre (Case x as)) && (eval x == Val c xs) ==> sat $ pre $ y / (vs, map uneval xs)
 \end{code}
 
 First we can work on the RHS only:
 
 \h{exprlist}\begin{code}
-sat $ pre $ y / (vs_, map uneval xs_)
+sat $ pre $ y / (vs, map uneval xs)
     -- \lemma{pre/subst}
-sat (pre y / (vs_, map uneval xs)) && all (sat . pre) (map uneval xs)
+sat (pre y / (vs, map uneval xs)) && all (sat . pre) (map uneval xs)
     -- |all f . map g == all (f . g)|
-sat (pre y / (vs_, map uneval xs)) && all (sat . pre . uneval) xs
+sat (pre y / (vs, map uneval xs)) && all (sat . pre . uneval) xs
     -- \lemma{pre/uneval}
-sat (pre y / (vs_, map uneval xs)) && all (sat . const propTrue) xs
+sat (pre y / (vs, map uneval xs)) && all (sat . const propTrue) xs
     -- inline |sat|
-sat (pre y / (vs_, map uneval xs)) && all (const True) xs
+sat (pre y / (vs, map uneval xs)) && all (const True) xs
     -- |all (const True) xs == True|
-sat (pre y / (vs_, map uneval xs))
+sat (pre y / (vs, map uneval xs))
 \end{code}
 
 We can now return to the whole thing, assuming that the constructor is the first to be chosen. We can reorder the alternatives because they have no order and are processed in a map in the code. We can assume that |x| matches \ignore|Val c _| because that branch has been picked.
 
 \h{exprlist}\begin{code}
-sat $ pre $ Case x (Alt c vs_ y : as_) ==> sat $ pre y
+sat $ pre $ Case x (Alt c vs y : as) ==> sat $ pre y
     -- inline |pre|
-sat $ pre x `propAnd` propAnds (map alt (Alt c vs_ y : as_)) ==> sat $ pre y
+sat $ pre x `propAnd` propAnds (map alt (Alt c vs y : as)) ==> sat $ pre y
     -- inline |sat|
-sat (pre x) && all (sat . alt) (Alt c vs_ y : as_) ==> sat $ pre y
+sat (pre x) && all (sat . alt) (Alt c vs y : as) ==> sat $ pre y
     -- inline |all|
-sat (pre x) && sat (alt (Alt c vs_ y)) && all (sat . alt) as_ ==> sat $ pre y
+sat (pre x) && sat (alt (Alt c vs y)) && all (sat . alt) as ==> sat $ pre y
     -- weaken the implication
-sat $ alt $ Alt c vs_ y ==> sat $ pre y
+sat $ alt $ Alt c vs y ==> sat $ pre y
     -- inline |alt|
 sat $ x -< (ctors c \\ [c]) `propOr` pre y ==> sat $ pre y
     -- inline |sat|
@@ -423,9 +425,9 @@ reduce' f = substP (args f) $ reduce (body f)
 
 
 
-sat ((reduce $ pre $ body f) / (argsN f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+sat ((reduce $ pre $ body f) / (argsN f / xs)) && all (sat . pre) xs ==> sat $ pre $ body f / (args f, xs)
     -- \lemma{reduce}
-sat (pre (body f) / (args f / xs_)) && all (sat . pre) xs_ ==> sat $ pre $ body f / (args f, xs)
+sat (pre (body f) / (args f / xs)) && all (sat . pre) xs ==> sat $ pre $ body f / (args f, xs)
 \end{code}
 
 
@@ -482,7 +484,7 @@ satisfies x k ==> satisfies x k
 True
 \end{code}
 
-Now lets assume it is equal to the |Right|. If |var v == Right (on,(c,i))|, we therefore know that |v| is not a free variable, and the substitution |(/)| will not apply. We also know that |on == Val c xs|, where |xs_i == v|.
+Now lets assume it is equal to the |Right|. If |var v == Right (on,(c,i))|, we therefore know that |v| is not a free variable, and the substitution |(/)| will not apply. We also know that |on == Val c xs|, where |xsi == v|.
 
 \h{exprlist}\begin{code}
 sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
@@ -491,8 +493,8 @@ sat (red on ((c,i) |> k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
     -- knowledge about |on == Val c xs|
 sat (red (Make c ys) ((c,i) |> k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
     -- \lemma{| ||> |}
-sat (red ys_i k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
-    -- knowledge that |ys_i == v|
+sat (red ysi k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
+    -- knowledge that |ysi == v|
 sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
     -- \lemma{red}
 sat (v / (vs, xs)) k ==> satisfies (v / (vs, xs)) k
