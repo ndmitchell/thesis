@@ -1,5 +1,30 @@
 %include thesis.fmt
 
+\hsdef{\begin{comment}
+import Prelude hiding (map,words,putStr,putChar)
+import Data.List hiding (map,words)
+import Data.Char
+import GHC.Exts(build)
+as,ds,f,ys,r,y,psi
+supercompile,generalise,terminate
+\end{comment}}
+\begin{comment}
+\begin{code}
+data Expr = EFun String [Expr]
+          | EApp Expr [Expr]
+          
+fv :: Expr -> [String]
+holes :: Expr -> [(Expr, Expr -> Expr)]
+inline :: String -> Expr
+terminate :: Expr -> Bool
+
+data RealWorld = RealWorld
+putStr :: String -> RealWorld -> (RealWorld, ())
+putChar :: Char -> RealWorld -> (RealWorld, ())
+\end{code}
+\end{comment}
+
+
 \chapter{Supercompilation}
 \label{chp:supero}
 
@@ -63,7 +88,7 @@ Our goal is an automatic optimisation that makes high-level Haskell programs run
 Our supercompiler takes a Core program as input, in the format described in \S\ref{secB:core}, and produces an equivalent Core program as output. To improve the program we do not make small local changes to the original, but instead \textit{evaluate it} so far as possible at compile time, leaving a \textit{residual program} to be run.
 
 \begin{figure}
-\begin{code}
+\ignore\begin{code}
 supercompile()
     seen := {}
     bind := {}
@@ -79,12 +104,12 @@ tie(rho, x)
 drive(rho, x)
     if terminate\!!(rho, x) then
         (cs,gen) = uniplate\!!(generalise\!!(x))
-        {-" \textsf{\textbf{return }} "-} gen\!!(map (tie rho) cs)
+        {-" \textsf{\textbf{return }} "-} gen\!!(fmap (tie rho) cs)
     else
         {-" \textsf{\textbf{return }} "-} drive\!!(rho `union` {x}, unfold\!!(x))
 \end{code}
 
-Where |psi| is a mapping from expressions to function names, and |fv\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decides whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it.
+Where |psi| is a mapping from expressions to function names, and \ignore|fv\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decides whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it.
 \vspace{3mm}
 \caption{The |supercompile| function.}
 \label{figS:supercompile}
@@ -93,7 +118,7 @@ Where |psi| is a mapping from expressions to function names, and |fv\!!(x)| retu
 The general method of supercompilation is shown in Figure \ref{figS:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost element in the expression becomes part of the residual program -- making use of a Uniplate instance for our Core language (see Chapter \ref{chp:uniplate}). All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to alpha renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions are then supercompiled as before.
 
 \begin{figure}
-\begin{code}
+\ignore\begin{code}
 case v of {... ; c vs_ -> x ; ...}
     => case v of {... ; c vs_ -> x[v/c vs_]; ...}
 
@@ -138,7 +163,7 @@ There are two primary inefficiencies in this example: (1) the |map| function pas
 
 The supercompilation proceeds by first assigning a new unique name (we choose |h_0|) to |map (\b -> b + 1) as|, providing parameters for each of the free variables in the expression, namely |as|. We then choose to expand |map|, and invoke the simplification rules:
 
-\begin{code}
+\h{deflist}\begin{code}
 h_0 as  = map (\b -> b + 1) as
 
         = case  as of
@@ -175,20 +200,20 @@ h_0 as = case  map (\c -> c*2) as of
 
 Next we choose to inline the |map| scrutinised by the case, then perform the |case|/|case| simplification, and finally residuate:
 
-\begin{code}
+\h{deflist}\begin{code}
 h_0 as  = case  (case  as of
                        []    -> []
                        e:es  -> e*2 : map (\c -> c*2) es) of
                 []    -> []
-                d:ds  -> y+1 : map (\b -> b+1) ds
+                d:ds  -> d+1 : map (\b -> b+1) ds
 
         = case  as of
                 []    -> []
-                d:ds  -> (y*2)+1 : map (\b -> b+1) (map (\c -> c*2) ds)
+                d:ds  -> (d*2)+1 : map (\b -> b+1) (map (\c -> c*2) ds)
 
         = case  as of
                 []    -> []
-                d:ds  -> (y*2)+1 : h_0 ds
+                d:ds  -> (d*2)+1 : h_0 ds
 \end{code}
 
 Both intermediate lists have been removed, and the functional arguments to |map| have both been specialised.
@@ -201,19 +226,19 @@ During the supercompilation of an expression, at each step some function needs t
 
 \begin{center}
 \begin{tabular}{p{5cm}p{5cm}}
-\begin{code}
+\h{expr}\begin{code}
 let x = (==) $ 1
 in x 1 : map x ys
 \end{code}
 &
-\begin{code}
+\h{expr}\begin{code}
 let x = repeat 1
 in const 0 x : map f x
 \end{code}
 \end{tabular}
 \end{center}
 
-In the first example, inlining |($)| in the let binding gives |(\x -> 1 == x)|, which is now simple enough to substitute for |x|, resulting in |(1 == 1 : map (\x -> 1 == x) ys)| after simplification. Now |map| can be specialised appropriately. Alternatively, expanding the |map| repeatedly would keep increasing the size of expression until the termination criterion was met, aborting the supercompilation of this expression without achieving specialisation.
+In the first example, inlining |($)| in the let binding gives |(\x -> 1 == x)|, which is now simple enough to substitute for |x|, resulting in |((1 == 1) : map (\x -> 1 == x) ys)| after simplification. Now |map| can be specialised appropriately. Alternatively, expanding the |map| repeatedly would keep increasing the size of expression until the termination criterion was met, aborting the supercompilation of this expression without achieving specialisation.
 
 Taking the second example, |repeat| can be inlined indefinitely. However, by unfolding the |const| we produce |let x = repeat 1 in 0 : map f x|. Since |x| is only used once we substitute it to produce |(0 : map f (repeat 1))|, which can be deforested.
 
@@ -224,13 +249,10 @@ unfold x = head (filter (not . terminate) xs ++ xs ++ [x])
     where xs = unfolds x
 
 unfolds (EFun f xs_) = [ EApp (inline f) xs_ ]
-unfolds x =  [gen (cs |+ (i, y))
-             |let (cs, gen) = uniplate x
-             ,(i,c) <- zip [0..] cs, y <- unfolds c]
-    where xs |+ (i,x) = zipWith (\j y -> if i == j then x else y) [0..] xs
+unfolds x = [gen y | (c,gen) <- holes x, y <- unfolds c]
 \end{code}
 
-The |unfolds| function computes all possible one-step inlinings, using an in-order traversal of the abstract syntax tree, making use of the |uniplate| function. The |unfold| function chooses the first unfolding which does not cause the supercompilation to terminate. If no such expression exists, the first unfolding is chosen.
+The |unfolds| function computes all possible one-step inlinings, using an in-order traversal of the abstract syntax tree, making use of the |holes| function defined by Uniplate \todo{make sure holes is in uniplate}. The |unfold| function chooses the first unfolding which does not cause the supercompilation to terminate. If no such expression exists, the first unfolding is chosen.
 
 \subsection{The Termination Criterion}
 
@@ -262,7 +284,7 @@ The most specific generalisation of two expressions $s$ and $t$, $\text{msg}(s,t
 
 Our generalisation is characterised by $x \bowtie y$, which produces an expression equivalent to $y$, but similar in structure to $x$.
 
-\begin{code}
+\ignore\begin{code}
 {-" x \bowtie \sigma^*(y), \text{if dive}(x,\sigma^*(y)) \wedge \text{couple}(x,y) "-}
         let f = \vs_ -> x in {-" \sigma^* "-}(f vs_)
         {-" \text{where } "-}vs_{-" = \text{fv}(y) \backslash \text{fv}(\sigma^*(y)) "-}
@@ -287,22 +309,22 @@ We now show an example where most specific generalisation fails to produce the i
 
 \begin{example}
 
-\begin{code}
+\h{expr}\begin{code}
 case  putStr (repeat '1') r of
       (r, _) -> (r, ())
 \end{code}
 
 This expression (which we name $x$) prints an infinite stream of 1's. The pairs and |r|'s correspond to the implementation of GHC's IO Monad \cite{spj:awkward_squad}. After several unrollings, we obtain the expression (named $x'$):
 
-\begin{code}
+\h{expr}\begin{code}
 case  putChar '1' r of
       (r, _) -> case  putStr (repeat '1') r of
                       (r, _) -> (r, ())
 \end{code}
 
-The homeomorphic embedding $x \unlhd x'$ matches, detecting an occurrence of the |case putStr \? ...| expression, and the supercompilation of $x'$ is stopped. The most specific generalisation rule is applied as $\text{msg}(x,x')$ and produces:
+The homeomorphic embedding $x \unlhd x'$ matches, detecting an occurrence of the \ignore|case putStr \? ...| expression, and the supercompilation of $x'$ is stopped. The most specific generalisation rule is applied as $\text{msg}(x,x')$ and produces:
 
-\begin{code}
+\h{expr}\begin{code}
 let  a = putChar
      b = '1'
      c = \r -> case  putStr (repeat '1') r of
@@ -313,7 +335,7 @@ in case  a b r of
 
 The problem is that msg works from the top, looking for a common root of both expression trees. However, if the first rule applied by $\unlhd$ was dive, the roots may be unrelated. Using our generalisation, $x \bowtie x'$:
 
-\begin{code}
+\h{expr}\begin{code}
 let x = \r -> case  putStr (repeat '1') r of
                     (r, _) -> (r, ())
 in case  putChar '1' r of
@@ -327,7 +349,7 @@ Our generalisation is superior because it has split out the |putStr| application
 \section{Performance Compared With C Programs}
 \label{secS:c_results}
 
-The benchmarks we have used as motivating examples are inspired by the Unix \texttt{wc} command -- namely character, word and line counting. We require the program to read from the standard input, and write out the number of elements in the file. To ensure that we test computation speed, not IO speed (which is usually determined by the buffering strategy, rather than optimisation) we demand that all input is read using the standard C |getchar| function only. Any buffering improvements, such as reading in blocks or memory mapping of files, could be performed equally in all compilers.
+The benchmarks we have used as motivating examples are inspired by the Unix \texttt{wc} command -- namely character, word and line counting. We require the program to read from the standard input, and write out the number of elements in the file. To ensure that we test computation speed, not IO speed (which is usually determined by the buffering strategy, rather than optimisation) we demand that all input is read using the standard C \texttt{getchar} function only. Any buffering improvements, such as reading in blocks or memory mapping of files, could be performed equally in all compilers.
 
 All the C versions are implemented following a similar pattern to Figure \ref{figS:c_words}. Characters are read in a loop, with an accumulator recording the current value. Depending on the program, the body of the loop decides when to increment the accumulator. The Haskell versions all follow the same pattern as in the Introduction, merely replacing |words| with |lines|, or removing the |words| function for character counting.
 
@@ -352,7 +374,7 @@ During initial trials using these benchmarks, we identified two unnecessary bott
 
 \paragraph{Slow \textsf{isSpace} function}
 
-The first issue is that |isSpace| in Haskell is much more expensive than |isspace| in C. The simplest solution is to use a FFI (Foreign Function Interface) \cite{spj:awkward_squad} call to the C |isspace| function in all cases, removing this factor from the benchmark. A GHC bug (number 1473) has been filed about the slow performance of |isSpace|.
+The first issue is that |isSpace| in Haskell is much more expensive than \texttt{isspace} in C. The simplest solution is to use a FFI (Foreign Function Interface) \cite{spj:awkward_squad} call to the C \texttt{isspace} function in all cases, removing this factor from the benchmark. A GHC bug (number 1473) has been filed about the slow performance of |isSpace|.
 
 \begin{figure}
 \begin{code}
@@ -384,7 +406,7 @@ We have identified three factors limiting the performance of residual programs w
 
 \paragraph{Strictness inference}
 
-The GHC compiler is overly conservative when determining strictness for functions which use the FFI (GHC bug 1592). The |getchar| function is treated as though it may raise an exception, and terminate the program, so strict arguments are not determined to be strict. If GHC provided some way to mark an FFI function as not generating exceptions, this problem could be solved. The lack of strictness information means that in the line and word counting programs, every time the accumulator is incremented, the number is first unboxed and then reboxed \cite{spj:unboxing}.
+The GHC compiler is overly conservative when determining strictness for functions which use the FFI (GHC bug 1592). The \texttt{getchar} function is treated as though it may raise an exception, and terminate the program, so strict arguments are not determined to be strict. If GHC provided some way to mark an FFI function as not generating exceptions, this problem could be solved. The lack of strictness information means that in the line and word counting programs, every time the accumulator is incremented, the number is first unboxed and then reboxed \cite{spj:unboxing}.
 
 \paragraph{Heap checks}
 
