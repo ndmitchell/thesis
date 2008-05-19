@@ -22,24 +22,23 @@ type VarName = String
 freeVars :: Expr -> [String]
 body   :: FuncName  -> Expr
 args   :: FuncName  -> [VarName]
-argsN :: FuncName -> [Int]
-var    :: VarName   -> Either ArgPos (Expr, Selector)
+var    :: VarName   -> Maybe (Expr, Selector)
 ctors  :: CtorName  -> [CtorName]
 type Selector  =  (CtorName, Int)
-type ArgPos    =  Int
 
-precond   :: FuncName -> Prop (Sat ArgPos)
-prePost   :: FuncName -> Constraint -> Prop (Sat ArgPos)
+precond   :: FuncName -> Prop (Sat VarName)
+prePost   :: FuncName -> Constraint -> Prop (Sat VarName)
 pre ::  Expr -> Prop (Sat Expr)
-reduce    :: Prop (Sat Expr) -> Prop (Sat ArgPos)
-red :: Expr -> Constraint -> Prop (Sat ArgPos)
-substP ::  [alpha] -> Prop (Sat ArgPos) -> Prop (Sat alpha)
+reduce    :: Prop (Sat Expr) -> Prop (Sat VarName)
+red :: Expr -> Constraint -> Prop (Sat VarName)
+substP :: Eq alpha => [(alpha,beta)] -> Prop (Sat alpha) -> Prop (Sat beta)
 
 data Sat alpha = Sat alpha Constraint
+instance Eq a => Eq (Sat a)
 
 (-<)  :: alpha -> [CtorName] -> Prop (Sat alpha)
 (|>)  :: Selector -> Constraint -> Constraint
-(<|)  :: CtorName -> Constraint -> Prop (Sat ArgPos)
+(<|)  :: CtorName -> Constraint -> Prop (Sat Int)
 
 data Prop alpha
 instance Eq a => Eq (Prop a)
@@ -53,10 +52,12 @@ propLit                   :: alpha -> Prop alpha
 
 data Constraint = Constraint
 
-class Subst a b c where (/) :: a -> b -> c
-class SubstNum a b c where (/#) :: a -> b -> c
-
+class Subst a b c | c -> b, a -> b where (/) :: a -> b -> c
 instance Subst Expr ([VarName], [Expr]) Expr
+instance Subst a b c => Subst (Prop a) b (Prop c)
+instance (Eq a, Eq b) => Subst (Sat a) ([a], [b]) (Sat b)
+
+instance Eq Val
 \end{code}
 \end{comment}
 
@@ -100,7 +101,7 @@ uneval (Val c xs_)  = Make c (map uneval xs_)
 uneval Bottom       = Call "error" []
 \end{code}
 
-We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs_,ys_)| to denote replacing the free variables |vs_| in |x| with |ys_|. If the value |x| has numbers instead of free variables, we write |x /# (vs_,ys_)|, where |vs_| are a sequence of numbers. There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as substitution will remove them. We can assume the argument to |eval| has no free variables. The free variables of a function are its arguments.
+We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs_,ys_)| to denote replacing the free variables |vs_| in |x| with |ys_|. There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as substitution will remove them. We can assume the argument to |eval| has no free variables. The free variables of a function are its arguments.
 
 We also make use of a number of auxiliaries throughout the proof:
 
@@ -116,34 +117,42 @@ valCtor Bottom = Nothing
 propTaut :: (alpha -> Bool) -> Prop alpha -> Bool
 propTaut f x = (propTrue :: Prop ()) == propMap (propBool . f) x
 
-satP :: Prop (Sat Expr) -> Bool
-satP = propTaut satS
+satE' :: Prop (Sat Expr) -> Bool
+satE' = propTaut satE
 
-satS :: Sat Expr -> Bool
-satS (Sat x k) = sat (eval x) k
+satE :: Sat Expr -> Bool
+satE (Sat x k) = sat (eval x) k
+
+satV' :: Prop (Sat Val) -> Bool
+satV' = propTaut satV
+
+satV :: Sat Val -> Bool
+satV (Sat v k) = sat v k
 
 sat :: Val -> Constraint -> Bool
 \end{code}
 
-Of these functions, |sat| is primitive and different for each constraint language. All the expressions given to |satS| must have no free variables, as |eval| cannot deal with them.
+Of these functions, |sat| is primitive and different for each constraint language. All the expressions given to |satE| must have no free variables, as |eval| cannot deal with them.
 
 \subsection{Theorems}
 
 We wish to prove:
 
 \theorem{pre/eval}
-{|satP $ pre x ==> not $ isBottom $ eval x|}
+{|satE' $ pre x ==> not $ isBottom $ eval x|}
 
 In particular this requires the following theorems about the constraint language:
 
 \theorem{sat/|-<|}
-{|sat $ x -< cs ==> any (hasCtor x) cs|}
+{|satV' $ x -< cs ==> maybe True (`elem` cs) (valCtor x)|}
 
 \theorem{sat/| ||> |}
-{|sats (Val c xs) ((c,i) ||> k) ==> sats (xs !! i) k|}
+{|sat (Val c xs) ((c,i) ||> k) ==> sat (xs !! i) k|}
 
 \theorem{sat/| <|| |}
-{|sats (c <|| k /# (xs, xs)) ==> sat (c xs) k|}
+{|satV' ((c <|| k) / ([1..],xs)) ==> sat (Val c xs) k|}
+
+%if 0
 
 We will also need the following general theorems:
 
@@ -154,8 +163,7 @@ We will also need the following general theorems:
 {|precond f ==> reduce $ pre $ body f|}
 
 \theorem{reduce}
-{|sat (reduce x /# (vs, xs)) ==> sat (x / (vs, xs))|}
-
+{|satE' (reduce x /# xs) ==> satE' (x / (vs, xs))|}
 
 \theorem{pre/subst}
 {|sat (pre x) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
@@ -165,7 +173,6 @@ We will also need the following general theorems:
 
 \theorem{pre/uneval}
 {|not $ isBottom x ==> sat (pre (uneval x))|}
-
 
 \subsubsection{The Proof}
 
