@@ -20,6 +20,7 @@
 %format propAnds = "\mathsf{andP}"
 %format propOrs = "\mathsf{orP}"
 %format propLit = "\mathsf{lit}"
+%format propTaut = "\mathsf{tautP}"
 %format propMap = "\mathsf{mapP}"
 %format propTrue = "\mathsf{true}"
 %format propFalse = "\mathsf{false}"
