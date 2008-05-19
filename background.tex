@@ -128,23 +128,23 @@ We define \ignore|e[v / x]| to be the capture free substitution of the variable 
 
 \begin{figure}
 \begin{code}
-fv :: Expr -> [VarName]
-fv (EVar v       ) = [v]
-fv (ECon c xs_   ) = fvs xs_
-fv (EFun f xs_   ) = fvs xs_
-fv (EApp x xs_   ) = fv x `union` fvs xs_
-fv (ELam v x     ) = fv x \\ [v]
-fv (ELet v x y   ) = fv x `union` (fv y \\ [v])
-fv (ECase x as_  ) = fv x `union` unions (map f as_)
-    where f (EAlt c vs_ y) = fv y \\ vs_
+freeVars :: Expr -> [VarName]
+freeVars (EVar v       ) = [v]
+freeVars (ECon c xs_   ) = freeVars' xs_
+freeVars (EFun f xs_   ) = freeVars' xs_
+freeVars (EApp x xs_   ) = freeVars x `union` freeVars' xs_
+freeVars (ELam v x     ) = freeVars x \\ [v]
+freeVars (ELet v x y   ) = freeVars x `union` (freeVars y \\ [v])
+freeVars (ECase x as_  ) = freeVars x `union` unions (map f as_)
+    where f (EAlt c vs_ y) = freeVars y \\ vs_
 
-fvs xs_ = unions (map fv xs_)
+freeVars' xs_ = unions (map freeVars xs_)
 \end{code}
 \caption{Free variables of an expression.}
 \label{figB:free_variables}
 \end{figure}
 
-The variables in the patterns of case expressions, the arguments of lambda abstractions and the bindings of let expressions are \textit{bound}; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |fv e|, and can be computed using the function in Figure \ref{figB:free_variables}. Within a function definition all variables must be bound.
+The variables in the patterns of case expressions, the arguments of lambda abstractions and the bindings of let expressions are \textit{bound}; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |freeVars e|, and can be computed using the function in Figure \ref{figB:free_variables}. Within a function definition all variables must be bound.
 
 In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and afterwards any repeated bound variables can be assigned fresh names.
 
