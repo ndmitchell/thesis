@@ -1,6 +1,65 @@
 %include thesis.fmt
 %include catch.fmt
 
+\hsdef{\begin{comment}
+k,vs,zs,xs,f,c,v,i,on,xs_i,ys,x,ys_i
+vs_,xs_,y,as_,alt,ys_,cs
+\end{comment}}
+\begin{comment}
+\begin{code}
+import Prelude hiding (($),(/))
+import Data.List
+
+infixr 1  $
+infixr 0  ==>
+(==>) :: Bool -> Bool -> Bool
+($) :: (a -> b) -> a -> b
+
+type FuncName = String
+type CtorName = String
+type VarName = String
+
+freeVars :: Expr -> [String]
+body   :: FuncName  -> Expr
+args   :: FuncName  -> [VarName]
+argsN :: FuncName -> [Int]
+var    :: VarName   -> Either ArgPos (Expr, Selector)
+ctors  :: CtorName  -> [CtorName]
+type Selector  =  (CtorName, Int)
+type ArgPos    =  Int
+
+precond   :: FuncName -> Prop (Sat ArgPos)
+prePost   :: FuncName -> Constraint -> Prop (Sat ArgPos)
+pre ::  Expr -> Prop (Sat Expr)
+reduce    :: Prop (Sat Expr) -> Prop (Sat ArgPos)
+red :: Expr -> Constraint -> Prop (Sat ArgPos)
+substP ::  [alpha] -> Prop (Sat ArgPos) -> Prop (Sat alpha)
+
+data Sat alpha = Sat alpha Constraint
+
+(-<)  :: alpha -> [CtorName] -> Prop (Sat alpha)
+(|>)  :: Selector -> Constraint -> Constraint
+(<|)  :: CtorName -> Constraint -> Prop (Sat ArgPos)
+
+data Prop alpha
+instance Eq a => Eq (Prop a)
+
+propAnd, propOr           :: Prop alpha -> Prop alpha -> Prop alpha
+propAnds, propOrs         :: [Prop alpha] -> Prop alpha
+propMap                   :: (alpha -> Prop beta) -> Prop alpha -> Prop beta
+propTrue, propFalse       :: Prop alpha
+propBool                  :: Bool -> Prop alpha
+propLit                   :: alpha -> Prop alpha
+
+data Constraint = Constraint
+
+class Subst a b c where (/) :: a -> b -> c
+class SubstNum a b c where (/#) :: a -> b -> c
+
+instance Subst Expr ([VarName], [Expr]) Expr
+\end{code}
+\end{comment}
+
 
 \section{Argument for Correctness}
 \label{secC:correct}
@@ -9,7 +68,7 @@
 \newcommand{\theorem}[2]{#2 \hspace{5mm} \lemma{#1} \\}
 \newcommand{\proof}[2][]{\paragraph{\lemma{#2} \textsf{#1}}}
 
-The algorithm is correct if given a function application whose arguments meet the precondition, it will not call |error|. The proof is structured as an evaluator with an explicit |Bottom| within it -- if this case is encountered the program crashes. We reason about the evaluator to show satisfying a precondition ensures that |Bottom| will not be reached. This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
+The algorithm is correct if given a function application whose arguments meet the precondition, it will not call |error|. The proof is structured as an evaluator with an explicit |Bottom| within it -- if this case is encountered the program will crash at runtime. We reason about the evaluator to show satisfying a precondition ensures that |Bottom| will not be reached. This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
 
 To perform the proof, we require various laws about the |-<|, | ||>| and |<||| operators, which we then show hold for each of the three constraint systems.
 
@@ -41,34 +100,39 @@ uneval (Val c xs_)  = Make c (map uneval xs_)
 uneval Bottom       = Call "error" []
 \end{code}
 
-We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs_,ys_)| to denote replacing the free variables |vs_| in |x| with |ys_|. There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as substitution will remove them. We can assume the argument to |eval| has no free variables. The free variables of a function are its arguments.
+We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs_,ys_)| to denote replacing the free variables |vs_| in |x| with |ys_|. If the value |x| has numbers instead of free variables, we write |x /# (vs_,ys_)|, where |vs_| are a sequence of numbers. There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as substitution will remove them. We can assume the argument to |eval| has no free variables. The free variables of a function are its arguments.
 
 We also make use of a number of auxiliaries throughout the proof:
 
 \begin{code}
-isBottom :: Expr -> Bool
+isBottom :: Val -> Bool
 isBottom Bottom = True
 isBottom (Val c xs) = any isBottom xs
 
-sat :: Prop (Sat Expr) -> Bool
-sat x = propBool $ propMapThingy satisfies
+valCtor :: Val -> Maybe CtorName
+valCtor (Val c xs_) = Just c
+valCtor Bottom = Nothing
 
-satisfies :: Sat Expr -> Bool
-satisfies (Sat x k) = sats (eval x) k
+propTaut :: (alpha -> Bool) -> Prop alpha -> Bool
+propTaut f x = (propTrue :: Prop ()) == propMap (propBool . f) x
 
-hasCtor :: Val -> CtorName -> Bool
-hasCtor Bottom c = True
-hasCtor (Val c' xs_) = c == c'
+satP :: Prop (Sat Expr) -> Bool
+satP = propTaut satS
+
+satS :: Sat Expr -> Bool
+satS (Sat x k) = sat (eval x) k
+
+sat :: Val -> Constraint -> Bool
 \end{code}
 
-Of these functions, |sats| is primitive and different for each constraint language. All the expressions given to |sat| must have no free variables.
+Of these functions, |sat| is primitive and different for each constraint language. All the expressions given to |satS| must have no free variables, as |eval| cannot deal with them.
 
 \subsection{Theorems}
 
 We wish to prove:
 
 \theorem{pre/eval}
-{|sat $ pre x ==> not $ isBottom $ eval x|}
+{|satP $ pre x ==> not $ isBottom $ eval x|}
 
 In particular this requires the following theorems about the constraint language:
 
@@ -81,11 +145,10 @@ In particular this requires the following theorems about the constraint language
 \theorem{sat/| <|| |}
 {|sats (c <|| k /# (xs, xs)) ==> sat (c xs) k|}
 
-
 We will also need the following general theorems:
 
 \theorem{precond/error}
-{|precond "error" == false|}
+{|precond "error" == propFalse|}
 
 \theorem{precond}
 {|precond f ==> reduce $ pre $ body f|}
@@ -98,16 +161,10 @@ We will also need the following general theorems:
 {|sat (pre x) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
 
 \theorem{sat/subst}
-{|sat (pre x / (freeVars x // ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
-
-\theorem{reduce}
-{\ignore|reduce' x ==> x ... -- substitution |}
-
-\theorem{precond'}
-{|precond' f ==> reduce' $ pre $ body f|}
+{|sat (pre x / (freeVars x, ys_)) && all (sat . pre) ys_ ==> sat $ pre $ x / (freeVars x, ys_)|}
 
 \theorem{pre/uneval}
-{|notBottom x ==> sat (pre (uneval x))|}
+{|not $ isBottom x ==> sat (pre (uneval x))|}
 
 
 \subsubsection{The Proof}
@@ -131,7 +188,7 @@ This does not produce |Bottom| if all recursive calls to |eval| are on values wh
 \h{exprlist}\begin{code}
 sat $ pre $ Make c xs_  ==> all (sat . pre) xs_
     -- inline |pre|
-sat $ andP $ map pre xs_ ==> all (sat . pre) xs_
+sat $ propAnd $ map pre xs_ ==> all (sat . pre) xs_
     -- inline |sat|
 and $ map sat $ map pre xs_  ==> all (sat . pre) xs_
     -- |map f . map g == map (f . g)|
@@ -180,9 +237,9 @@ sat (substP xs (precond "error")) ==> False
     -- implication
 not $ sat $ substP xs $ precond "error"
     -- \lemma{precond/error}
-not $ sat $ substP xs $ false
+not $ sat $ substP xs $ propFalse
     -- inline |substP|
-not $ sat $ false
+not $ sat $ propFalse
     -- inline |sat|
 not $ False
     -- inline |not|
@@ -269,9 +326,9 @@ We first prove that the explicit |Bottom| is not reached, assuming the initial e
 \h{exprlist}\begin{code}
 sat $ pre $ Case x as_ ==> sat $ pre x
     -- inline |pre|
-sat $ pre x `propAnd` andP (map alt as_) ==> sat $ pre x
+sat $ pre x `propAnd` propAnd (map alt as_) ==> sat $ pre x
     -- inline |sat|
-sat (pre x) && andP (map alt as_) ==> sat $ pre x
+sat (pre x) && propAnd (map alt as_) ==> sat $ pre x
     -- weaken implication
 sat $ pre x ==> sat $ pre x
     -- equal
@@ -293,14 +350,14 @@ sat (pre y / (vs_, map uneval xs)) && all (sat . pre) (map uneval xs)
     -- |all f . map g == all (f . g)|
 sat (pre y / (vs_, map uneval xs)) && all (sat . pre . uneval) xs
     -- \lemma{pre/uneval}
-sat (pre y / (vs_, map uneval xs)) && all (sat . const true) xs
+sat (pre y / (vs_, map uneval xs)) && all (sat . const propTrue) xs
     -- inline |sat|
 sat (pre y / (vs_, map uneval xs)) && all (const True) xs
     -- |all (const True) xs == True|
 sat (pre y / (vs_, map uneval xs))
 \end{code}
 
-We can now return to the whole thing, assuming that the constructor is the first to be chosen. We can reorder the alternatives because they have no order and are processed in a map in the code. We can assume that |x| matches |Val c _| because that branch has been picked.
+We can now return to the whole thing, assuming that the constructor is the first to be chosen. We can reorder the alternatives because they have no order and are processed in a map in the code. We can assume that |x| matches \ignore|Val c _| because that branch has been picked.
 
 \h{exprlist}\begin{code}
 sat $ pre $ Case x (Alt c vs_ y : as_) ==> sat $ pre y
@@ -332,14 +389,14 @@ True
 \proof{elem/diff}
 
 \h{exprlist}\begin{code}
-x `elem` (ys \\ [x]) == False
+(x `elem` (ys \\ [x])) == False
 \end{code}
 
 The |elem| application is only true if |ys \\ [x]| contains |x|. The expression cannot contain |x|, as if it existed in |ys| it was removed, therefore this application is always |False|.
 
 
 \theorem{precond/error}
-{|precond "error" == false|}
+{|precond "error" == propFalse|}
 
 
 \theorem{precond}
@@ -381,9 +438,9 @@ sat (propMap (\(Sat x k) -> red x k) x /# (vs, xs)) ==> sat (x / (vs, xs))
     -- inline |(/#)| on LHS
 sat (propMap (\(Sat x k) -> red x k /# (vs, xs)) x) ==> sat (x / (vs, xs))
     -- promote |sat|
-bool $ propMap (\(Sat x k) -> sat $ red x k /# (vs, xs)) x ==> sat (x / (vs, xs))
+propBool $ propMap (\(Sat x k) -> sat $ red x k /# (vs, xs)) x ==> sat (x / (vs, xs))
     -- \lemma{red}
-bool $ propMap (\(Sat x k) -> sat $ red x k /# (vs, xs)) x ==> bool $ propMap
+propBool $ propMap (\(Sat x k) -> sat $ red x k /# (vs, xs)) x ==> propBool $ propMap
 
 \end{code}
 
@@ -410,9 +467,9 @@ Now, either |var v| is equal to |Left i| or |Right (on,c)|. We deal with each ca
 \h{exprlist}\begin{code}
 sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
     -- inline |red|, assuming |var v == Left i|
-sat (lit (Sat i k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
+sat (propLit (Sat i k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
     -- inline both substitutions
-sat (lit (Sat x k)) ==> satisfies x k
+sat (propLit (Sat x k)) ==> satisfies x k
     -- inline |sat|
 satisfies x k ==> satisfies x k
     -- implication
