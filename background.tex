@@ -3,7 +3,7 @@
 \hsdef{\begin{comment}
 import Prelude hiding (repeat)
 import Data.List
-a,e,v_i,x_i,i
+a,e,v_i,x_i,i,f
 Ord,letrec,xs,bottom
 \end{comment}}
 
@@ -13,7 +13,7 @@ data Expr = EVar String
           | ECon String [Expr]
           | EFun String [Expr]
           | EApp Expr [Expr]
-          | ELam String [Expr]
+          | ELam String Expr
           | ELet String Expr Expr
           | ECase Expr [Alt]
 
