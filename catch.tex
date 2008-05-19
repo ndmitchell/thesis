@@ -1,6 +1,53 @@
 %include thesis.fmt
 %include catch.fmt
 
+\hsdef{\begin{comment}
+x,c,i,ps,p_1,p_2,t,xs,r_1,r_2,cs,r,v,k
+s,ss,y,etc,f
+beta,alpha
+rec,ctor
+IO
+\end{comment}}
+\begin{comment}
+\h{#*}\begin{code}
+import Prelude hiding (map, (||))
+import Data.Array
+import Data.Maybe
+import System.Environment
+import Data.Char
+import Data.List hiding (map)
+
+infixr 2  ||
+
+data Expr = EVar String
+          | ECon String [Expr]
+          | EFun String [Expr]
+          | EApp Expr [Expr]
+          | ELam String Expr
+          | ELet String Expr Expr
+          | ECase Expr [Alt]
+
+data Alt = EAlt String [String] Expr
+
+type FuncName = String
+type CtorName = String
+type VarName = String
+
+body   :: FuncName  -> Expr
+args   :: FuncName  -> [VarName]
+rhs    :: Alt       -> Expr
+arity  :: String    -> Int
+ctors  :: CtorName  -> [CtorName]
+
+ellipses :: a
+
+instance Eq a => Eq (Prop a)
+\end{code}
+\h{#mp}\begin{code}
+instance Eq Val
+\end{code}
+\end{comment}
+
 
 \newcommand{\rec}[1]{\hspace{-0.75ex}_{#1}}
 %format Rec0 = "\rec{\mathrm{0}}"
@@ -9,25 +56,6 @@
 
 
 \newcommand{\para}[1]{\vspace{2mm}\noindent\textbf{#1}}
-
-% For Tex2hs
-\begin{comment}
-\begin{code}
-data Constraint = Constraint
-\end{code}
-\begin{code}
-data Sat a = Sat a Constraint
-\end{code}
-\begin{code}
-infix  4  ==, /=
-infixr 2  ||
-
-(||) :: Bool -> Bool -> Bool
-(==) :: Eq a => a -> a -> Bool
-(/=) :: Eq a => a -> a -> Bool
-map :: (a -> b) -> [a] -> [b]
-\end{code}
-\end{comment}
 
 
 \chapter{Pattern Match Analysis}
@@ -166,7 +194,7 @@ This section describes the method used to calculate preconditions for functions.
 \label{secC:catch_core}
 
 \begin{figure}
-\begin{code}
+\h{#*}\begin{code}
 type Selector  =  (CtorName, Int)
 type ArgPos    =  Int
 
@@ -184,7 +212,7 @@ Figure \ref{figC:catch_core_operations} gives the signatures for two helper func
 \begin{example}
 Given the definition:
 
-\begin{code}
+\h{#*}\begin{code}
 map f xs = case  xs of
                  []    -> []
                  y:ys  -> f y : map f ys
@@ -200,14 +228,14 @@ var "ys"  = Right (EVar "xs", (":",1))
 \end{code}
 \end{example}
 
-The |isRec (c,i)| function returns true if the constructor |c| has a recursive |i|th component. For example, let |hd = (":",0)| and |tl = (":",1)| then |isRec hd = False| but |isRec tl = True|.
+The |isRec (c,i)| function returns true if the constructor |c| has a recursive |i|th component. For example, let \h{stmt}|hd = (":",0)| and \h{stmt}|tl = (":",1)| then \h{stmt}|isRec hd = False| but \h{stmt}|isRec tl = True|.
 
 \subsubsection{Algebraic Abstractions of Primitive Types}
 \label{secC:abstraction}
 
 Our Core language only has algebraic data types. Catch allows for primitive types such as characters and integers by abstracting them into algebraic types. Two abstractions used in Catch are:
 
-\begin{code}
+\ignore\begin{code}
 data Int = Neg | Zero | One | Pos
 data Char = Char
 \end{code}
@@ -220,7 +248,7 @@ The final issue of abstraction relates to primitive functions in the |IO| monad,
 \label{secC:constraints}
 
 \begin{figure}
-\begin{code}
+\h{#*}\begin{code}
 data Prop alpha
 
 propAnd, propOr           :: Prop alpha -> Prop alpha -> Prop alpha
@@ -239,7 +267,7 @@ We write |Sat x c| to assert that the value of expression |x| must be a member o
 Several underlying constraint models are possible. To keep the introduction of the algorithms simple we first use \textit{basic pattern constraints} (\S\ref{secC:basic}), which are unsuitable for reasons given in \S\ref{secC:bounded}. We then describe \textit{regular expression constraints} in \S\ref{secC:regexp} -- a variant of the constraints used in earlier versions of Catch. Finally we present \textit{multi-pattern constraints} in \S\ref{secC:multipattern} -- used in the current Catch tool to enable scaling to much larger problems.
 
 \begin{figure}
-\begin{code}
+\h{#*}\begin{code}
 data Sat alpha = Sat alpha Constraint
 
 (-<)  :: alpha -> [CtorName] -> Prop (Sat alpha)
@@ -305,8 +333,8 @@ e -< [":","[]"]  =  propLit (e `Sat` Con ":" [Any,Any]) `propOr`
 pre ::  Expr -> Prop (Sat Expr)
 pre (EVar v       ) = propTrue
 pre (ECon c xs_   ) = propAnds (map pre xs_)
-pre (EFun f xs_   ) = pre' f xs `propAnd` propAnds (map pre xs_)
-    where pre' f xs = substP xs (precond f)
+pre (EFun f xs_   ) = pre' f xs_ `propAnd` propAnds (map pre xs_)
+    where pre' f xs = substP xs_ (precond f)
 pre (ECase x as_  ) = pre x `propAnd` propAnds (map alt as_)
     where alt (EAlt c vs_ y) = x -< (ctors c \\ [c]) `propOr` pre y
 \end{code}
@@ -354,7 +382,7 @@ We can improve the efficiency of the algorithm by tracking dependencies between 
 
 \subsubsection{Preconditions and Laziness}
 
-The |pre| function defined in Figure \ref{figC:precondition} does not exploit laziness. The |Call| equation demands that preconditions hold on \textit{all} arguments -- only correct if a function is strict in all arguments. For example, the precondition on |False && error "here"| is False, when it should be True. In general, preconditions may be more restrictive than necessary. However, investigation of a range of examples suggests that inlining |(&&)| and |(||||)| captures many of the common cases where laziness would be required.
+The |pre| function defined in Figure \ref{figC:precondition} does not exploit laziness. The function application equation demands that preconditions hold on \textit{all} arguments -- only correct if a function is strict in all arguments. For example, the precondition on |False && error "here"| is False, when it should be True. In general, preconditions may be more restrictive than necessary. However, investigation of a range of examples suggests that inlining |(&&)| and |(||||)| captures many of the common cases where laziness would be required.
 
 
 \subsection{Manipulating constraints}
@@ -380,7 +408,7 @@ red (EVar   v     )  k =  case var v of
 red (ECon c xs_   )  k =  reduce $ substP xs_ (c <| k)
 red (EFun f xs_   )  k =  reduce $ substP xs_ (prePost f k)
 red (ECase x as_  )  k =  propAnds (map alt as_)
-    where alt (EAlt c vs_ y) = reduce (on -< (ctors c \\ [c])) `propOr` red y k
+    where alt (EAlt c vs_ y) = reduce (x -< (ctors c \\ [c])) `propOr` red y k
 \end{code}
 \caption{Specification of constraint reduction, |reduce|.}
 \label{figC:backward}
@@ -411,7 +439,7 @@ xs -< ["[]"] `propOr` xs -< [":"]
 \end{examplerevisit}
 
 
-\para{The |Var| rule} has two alternatives. The first alternative deals with top-level bound arguments, which are already in the correct form. The other alternative applies to variables bound by patterns in case alternatives. It lifts conditions on a bound variable to the scrutinee of the case expression in which they occur. The | ||>| operator lifts a constraint on one part of a data structure to a constraint on the entire data structure. For BP-constraints, | ||>| can be defined as:
+\para{The variable rule} has two alternatives. The first alternative deals with top-level bound arguments, which are already in the correct form. The other alternative applies to variables bound by patterns in case alternatives. It lifts conditions on a bound variable to the scrutinee of the case expression in which they occur. The | ||>| operator lifts a constraint on one part of a data structure to a constraint on the entire data structure. For BP-constraints, | ||>| can be defined as:
 
 \begin{code}
 (c,i) |> k = Con c  [  if i == j then k else Any
@@ -428,7 +456,7 @@ case  xs of
 Here the initial precondition will be |y -< [":"]|, which evaluates to the result |y `Sat` Con ":" [Any,Any]|. The |var| function on |y| gives |Right (xs,(":",0))|. After the application of | ||>| the revised constraint refers to |xs| instead of |y|, and will be |xs `Sat` Con ":" [Con ":" [Any,Any], Any]|. We have gone from a constraint on |y|, using the knowledge that |y| is bound to a portion of |xs|, to a constraint on |xs|.
 \end{example}
 
-\para{The |Make| rule} deals with an application of a constructor. The |<||| operator splits a constraint on an entire structure into a proposition combining constraints on each part.
+\para{The constructor application rule} deals with an application of a constructor. The |<||| operator splits a constraint on an entire structure into a proposition combining constraints on each part.
 
 \begin{code}
 c <| Any         =  propTrue
@@ -444,7 +472,7 @@ The intuition is that given knowledge of the root constructor of a data value, w
     propLit (0 `Sat` Con "True" []) `propAnd` propLit (1 `Sat` Any)
 \end{code}
 
-\para{The |Case| rule} generates a conjunct for each alternative. An alternative satisfies a constraint if \textit{either} it is never taken, \textit{or} it meets the constraint when taken.
+\para{The case rule} generates a conjunct for each alternative. An alternative satisfies a constraint if \textit{either} it is never taken, \textit{or} it meets the constraint when taken.
 
 \begin{figure}
 \ignore\begin{code}
@@ -456,7 +484,7 @@ prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $
 \label{figC:property_fixp}
 \end{figure}
 
-\para{The |Call| rule} relies on the |prePost| function defined in Figure \ref{figC:property_fixp}. This function calculates the precondition necessary to ensure a given postcondition on a function, which forms an entailment. Like the precondition calculation in \S\ref{secC:precond}, the |prePost| function works iteratively, with each result becoming increasingly restrictive. Initially, all postconditions are assumed to be true. The iterative step takes the body of the function, and uses the |reduce| transformation to obtain a predicate in terms of the arguments to the function, using the previous value of |prePost|. If refinement chains of constraint/function pairs are finite, termination is guaranteed. Here again, a speed up can be obtained by tracking the dependencies between constraints, and additionally caching all calculated results.
+\para{The function application rule} relies on the |prePost| function defined in Figure \ref{figC:property_fixp}. This function calculates the precondition necessary to ensure a given postcondition on a function, which forms an entailment. Like the precondition calculation in \S\ref{secC:precond}, the |prePost| function works iteratively, with each result becoming increasingly restrictive. Initially, all postconditions are assumed to be true. The iterative step takes the body of the function, and uses the |reduce| transformation to obtain a predicate in terms of the arguments to the function, using the previous value of |prePost|. If refinement chains of constraint/function pairs are finite, termination is guaranteed. Here again, a speed up can be obtained by tracking the dependencies between constraints, and additionally caching all calculated results.
 
 \subsection{Semantics of Constraints}
 \label{secC:constraint_semantics}
@@ -518,7 +546,7 @@ When designing a constraint system, the main decision is which distinctions betw
 \label{secC:regexp}
 
 \begin{figure}
-\begin{code}
+\h{#re}\begin{code}
 data Constraint  = RegExp :- [CtorName]
 type RegExp      = [RegItem]
 data RegItem     = Atom Selector | Star [Selector]
@@ -558,7 +586,7 @@ differentiate p (Star    r:rs)  | p `elem` r  = Just (Star r:rs)
 \label{figC:regexp}
 \end{figure}
 
-An implementation of regular expression based constraints (RE-constraints) is given in Figure \ref{figC:regexp}. In a constraint of the form |(r :- cs)|, |r| is a regular expression and |cs| is a set of constructors. Such a constraint is satisfied by a data structure |d| if every well-defined application to |d| of a sequence of selectors described by |r| reaches a constructor in the set |cs|. If no such sequence of selectors has a well-defined result then the constraint is vacuously true.
+An implementation of regular expression based constraints (RE-constraints) is given in Figure \ref{figC:regexp}. In a constraint of the form \h{#re}|(r :- cs)|, |r| is a regular expression and |cs| is a set of constructors. Such a constraint is satisfied by a data structure |d| if every well-defined application to |d| of a sequence of selectors described by |r| reaches a constructor in the set |cs|. If no such sequence of selectors has a well-defined result then the constraint is vacuously true.
 
 Concerning the helper functions needed to define | ||>| and |<||| in Figure \ref{figC:regexp}, the |differentiate| function is from \citet{conway:regexp}; |integrate| is its inverse; |ewp| is the empty word property.
 
@@ -567,7 +595,7 @@ In earlier versions of Catch, regular expressions were unrestricted and quickly 
 |r_1+r_2|  & union of regular expressions |r_1| and |r_2| \\
 \ignore|r_1^.r_2| & concatenation of regular expressions |r_1| then |r_2| \\
 \ignore|r_1^*|   & any number (possibly zero) occurrences of |r_1| \\
-|sel|  & a selector, i.e. |hd| for the head of a list \\
+\ignore|sel|  & a selector, i.e. |hd| for the head of a list \\
 0        & the language is the empty set \\
 1        & the language is the set containing the empty string
 \end{tabular} \\
@@ -626,7 +654,7 @@ The |2^rec| term corresponds to the number of possible constraints under |Star|.
 
 Catch computes over propositional formulae with constraints as atomic propositions. Among other operators on propositions, they are compared for equality to obtain a fixed point. All the fixed-point algorithms given in this chapter stop once equal constraints are found. We use Binary Decision Diagrams (BDD) \cite{lee:bdd} to make these equality tests fast. Since the complexity of performing an operation is often proportional to the number of atomic constraints in a proposition, we apply simplification rules to reduce this number. For example, three of the nineteen rules are:
 
-\para{Exhaustion:} In the constraint |x `Sat` (r :- [":","[]"])| the condition lists all the possible constructors. Because of static typing, |x| must be one of these constructors. Any such constraint simplifies to True.
+\para{Exhaustion:} In the constraint \h{#re}|x `Sat` (r :- [":","[]"])| the condition lists all the possible constructors. Because of static typing, |x| must be one of these constructors. Any such constraint simplifies to True.
 
 \para{And merging:} The conjunction \ignore|e `Sat` (r :- c_1) `propAnd` e `Sat` (r :- c_2)| can be replaced by \ignore|e `Sat` (r :- (c_1 `intersect` c_2))|.
 
@@ -637,7 +665,7 @@ Catch computes over propositional formulae with constraints as atomic propositio
 \label{secC:multipattern}
 
 \begin{figure}
-\begin{code}
+\h{#mp}\begin{code}
 type Constraint  =  [Val]
 data Val         =  [Pattern] :* [Pattern] |  Any
 data Pattern     =  Pattern CtorName [Val]
@@ -689,9 +717,9 @@ merge  ms_1 ms_2 = [Pattern c_1 (zipWith mergeVal vs_1 vs_2) |
 
 Although RE-constraints are capable of solving many examples, they suffer from a problem of scale. As programs become more complex the size of the propositions grows quickly, slowing Catch unacceptably. Multipattern constraints (MP-constraints, defined in Figure \ref{figC:enumeration}) are an alternative which scales better.
 
-MP-constraints are similar to BP-constraints, but can constrain an infinite number of items. A value |v| satisfies a constraint |p_1 :* p_2| if |v| itself satisfies the pattern |p_1| and \textit{all its recursive components at any depth} satisfy |p_2|. We call |p_1| the root pattern, and |p_2| the recursive pattern. Each of |p_1| and |p_2| is given as a set of matches similar to BP-constraints, but each |Pattern| only specifies the values for the non-recursive selectors, all recursive selectors are handled by |p_2|. A constraint is a disjunctive list of |:*| patterns.
+MP-constraints are similar to BP-constraints, but can constrain an infinite number of items. A value |v| satisfies a constraint \h{#mp}|p_1 :* p_2| if |v| itself satisfies the pattern |p_1| and \textit{all its recursive components at any depth} satisfy |p_2|. We call |p_1| the root pattern, and |p_2| the recursive pattern. Each of |p_1| and |p_2| is given as a set of matches similar to BP-constraints, but each |Pattern| only specifies the values for the non-recursive selectors, all recursive selectors are handled by |p_2|. A constraint is a disjunctive list of |:*| patterns.
 
-The intuition behind the definition of |(c,i) ||> ps| is that if the selector |(c,i)| is recursive, given a pattern |alpha :* beta|, the new root pattern requires the value to be |c|-constructed, and the recursive patterns become |merge alpha beta| -- i.e. all recursive values must satisfy both the root and recursive patterns of the original pattern. If the selector is non-recursive, then each new pattern contains the old pattern within it, as the appropriate non-recursive field. So, for example:
+The intuition behind the definition of |(c,i) ||> ps| is that if the selector |(c,i)| is recursive, given a pattern \h{#mp}|alpha :* beta|, the new root pattern requires the value to be |c|-constructed, and the recursive patterns become \h{#mp}|merge alpha beta| -- i.e. all recursive values must satisfy both the root and recursive patterns of the original pattern. If the selector is non-recursive, then each new pattern contains the old pattern within it, as the appropriate non-recursive field. So, for example:
 
 \ignore\begin{code}
 hd  |> (alpha :* beta) = {(:) (alpha :* beta)  } :* {[], (:) Any}
@@ -725,7 +753,7 @@ MP-constraints also have simplification rules.  For example, two of the eight ru
 
 \para{|Val|-list simplification:} Given a |Val|-list, if the value |Any| is in this list, the list is equal to |[Any]|. If a value occurs more than once in the list, one copy can be removed.
 
-\para{|Val| simplification:} If both |p_1| and |p_2| cover all constructors and all their components have |Any| as their constraint, the constraint |p_1 :* p_2| can be replaced with |Any|.
+\para{|Val| simplification:} If both |p_1| and |p_2| cover all constructors and all their components have |Any| as their constraint, the constraint \h{#mp}|p_1 :* p_2| can be replaced with |Any|.
 
 
 \subsubsection{Finitely Many MP-Constraints per Type}
@@ -735,8 +763,7 @@ As in \S\ref{secC:finite_re}, we show there are finitely many constraints per ty
 \begin{code}
 count :: Type -> Integer
 count (Type t) = 2 ^ val t
-
-val t = 1 + 2 * 2 ^ (pattern t)
+    where val t = 1 + 2 * 2 ^ (pattern t)
 
 pattern t = sum (map f t)
     where f c = product [count t_2 | Just t_2 <- c]
@@ -757,7 +784,7 @@ A big advantage of MP-constraints is that if two constraints on the same express
 \noindent This ability to combine constraints on equal expressions can be exploited further by translating the program to be analysed. After applying |reduce|, all constraints will be in terms of the arguments to a function. So if all functions took exactly one argument then \textit{all} the constraints associated with a function could be collapsed into one. We therefore \textit{uncurry} all functions.
 
 \begin{example}
-\begin{code}
+\h{#*}\begin{code}
 (||) x y = case  x of
                  True   -> True
                  False  -> y
@@ -766,7 +793,7 @@ A big advantage of MP-constraints is that if two constraints on the same express
 \noindent in uncurried form becomes:
 
 \begin{onepage}
-\begin{code}
+\ignore\begin{code}
 (||) a = case  a of
                (x,y) -> case  x of
                               True    -> True
@@ -788,7 +815,7 @@ data T = T
 \end{comment}
 
 \begin{example}
-Let |v_1 = (T:[])| and |v_2 = (T:T:[])| and consider the MP-constraint \ignore|{(:) Any} :* {[]}|. This constraint is satisfied by |v_1| but not by |v_2|. No proposition over RE-constraints can separate these two values.
+Let \h{stmt}|v_1 = (T:[])| and \h{stmt}|v_2 = (T:T:[])| and consider the MP-constraint \ignore|{(:) Any} :* {[]}|. This constraint is satisfied by |v_1| but not by |v_2|. No proposition over RE-constraints can separate these two values.
 \end{example}
 
 \begin{example}
@@ -1018,12 +1045,6 @@ The FiniteMap library for Haskell has been widely distributed for over 10 years.
 The first challenge is that there is no |main| function. Catch uses all the exports from the library, and checks each of them as if it had |main| status.
 
 Catch is able to prove that all but one of the non-exhaustive patterns are safe. The definition found unsafe has the form:
-
-\begin{comment}
-\begin{code}
-data Branch a b = Branch a b
-\end{code}
-\end{comment}
 
 \begin{code}
 delFromFM (Branch key ellipses) del_key  | del_key  >   key = ellipses
