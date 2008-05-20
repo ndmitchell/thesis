@@ -153,7 +153,7 @@ We wish to prove:
 
 In particular this requires the following theorems about the constraint language:
 
-\theorem{sat/|-<|}
+\theorem{satV/|-<|}
 {|satV' $ x -< cs ==> maybe True (`elem` cs) (valCtor x)|}
 
 \theorem{sat/| ||> |}
@@ -173,11 +173,17 @@ We will also need the following general theorems:
 \theorem{reduce}
 {|satE' $ reduce x / (vs,xs) ==> satE' $ x / (vs, xs)|}
 
-%\theorem{sat/subst}
-%{|sat (pre x / (freeVars x, ys)) && all (sat . pre) ys ==> sat $ pre $ x / (freeVars x, ys)|}
+\theorem{pre}
+{|satE' (pre x /# (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)|}
 
-\theorem{pre/uneval}
+\theorem{uneval}
 {|not $ isBottom x ==> satE' $ pre $ uneval x|}
+
+\theorem{satE/|-<|}
+{|satV' (eval x -< cs) == satE' (x -< cs)|}
+
+\theorem{elem}
+{|(x `elem` (xs \\ [x])) == False|}
 
 \subsubsection{The Proof}
 
@@ -217,7 +223,7 @@ The initial definition is:
 
 \begin{code}
 eval (Call f xs)  | f == "error" = Bottom
-                   | otherwise = eval $ body f / (args f, xs)
+                  | otherwise = eval $ body f / (args f, xs)
 \end{code}
 
 There are two ways to get |Bottom| from this fragment. The first is the explicit |Bottom|, and the second is the recursive call to |eval|. The first |Bottom| is avoided under the condition:
@@ -231,7 +237,6 @@ satE' (precond f / (args f, xs)) && all (satE' . pre) xs ==> f /= "error"
     -- weaken implication
 satE' (precond f / (args f, xs)) ==> f /= "error"
 \end{code}
-
 
 We can now perform case analysis on |f|, assuming it either is, or is not, equal to |"error"|.
 
@@ -299,58 +304,101 @@ satE' $ pre x ==> satE' $ pre x
 True
 \end{code}
 
-We now need to ensure that the other call to |eval| meets its precondition:
-
-%if 0
+We now need to ensure that the other call to |eval| meets its precondition. To simplify the proof we only consider case expressions containing the one alternative which is taken. Because the source language has static typing and complete alternatives, we know there will be exactly one matching alternative. All non-matching alternatives are filtered out, so this simplification is valid. We can assume that |eval x == Val c xs|.
 
 \h{exprlist}\begin{code}
-sat (pre (Case x as)) && (eval x == Val c xs) ==> sat $ pre $ y / (vs, map uneval xs)
+satE' (pre (Case x [Alt c vs y]) ==> satE' $ pre $ y / (vs, map uneval xs)
 \end{code}
 
-First we can work on the RHS only:
+First we work on the RHS only:
 
 \h{exprlist}\begin{code}
-sat $ pre $ y / (vs, map uneval xs)
-    -- \lemma{pre/subst}
-sat (pre y / (vs, map uneval xs)) && all (sat . pre) (map uneval xs)
+satE' $ pre $ y / (vs, map uneval xs)
+    -- \lemma{pre}
+satE' (pre y /# (vs, map uneval xs)) && all (satE' . pre) (map uneval xs)
     -- |all f . map g == all (f . g)|
-sat (pre y / (vs, map uneval xs)) && all (sat . pre . uneval) xs
-    -- \lemma{pre/uneval}
-sat (pre y / (vs, map uneval xs)) && all (sat . const propTrue) xs
-    -- inline |sat|
-sat (pre y / (vs, map uneval xs)) && all (const True) xs
-    -- |all (const True) xs == True|
-sat (pre y / (vs, map uneval xs))
+satE' (pre y /# (vs, map uneval xs)) && all (satE' . pre . uneval) xs
+    -- \lemma{uneval}
+satE' (pre y /# (vs, map uneval xs)) && all (not . isBottom) xs
+    -- |not (any f xs) == all (not . f) xs
+satE' (pre y /# (vs, map uneval xs)) && not (any isBottom xs)
 \end{code}
 
-We can now return to the whole thing, assuming that the constructor is the first to be chosen. We can reorder the alternatives because they have no order and are processed in a map in the code. We can assume that |x| matches \ignore|Val c _| because that branch has been picked.
+Now we work only on the LHS:
 
 \h{exprlist}\begin{code}
-sat $ pre $ Case x (Alt c vs y : as) ==> sat $ pre y
+satE' (pre (Case x [Alt c vs y]))
     -- inline |pre|
-sat $ pre x `propAnd` propAnds (map alt (Alt c vs y : as)) ==> sat $ pre y
-    -- inline |sat|
-sat (pre x) && all (sat . alt) (Alt c vs y : as) ==> sat $ pre y
-    -- inline |all|
-sat (pre x) && sat (alt (Alt c vs y)) && all (sat . alt) as ==> sat $ pre y
-    -- weaken the implication
-sat $ alt $ Alt c vs y ==> sat $ pre y
+satE' $ pre x `propAnd` propAnds (map alt [Alt c vs y])
+    -- inline |map|
+satE' $ pre x `propAnd` propAnds [alt $ Alt c vs y]
+    -- inline |propAnds|
+satE' $ pre x `propAnd` alt (Alt c vs y)
+    -- inline |satE'|
+satE' (pre x) && satE' (alt $ Alt c vs y)
+    -- \lemma{pre/eval}
+not (isBottom $ eval x) && satE' (alt $ Alt c vs y)
+    -- |eval x == Val c xs|
+not (isBottom $ Val c xs) && satE' (alt $ Alt c vs y)
+    -- inline |isBottom|
+not (any isBottom xs) && satE' (alt $ Alt c vs y)
+\end{code}
+
+We can now combine the two sides, eliminating the |not (any isBottom xs)| from each side:
+
+\h{exprlist}\begin{code}
+satE' $ alt $ Alt c vs y ==> satE' (pre y /# (vs, map uneval xs))
     -- inline |alt|
-sat $ x -< (ctors c \\ [c]) `propOr` pre y ==> sat $ pre y
-    -- inline |sat|
-sat (x -< (ctors c \\ [c])) || sat (pre y) ==> sat $ pre y
-    -- \lemma{sat/|-<|}
-ctor x `elem` (ctors c \\ [c]) || sat (pre y) ==> sat $ pre y
-    -- |ctor x == c|
-c `elem` (ctors c \\ [c]) || sat (pre y) ==> sat $ pre y
+satE' $ x -< (ctors c \\ [c]) `propOr` pre y ==> satE' $ pre y
+    -- inline |satE'|
+satE' (x -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
+    -- \lemma{satE/|-<|}
+satV' (eval x -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
+    -- \lemma{satV/|-<|}
+maybe True (`elem` (ctors c \\ [c])) (valCtor $ eval x) || satE' (pre y) ==> satE' $ pre y
+    -- |valCtor (eval x) == Just c|
+maybe True (`elem` (ctors c \\ [c])) (Just c) || satE' (pre y) ==> satE' $ pre y
+    -- inline |maybe|
+c `elem` (ctors c \\ [c]) || satE' (pre y) ==> satE' $ pre y
     -- \lemma{elem/diff}
-False || sat (pre y) ==> sat $ pre y
+False || satE' (pre y) ==> satE' $ pre y
     -- inline |(||||)|
-sat $ pre y ==> sat $ pre y
+satE' $ pre y ==> satE' $ pre y
+    -- implication
+
+We can now return to the whole thing, assuming that the constructor is the first to be chosen. We can reorder the alternatives because they have no order and are processed in a map in the code. We can assume that |eval x| matches \ignore|Val c _| because that branch has been picked.
+
+\h{exprlist}\begin{code}
+satE' $ pre $ Case x (Alt c vs y : as) ==> satE' $ pre y
+    -- inline |pre|
+satE' $ pre x `propAnd` propAnds (map alt (Alt c vs y : as)) ==> satE' $ pre y
+    -- inline |satE'|
+satE' (pre x) && all (satE' . alt) (Alt c vs y : as) ==> satE' $ pre y
+    -- inline |all|
+satE' (pre x) && satE' (alt (Alt c vs y)) && all (satE' . alt) as ==> satE' $ pre y
+    -- weaken the implication
+satE' $ alt $ Alt c vs y ==> satE' $ pre y
+    -- inline |alt|
+satE' $ x -< (ctors c \\ [c]) `propOr` pre y ==> satE' $ pre y
+    -- inline |satE'|
+satE' (x -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
+    -- \lemma{satE/|-<|}
+satV' (eval x -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
+    -- \lemma{satV/|-<|}
+maybe True (`elem` (ctors c \\ [c])) (valCtor $ eval x) || satE' (pre y) ==> satE' $ pre y
+    -- |valCtor (eval x) == Just c|
+maybe True (`elem` (ctors c \\ [c])) (Just c) || satE' (pre y) ==> satE' $ pre y
+    -- inline |maybe|
+c `elem` (ctors c \\ [c]) || satE' (pre y) ==> satE' $ pre y
+    -- \lemma{elem/diff}
+False || satE' (pre y) ==> satE' $ pre y
+    -- inline |(||||)|
+satE' $ pre y ==> satE' $ pre y
     -- implication
 True
 \end{code}
 
+%if 0
 
 \proof{elem/diff}
 
