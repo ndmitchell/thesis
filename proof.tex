@@ -381,15 +381,38 @@ precond "error" == propFalse
 
 The initial computation of |precond| will return |propFalse|. All successive computations will be at least as restrictive, therefore the result must be |propFalse|.
 
+\proof{precond}
+
+\h{expr}\begin{code}
+precond f ==> reduce $ pre $ body f
+\end{code}
+
+The definition of |precond f| is a conjunction where the second conjunct is |reduce $ pre $ body f|, therefore |precond f| is at least as restrictive as the alternative.
+
+
+\proof{satE/|-<|}
+
+\h{exprlist}\begin{code}
+satV' (eval x -< cs) == satE' (x -< cs)
+    -- inline |satV'| and |satE'|
+propTaut satV (eval x -< cs) == propTaut satE (x -< cs)
+    -- inline |propTaut| and reduce common bits
+propMap (propBool . satV) (eval x -< cs) == propMap (propBool . satE) (x -< cs)
+\end{code}
+
+Now we can use the type signature of |-<|:
+
+\begin{code}
+(-<) :: alpha -> [CtorName] -> Prop (Sat alpha)
+\end{code}
+
+The theorems for free work \cite{wadler:theorems} shows that the first argument will end up as the first argument of the |Sat| constructor, unmodified and unexamined. The |satE| function applies |eval| to the first argument of |Sat|, therefore both these pieces of code are equivalent.
 
 
 
 
 %if 0
 
-
-\theorem{precond}
-{|precond f ==> reduce $ pre $ body f|}
 
 
 \proof{sat/reduce}
