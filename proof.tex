@@ -189,6 +189,10 @@ We prove each lemma in turn.
 
 \proof{pre/eval}
 
+\h{expr}\begin{code}
+satE' $ pre x ==> not $ isBottom $ eval x
+\end{code}
+
 By induction. We do not need to consider |Var| as |eval| cannot be called on expressions with free variables.
 
 \proof[|Sel|:]{pre/eval}
@@ -361,19 +365,27 @@ satE' $ pre y ==> satE' $ pre y
 True
 \end{code}
 
-\proof{elem/diff}
+\proof{elem}
 
-\h{exprlist}\begin{code}
+\h{expr}\begin{code}
 (x `elem` (ys \\ [x])) == False
 \end{code}
 
 The |elem| application is only true if |ys \\ [x]| contains |x|. The expression cannot contain |x|, as if it existed in |ys| it was removed, therefore this application is always |False|.
 
+\proof{precond/error}
+
+\h{expr}\begin{code}
+precond "error" == propFalse
+\end{code}
+
+The initial computation of |precond| will return |propFalse|. All successive computations will be at least as restrictive, therefore the result must be |propFalse|.
+
+
+
+
+
 %if 0
-
-
-\theorem{precond/error}
-{|precond "error" == propFalse|}
 
 
 \theorem{precond}
