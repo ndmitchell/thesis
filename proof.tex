@@ -4,7 +4,7 @@
 %format /# = "/"
 
 \hsdef{\begin{comment}
-k,f,c,v,i,on,xs_i,x,ys_i
+k,f,c,v,i,on,xs_i,x,ys_i,s
 vs,xs,y,as,ys,cs
 \end{comment}}
 \begin{comment}
@@ -409,9 +409,88 @@ Now we can use the type signature of |-<|:
 The theorems for free work \cite{wadler:theorems} shows that the first argument will end up as the first argument of the |Sat| constructor, unmodified and unexamined. The |satE| function applies |eval| to the first argument of |Sat|, therefore both these pieces of code are equivalent.
 
 
+\proof{pre}
 
+\h{exprlist}\begin{code}
+satE' (pre x /# (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)
+\end{code}
+
+This proof is by case analysis on |x|. We assume that all free variables in |x| are bound in |vs|. To shorten all the proofs we hide the |all (satE' . pre) ys| term, as it is never manipulated.
+
+\proof[|Var|:]{pre}
+
+\h{exprlist}\begin{code}
+satE' $ pre x /# (vs, ys) ==> satE' $ pre $ x / (vs, ys)
+    -- |x == Var v|
+satE' $ pre (Var v) /# (vs, ys) ==> satE' $ pre $ Var v / (vs, ys)
+    -- inline |pre| on LHS
+satE' $ propTrue /# (vs, ys) ==> satE' $ pre $ Var v / (vs, ys)
+    -- inline |(/#)| on LHS
+satE' propTrue ==> satE' $ pre $ Var v / (vs, ys)
+    -- inline |satE'|
+True ==> satE' $ pre $ Var v / (vs, ys)
+    -- reintroduce hidden term
+all (satE' . pre) ys ==> satE' $ pre $ Var v / (vs, ys)
+\end{code}
+
+We know that |v| will be a member of |vs|, and that the result will be |pre y|, where |y| is drawn from |ys|. Since all |ys| satisfy the precondition, then so will the particular |y| we substitute.
+
+\proof[|Sel|:]{pre}
+
+\h{exprlist}\begin{code}
+satE' $ pre x /# (vs, ys) ==> satE' $ pre $ x / (vs, ys)
+    -- |x == Sel x s|
+satE' $ pre (Sel x s) /# (vs, ys) ==> satE' $ pre $ Sel x s / (vs, ys)
+    -- inline |(/)| on RHS
+satE' $ pre (Sel x s) /# (vs, ys) ==> satE' $ pre $ Sel (x / (vs,ys)) s
+    -- inline |pre| on RHS
+satE' $ pre (Sel x s) /# (vs, ys) ==> satE' $ propTrue
+    -- inline |satE'| on RHS
+satE' $ pre (Sel x s) /# (vs, ys) ==> True
+    -- implication
+True
+\end{code}
+
+\proof[|Make|:]{pre}
+
+\h{exprlist}\begin{code}
+satE' $ pre x /# (vs, ys) ==> satE' $ pre $ x / (vs, ys)
+    -- |x == Make c xs|
+satE' $ pre (Make c xs) /# (vs, ys) ==> satE' $ pre $ Make c xs / (vs, ys)
+    -- inline |(/)| on RHS
+satE' $ pre (Make c xs) /# (vs, ys) ==> satE' $ pre $ Make c $ map (/ (vs, ys)) xs
+    -- inline |pre| on both sides
+satE' $ propAnds (map pre xs) /# (vs, ys) ==> satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
+    -- inline |(/#)| on LHS
+satE' $ propAnds $ map ((/# (vs,ys)) . pre) xs ==> satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
+    -- inline |satE'| on both sides
+all (satE' . (/# (vs,ys)) . pre) xs ==> all (satE' . pre . (/ (vs, ys))) xs
+    -- \lemma{pre}
+True
+\end{code}
+
+\proof[|Call|:]{pre}
 
 %if 0
+
+\h{exprlist}\begin{code}
+satE' $ pre x /# (vs, ys) ==> satE' $ pre $ x / (vs, ys)
+    -- |x == Call f xs|
+satE' $ pre (Call f xs) /# (vs, ys) ==> satE' $ pre $ Call f xs / (vs, ys)
+    -- inline |(/)| on RHS
+satE' $ pre (Make c xs) /# (vs, ys) ==> satE' $ pre $ Make c $ map (/ (vs, ys)) xs
+    -- inline |pre| on both sides
+satE' $ propAnds (map pre xs) /# (vs, ys) ==> satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
+    -- inline |(/#)| on LHS
+satE' $ propAnds $ map ((/# (vs,ys)) . pre) xs ==> satE' $ propAnds $ map pre (/ (vs, ys)) xs
+    -- inline |satE'| on both sides
+all (satE' . (/# (vs,ys)) . pre) xs ==> all (satE' . pre . (/ (vs, ys))) xs
+    -- \lemma{pre}
+True
+\end{code}
+
+
+
 
 
 
