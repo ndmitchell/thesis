@@ -623,6 +623,38 @@ sat (eval $ Var v / (vs,xs)) k ==> sat (eval $ Var v / (vs, xs)) k
 True
 \end{code}
 
+\proof[|Sel|:]{red}
+
+For this section, we assume |eval (x / (vs,xs)) == Val c ys|.
+
+\h{exprlist}\begin{code}
+satE' $ red x k /# (vs,xs) ==> sat (eval $ x / (vs, xs)) k
+    -- |x == Sel x (c,i)|
+satE' $ red (Sel x (c,i)) k /# (vs,xs) ==> sat (eval $ Sel x (c,i) / (vs, xs)) k
+    -- inline |red|
+satE' $ red x ((c,i) |> k) /# (vs,xs) ==> sat (eval $ Sel x (c,i) / (vs, xs)) k
+    -- inline |(/)| on RHS
+satE' $ red x ((c,i) |> k) /# (vs,xs) ==> sat (eval $ Sel (x / (vs, xs)) (c,i)) k
+    -- inline |eval| on RHS
+satE' $ red x ((c,i) |> k) /# (vs,xs) ==> sat (ys !! i) k
+    -- \lemma{sat/| ||> |}
+satE' $ red x ((c,i) |> k) /# (vs,xs) ==> sat (Val c ys) ((c,i) |> k)
+    -- replace using the assumption
+satE' $ red x ((c,i) |> k) /# (vs,xs) ==> sat (eval (x / (vs,xs))) ((c,i) |> k)
+    -- \lemma{red}
+True
+\end{code}
+
+%if 0
+
+
+
+
+eval (Sel x (c,i)) | c == c' = xs !! i
+    where Val c' xs = eval x
+
+\end{code}
+
 
 
 
