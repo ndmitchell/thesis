@@ -127,8 +127,11 @@ valCtor :: Val -> Maybe CtorName
 valCtor (Val c xs) = Just c
 valCtor Bottom = Nothing
 
+propIsTrue :: Prop () -> Bool
+propIsTrue = (==) propTrue
+
 propTaut :: (alpha -> Bool) -> Prop alpha -> Bool
-propTaut f x = (propTrue :: Prop ()) == propMap (propBool . f) x
+propTaut f = propIsTrue . propMap (propBool . f)
 
 satE' :: Prop (Sat Expr) -> Bool
 satE' = propTaut satE
@@ -174,7 +177,10 @@ We will also need the following general theorems:
 {|precond f ==> reduce $ pre $ body f|}
 
 \theorem{reduce}
-{|satE' $ reduce x / (vs,xs) ==> satE' $ x / (vs, xs)|}
+{|satE' $ reduce x / (vs,xs) ==> satE' $ x /# (vs, xs)|}
+
+\theorem{red}
+{|satE' $ red x k / (vs,xs) ==> sat (eval $ x / (vs, xs)) k|}
 
 \theorem{pre}
 {|satE' (pre x /# (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)|}
@@ -531,7 +537,7 @@ satE' $ (pre x /# (vs, ys)) `propAnd` propAnds (map ((/# (vs, ys)) . alt) as)  =
     -- inline |satE'|
 satE' (pre x /# (vs, ys)) && all (satE' . (/# (vs, ys)) . alt) as  ==> satE' (pre (x / (vs, ys))) && all (satE' . alt . (/ (vs, ys))) as
     -- \lemma{pre}
-all (satE' . (/# (vs, ys)) . alt) as  ==> all (satE' . pre . (/ (vs, ys))) as
+all (satE' . (/# (vs, ys)) . alt) as  ==> all (satE' . alt . (/ (vs, ys))) as
     -- implication over |all|
 satE' $ alt a /# (vs, ys) ==> satE' $ alt $ as / (vs, ys)
     -- instantiate |a| as a general |Alt|
@@ -551,7 +557,67 @@ satE' $ pre y /# (vs, ys) ==> satE' $ pre $ y / (vs, ys)
     -- \lemma{pre}
 True
 \end{code}
-    
+
+
+\proof{reduce}
+
+We wish to prove:
+
+\h{exprlist}\begin{code}
+satE' $ reduce x / (vs,xs) ==> satE' $ x /# (vs, xs)
+    -- inline |reduce|
+satE' $ propMap (\(Sat x k) -> red x k) x / (vs,xs) ==> satE' $ x /# (vs, xs)
+    -- inline |(/)| on LHS
+satE' $ propMap (\(Sat x k) -> red x k / (vs,xs)) x ==> satE' $ x /# (vs, xs)
+    -- inline |(/#)| on RHS
+satE' $ propMap (\(Sat x k) -> red x k / (vs,xs)) x ==> satE' $ propMap (\(Sat x k) -> propLit $ Sat x k / (vs, xs)) x
+    -- inline |(/)| on RHS
+satE' $ propMap (\(Sat x k) -> red x k / (vs,xs)) x ==> satE' $ propMap (\(Sat x k) -> propLit $ Sat (x / (vs, xs)) k) x
+    -- inline |satE'|
+propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ red x k / (vs,xs)) x ==> propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ propLit $ Sat (x / (vs, xs)) k) x
+    -- lift |propMap| over |(==>)|
+satE' $ red x k / (vs,xs) ==> satE' $ propLit $ Sat (x / (vs, xs)) k
+    -- inline |satE'| on RHS
+satE' $ red x k / (vs,xs) ==> satE $ Sat (x / (vs, xs)) k
+    -- inline |satE| on RHS
+satE' $ red x k / (vs,xs) ==> sat (eval $ x / (vs, xs)) k
+    -- \lemma{red}
+True
+\end{code}
+
+
+\proof{red}
+
+We wish to prove:
+
+\h{expr}\begin{code}
+satE' $ red x k / (vs,xs) ==> sat (eval $ x / (vs, xs)) k
+\end{code}
+
+We do so by case analysis on the expression |x|.
+
+\proof[|Var|:]{red}
+
+\h{exprlist}\begin{code}
+satE' $ red x k / (vs,xs) ==> sat (eval $ x / (vs, xs)) k
+    -- |x == Var v|
+satE' $ red (Var v) k / (vs,xs) ==> sat (eval $ Var v / (vs, xs)) k
+    -- inline |red|
+satE' $ propLit (Sat v k) / (vs,xs) ==> sat (eval $ Var v / (vs, xs)) k
+    -- inline |(/)| on LHS
+satE' $ propLit (Sat (v /# (vs,xs)) k) ==> sat (eval $ Var v / (vs, xs)) k
+    -- promote |v| on LHS to |Var v|
+    -- because |(/)| operates identically on both
+satE' $ propLit (Sat (Var v / (vs,xs)) k) ==> sat (eval $ Var v / (vs, xs)) k
+    -- inline |satE'|
+satE (Sat (Var v / (vs,xs)) k) ==> sat (eval $ Var v / (vs, xs)) k
+    -- inline |satE|
+sat (eval $ Var v / (vs,xs)) k ==> sat (eval $ Var v / (vs, xs)) k
+    -- equal
+True
+\end{code}
+
+
 
 
 %if 0
