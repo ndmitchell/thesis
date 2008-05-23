@@ -23,6 +23,7 @@
 %format propTaut = "\mathsf{tautP}"
 %format propMap = "\mathsf{mapP}"
 %format propTrue = "\mathsf{true}"
+%format propIsTrue = "\mathsf{isTrue}"
 %format propFalse = "\mathsf{false}"
 %format propBool = "\mathsf{bool}"
 %format propIsTrue = "\mathsf{isTrue}"
