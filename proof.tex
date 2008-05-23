@@ -4,7 +4,7 @@
 %format /# = "/"
 
 \hsdef{\begin{comment}
-k,f,c,v,i,on,xs_i,x,ys_i,s
+k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws
 vs,xs,y,as,ys,cs
 \end{comment}}
 \begin{comment}
@@ -59,6 +59,7 @@ data Constraint = Constraint
 
 class Subst a b c | c -> b, a -> b, c -> a where (/) :: a -> b -> c
 instance Subst Expr ([VarName], [Expr]) Expr
+instance Subst Alt ([VarName], [Expr]) Alt
 instance Subst (Prop (Sat Int)) ([Int], [Val]) (Prop (Sat Val))
 instance Subst (Prop (Sat VarName)) ([VarName], [Expr]) (Prop (Sat Expr))
 
@@ -68,6 +69,7 @@ instance Eq Val
 instance Eq Expr
 
 alt :: Alt -> Prop (Sat a)
+pre' :: String -> [Expr] -> Prop (Sat Expr)
 \end{code}
 \end{comment}
 
@@ -471,15 +473,102 @@ True
 
 \proof[|Call|:]{pre}
 
-%if 0
-
 \h{exprlist}\begin{code}
 satE' $ pre x /# (vs, ys) ==> satE' $ pre $ x / (vs, ys)
     -- |x == Call f xs|
 satE' $ pre (Call f xs) /# (vs, ys) ==> satE' $ pre $ Call f xs / (vs, ys)
     -- inline |(/)| on RHS
-satE' $ pre (Make c xs) /# (vs, ys) ==> satE' $ pre $ Make c $ map (/ (vs, ys)) xs
+satE' $ pre (Call f xs) /# (vs, ys) ==> satE' $ pre $ Call f $ map (/ (vs, ys)) xs
+\end{code}
+
+Now we will work on each side individually, starting with LHS:
+
+\h{exprlist}\begin{code}
+satE' $ pre (Call f xs) /# (vs, ys)
+    -- inline |pre|
+satE' $ (pre' f xs `propAnd` propAnds (map pre xs)) /# (vs,ys)
+    -- inline |(/#)|
+satE' $ (pre' f xs /# (vs,ys)) `propAnd` propAnds (map (pre . (/ (vs,ys))) xs)
+    -- inline |satE'|
+satE' (pre' f xs /# (vs,ys)) && all (satE' . pre . (/ (vs,ys))) xs
+\end{code}
+
+And the RHS:
+
+\h{exprlist}\begin{code}
+satE' $ pre $ Call f $ map (/ (vs, ys)) xs
+    -- inline |pre|
+satE' $ (pre' f (map (/ (vs, ys)) xs)) `propAnd` propAnds (map (pre . (/ (vs, ys))) xs)
+    -- inline |satE'|
+satE' (pre' f (map (/ (vs, ys)) xs)) && all (satE' . pre . (/ (vs, ys))) xs
+\end{code}
+
+We can now combine these sides, eliminating the common bit:
+
+\h{exprlist}\begin{code}
+satE' $ pre' f xs /# (vs,ys) ==> satE' $ pre' f (map (/ (vs, ys)) xs)
+    -- inline |pre'|
+satE' $ (precond f / (args f, xs)) /# (vs,ys) ==> satE' $ precond f / (args f, map (/ (vs, ys)) xs)
+    -- using the knowledge that |precond f| only has the free variables |args f|
+    -- we can inline |(/) on the left
+satE' $ precond f / (args f, map (/ (vs,ys)) xs) ==> satE' $ precond f / (args f, map (/ (vs, ys)) xs)
+    -- equal
+True
+\end{code}
+
+\proof[|Case|:]{pre}
+
+\h{exprlist}\begin{code}
+satE' $ pre x /# (vs, ys) ==> satE' $ pre $ x / (vs, ys)
+    -- |x == Case x as|
+satE' $ pre (Case x as) /# (vs, ys) ==> satE' $ pre $ Case x as / (vs, ys)
+    -- inline |(/)| on RHS
+satE' $ pre (Case x as) /# (vs, ys) ==> satE' $ pre $ Case (x / (vs, ys)) (map (/ (vs, ys)) as)
     -- inline |pre| on both sides
+satE' $ (pre x `propAnd` propAnds (map alt as)) /# (vs, ys) ==> satE' $ pre (x / (vs, ys)) `propAnd` propAnds (map (alt . (/ (vs, ys))) as)
+    -- inline |(/#)| on RHS
+satE' $ (pre x /# (vs, ys)) `propAnd` propAnds (map ((/# (vs, ys)) . alt) as)  ==> satE' $ pre (x / (vs, ys)) `propAnd` propAnds (map (alt . (/ (vs, ys))) as)
+    -- inline |satE'|
+satE' (pre x /# (vs, ys)) && all (satE' . (/# (vs, ys)) . alt) as  ==> satE' (pre (x / (vs, ys))) && all (satE' . alt . (/ (vs, ys))) as
+    -- \lemma{pre}
+all (satE' . (/# (vs, ys)) . alt) as  ==> all (satE' . pre . (/ (vs, ys))) as
+    -- implication over |all|
+satE' $ alt a /# (vs, ys) ==> satE' $ alt $ as / (vs, ys)
+    -- instantiate |a| as a general |Alt|
+satE' $ alt (Alt c ws y) /# (vs, ys) ==> satE' $ alt $ Alt c ws y / (vs, ys)
+    -- inline |(/)| on RHS
+satE' $ alt (Alt c ws y) /# (vs, ys) ==> satE' $ alt $ Alt c ws (y / (vs, ys))
+    -- inline |alt|
+satE' $ (x -< (ctors c \\ [c]) `propOr` pre y) /# (vs, ys) ==> satE' $ (x / (vs,ys) -< (ctors c \\ [c])) `propOr` pre (y / (vs, ys))
+    -- let |cs == ctors c \\ [c]
+satE' $ (x -< cs `propOr` pre y) /# (vs, ys) ==> satE' $ (x / (vs,ys) -< cs) `propOr` pre (y / (vs, ys))
+    -- inline |(/#)| on LHS
+satE' $ (x / (vs,ys) -< cs) `propOr` (pre y /# (vs, ys)) ==> satE' $ (x / (vs,ys) -< cs) `propOr` pre (y / (vs, ys))
+    -- inline |satE'| on both sides
+satE' (x / (vs,ys) -< cs) || satE' (pre y /# (vs, ys)) ==> satE' (x / (vs,ys) -< cs) || satE' (pre (y / (vs, ys)))
+    -- remove duplicate bits on each side
+satE' $ pre y /# (vs, ys) ==> satE' $ pre $ y / (vs, ys)
+    -- \lemma{pre}
+True
+\end{code}
+    
+
+
+%if 0
+
+
+WANT: satE' (pre x /# (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)
+
+
+
+
+
+
+    -- inline |pre| on both sides
+
+satE' $ pre (Call f xs) /# (vs, ys) ==> satE' $ pre $ Call f $ map (/ (vs, ys)) xs
+
+
 satE' $ propAnds (map pre xs) /# (vs, ys) ==> satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
     -- inline |(/#)| on LHS
 satE' $ propAnds $ map ((/# (vs,ys)) . pre) xs ==> satE' $ propAnds $ map pre (/ (vs, ys)) xs
