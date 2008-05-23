@@ -65,17 +65,18 @@ instance SubstVar a => SubstVar (Sat a)
 instance SubstVar a => SubstVar (Prop a)
 
 -- equality substitution, replacing items
-class SubstRep a b c | c -> b, a -> b, c -> a where (/#) :: a -> b -> c
+class SubstRep a b c | a c -> b, c b -> a, a b -> c where (/#) :: a -> b -> c
 instance SubstRep (Prop (Sat Int)) ([Int], [Val]) (Prop (Sat Val))
 instance SubstRep (Prop (Sat VarName)) ([VarName], [Expr]) (Prop (Sat Expr))
 instance SubstRep VarName ([VarName], [Expr]) Expr
-instance SubstRep (Prop (Sat VarName)) ([VarName], [Expr]) (Prop (Sat VarName))
+instance SubstRep (Prop (Sat Int)) ([Int], [Expr]) (Prop (Sat Expr))
 
 instance Eq Val
 instance Eq Expr
 
 alt :: Alt -> Prop (Sat a)
 pre' :: String -> [Expr] -> Prop (Sat Expr)
+sub :: ([VarName],[Expr])
 \end{code}
 \end{comment}
 
@@ -172,7 +173,7 @@ In particular this requires the following theorems about the constraint language
 {|sat (Val c xs) ((c,i) ||> k) ==> sat (xs !! i) k|}
 
 \theorem{sat/| <|| |}
-{|satV' $ (c <|| k) /# ([1..],xs) ==> sat (Val c xs) k|}
+{|satV' $ (c <|| k) /# ([0..],xs) ==> sat (Val c xs) k|}
 
 We will also need the following general theorems:
 
@@ -183,10 +184,10 @@ We will also need the following general theorems:
 {|precond f ==> reduce $ pre $ body f|}
 
 \theorem{reduce}
-{|satE' $ reduce x /# (vs,xs) ==> satE' $ x / (vs, xs)|}
+{|satE' $ reduce x /# sub ==> satE' $ x / sub|}
 
 \theorem{red}
-{|satE' $ red x k /# (vs,xs) ==> sat (eval $ x / (vs, xs)) k|}
+{|satE' $ red x k /# sub ==> sat (eval $ x / sub) k|}
 
 \theorem{pre}
 {|satE' (pre x / (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)|}
@@ -520,7 +521,7 @@ We can now combine these sides, eliminating the common bit:
 \h{exprlist}\begin{code}
 satE' $ pre' f xs / (vs,ys) ==> satE' $ pre' f (map (/ (vs, ys)) xs)
     -- inline |pre'|
-satE' $ (precond f /# (args f, xs)) /# (vs,ys) ==> satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
+satE' $ (precond f /# (args f, xs)) / (vs,ys) ==> satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
     -- using the knowledge that |precond f| only has the free variables |args f|
     -- we can inline |(/) on the left
 satE' $ precond f /# (args f, map (/ (vs,ys)) xs) ==> satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
@@ -570,23 +571,23 @@ True
 We wish to prove:
 
 \h{exprlist}\begin{code}
-satE' $ reduce x /# (vs,xs) ==> satE' $ x / (vs, xs)
+satE' $ reduce x /# sub ==> satE' $ x / sub
     -- inline |reduce|
-satE' $ propMap (\(Sat x k) -> red x k) x /# (vs,xs) ==> satE' $ x / (vs, xs)
+satE' $ propMap (\(Sat x k) -> red x k) x /# sub ==> satE' $ x / sub
     -- inline |(/)| on LHS
-satE' $ propMap (\(Sat x k) -> red x k /# (vs,xs)) x ==> satE' $ x / (vs, xs)
+satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==> satE' $ x / sub
     -- inline |(/)| on RHS
-satE' $ propMap (\(Sat x k) -> red x k /# (vs,xs)) x ==> satE' $ propMap (\(Sat x k) -> propLit $ Sat x k / (vs, xs)) x
+satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==> satE' $ propMap (\(Sat x k) -> propLit $ Sat x k / sub) x
     -- inline |(/)| on RHS
-satE' $ propMap (\(Sat x k) -> red x k /# (vs,xs)) x ==> satE' $ propMap (\(Sat x k) -> propLit $ Sat (x / (vs, xs)) k) x
+satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==> satE' $ propMap (\(Sat x k) -> propLit $ Sat (x / sub) k) x
     -- inline |satE'|
-propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ red x k /# (vs,xs)) x ==> propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ propLit $ Sat (x / (vs, xs)) k) x
+propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ red x k /# sub) x ==> propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ propLit $ Sat (x / sub) k) x
     -- lift |propMap| over |(==>)|
-satE' $ red x k /# (vs,xs) ==> satE' $ propLit $ Sat (x / (vs, xs)) k
+satE' $ red x k /# sub ==> satE' $ propLit $ Sat (x / sub) k
     -- inline |satE'| on RHS
-satE' $ red x k /# (vs,xs) ==> satE $ Sat (x / (vs, xs)) k
+satE' $ red x k /# sub ==> satE $ Sat (x / sub) k
     -- inline |satE| on RHS
-satE' $ red x k /# (vs,xs) ==> sat (eval $ x / (vs, xs)) k
+satE' $ red x k /# sub ==> sat (eval $ x / sub) k
     -- \lemma{red}
 True
 \end{code}
@@ -597,7 +598,7 @@ True
 We wish to prove:
 
 \h{expr}\begin{code}
-satE' $ red x k /# (vs,xs) ==> sat (eval $ x / (vs, xs)) k
+satE' $ red x k /# sub ==> sat (eval $ x / sub) k
 \end{code}
 
 We do so by case analysis on the expression |x|.
@@ -605,45 +606,71 @@ We do so by case analysis on the expression |x|.
 \proof[|Var|:]{red}
 
 \h{exprlist}\begin{code}
-satE' $ red x k /# (vs,xs) ==> sat (eval $ x / (vs, xs)) k
+satE' $ red x k /# sub ==> sat (eval $ x / sub) k
     -- |x == Var v|
-satE' $ red (Var v) k /# (vs,xs) ==> sat (eval $ Var v / (vs, xs)) k
+satE' $ red (Var v) k /# sub ==> sat (eval $ Var v / sub) k
     -- inline |red|
-satE' $ propLit (Sat v k) /# (vs,xs) ==> sat (eval $ Var v / (vs, xs)) k
+satE' $ propLit (Sat v k) /# sub ==> sat (eval $ Var v / sub) k
     -- inline |(/)| on LHS
-satE' $ propLit (Sat (v /# (vs,xs)) k) ==> sat (eval $ Var v / (vs, xs)) k
+satE' $ propLit (Sat (v /# sub) k) ==> sat (eval $ Var v / sub) k
     -- promote |v| on LHS to |Var v|
     -- because |(/)| operates identically on both
-satE' $ propLit (Sat (Var v / (vs,xs)) k) ==> sat (eval $ Var v / (vs, xs)) k
+satE' $ propLit (Sat (Var v / sub) k) ==> sat (eval $ Var v / sub) k
     -- inline |satE'|
-satE (Sat (Var v / (vs,xs)) k) ==> sat (eval $ Var v / (vs, xs)) k
+satE (Sat (Var v / sub) k) ==> sat (eval $ Var v / sub) k
     -- inline |satE|
-sat (eval $ Var v / (vs,xs)) k ==> sat (eval $ Var v / (vs, xs)) k
+sat (eval $ Var v / sub) k ==> sat (eval $ Var v / sub) k
     -- equal
 True
 \end{code}
 
 \proof[|Sel|:]{red}
 
-For this section, we assume |eval (x / (vs,xs)) == Val c ys|.
+For this section, we assume |eval (x / sub) == Val c xs|.
 
 \h{exprlist}\begin{code}
-satE' $ red x k /# (vs,xs) ==> sat (eval $ x / (vs, xs)) k
+satE' $ red x k /# sub ==> sat (eval $ x / sub) k
     -- |x == Sel x (c,i)|
-satE' $ red (Sel x (c,i)) k /# (vs,xs) ==> sat (eval $ Sel x (c,i) / (vs, xs)) k
+satE' $ red (Sel x (c,i)) k /# sub ==> sat (eval $ Sel x (c,i) / sub) k
     -- inline |red|
-satE' $ red x ((c,i) |> k) /# (vs,xs) ==> sat (eval $ Sel x (c,i) / (vs, xs)) k
+satE' $ red x ((c,i) |> k) /# sub ==> sat (eval $ Sel x (c,i) / sub) k
     -- inline |(/)| on RHS
-satE' $ red x ((c,i) |> k) /# (vs,xs) ==> sat (eval $ Sel (x / (vs, xs)) (c,i)) k
+satE' $ red x ((c,i) |> k) /# sub ==> sat (eval $ Sel (x / sub) (c,i)) k
     -- inline |eval| on RHS
-satE' $ red x ((c,i) |> k) /# (vs,xs) ==> sat (ys !! i) k
+satE' $ red x ((c,i) |> k) /# sub ==> sat (xs !! i) k
     -- \lemma{sat/| ||> |}
-satE' $ red x ((c,i) |> k) /# (vs,xs) ==> sat (Val c ys) ((c,i) |> k)
+satE' $ red x ((c,i) |> k) /# sub ==> sat (Val c xs) ((c,i) |> k)
     -- replace using the assumption
-satE' $ red x ((c,i) |> k) /# (vs,xs) ==> sat (eval (x / (vs,xs))) ((c,i) |> k)
+satE' $ red x ((c,i) |> k) /# sub ==> sat (eval (x / sub)) ((c,i) |> k)
     -- \lemma{red}
 True
 \end{code}
+
+\proof[|Make|:]{red}
+
+\h{exprlist}\begin{code}
+satE' $ red x k /# sub ==> sat (eval $ x / sub) k
+    -- |x == Make c xs|
+satE' $ red (Make c xs) k /# sub ==> sat (eval $ Make c xs / sub) k
+    -- inline |red|
+satE' $ reduce ((c <| k) /# ([0..], xs)) /# sub ==> sat (eval $ Make c xs / sub) k
+    -- \lemma{reduce}
+satE' $ ((c <| k) /# ([0..], xs)) / sub ==> sat (eval $ Make c xs / sub) k
+    -- inline |(/)| on LHS
+satE' $ (c <| k) /# ([0..], map (/ sub) xs) ==> sat (eval $ Make c xs / sub) k
+    -- inline |satE'| on LHS
+satV' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==> sat (eval $ Make c xs / sub) k
+    -- inline |(/)| on RHS
+satV' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==> sat (eval $ Make c (map (/ sub) xs)) k
+    -- inline |eval| on RHS
+satV' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==> sat (Val c (map (eval . (/ sub)) xs)) k
+    -- \lemma{sat/| <|| |}
+sat (Val c (map (eval . (/ sub)) xs)) k ==> sat (Val c (map (eval . (/ sub)) xs)) k
+    -- equal
+True
+\end{code}
+
+
 
 %if 0
 
