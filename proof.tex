@@ -123,6 +123,8 @@ We have introduced |Sel| for variables bound at a case expression. For the algor
 
 We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs,ys)| to denote replacing the free variables |vs| in |x| with |ys|. We use |(/)| instead of |substP| in the proofs. There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as substitution will remove them. We can assume the argument to |eval| has no free variables. The free variables of a function are its arguments.
 
+We assume the error function takes one argument and calls the error function.
+
 We also make use of a number of auxiliaries throughout the proof:
 
 \begin{code}
@@ -670,18 +672,57 @@ sat (Val c (map (eval . (/ sub)) xs)) k ==> sat (Val c (map (eval . (/ sub)) xs)
 True
 \end{code}
 
+\proof[|Call|:]{red}
 
-
-%if 0
-
-
-
-
-eval (Sel x (c,i)) | c == c' = xs !! i
-    where Val c' xs = eval x
-
+\h{exprlist}\begin{code}
+satE' $ red x k /# sub ==> sat (eval $ x / sub) k
+    -- |x == Call f xs|
+satE' $ red (Call f xs) k /# sub ==> sat (eval $ Call f xs / sub) k
+    -- inline |red|
+satE' $ reduce (prePost f k /# (args f, xs)) /# sub ==> sat (eval $ Call f xs / sub) k
+    -- \lemma{reduce}
+satE' $ (prePost f k /# (args f, xs)) / sub ==> sat (eval $ Call f xs / sub) k
+    -- inline |(/)| on LHS
+satE' $ prePost f k /# (args f, map (/sub) xs) ==> sat (eval $ Call f xs / sub) k
+    -- \lemma{prePost}
+satE' $ reduce (propLit $ Sat (body f) k) /# (args f, map (/sub) xs) ==> sat (eval $ Call f xs / sub) k
+    -- \lemma{reduce}
+satE' $ (propLit $ Sat (body f) k) / (args f, map (/sub) xs) ==> sat (eval $ Call f xs / sub) k
+    -- inline |(/)| on LHS
+satE' $ (propLit $ Sat (body f / (args f, map (/sub) xs)) k) ==> sat (eval $ Call f xs / sub) k
+    -- inline |satE'|
+satE $ Sat (body f / (args f, map (/sub) xs)) k ==> sat (eval $ Call f xs / sub) k
+    -- inline |satE|
+sat (eval $ body f / (args f, map (/sub) xs)) k ==> sat (eval $ Call f xs / sub) k
+    -- inline |(/)| on RHS
+sat (eval $ body f / (args f, map (/sub) xs)) k ==> sat (eval $ Call f (map (/ sub) xs)) k
 \end{code}
 
+We now split and assume that either |f| is equal to error, or not. First we consider the case where |f == "error"|.
+
+\h{exprlist}\begin{code}
+sat (eval $ body f / (args f, map (/ sub) xs)) k ==> sat (eval $ Call f (map (/ sub) xs)) k
+    -- assume |f == "error"|
+sat (eval $ body "error" / (args f, map (/ sub) xs)) k ==> sat (eval $ Call "error" (map (/ sub) xs)) k
+    -- inline |RHS|
+sat (eval $ body "error" / (args f, map (/ sub) xs)) k ==> sat Bottom k
+    -- assume |error x = error x|
+sat (eval $ Call "error" [Var "x"] / (["x"], map (/sub) xs)) k ==> sat Bottom k
+    -- inline |(/)| on LHS
+sat (eval $ Call "error" [head xs / sub]) k ==> sat Bottom k
+    -- inline |eval|
+sat Bottom k ==> sat Bottom k
+    -- equal
+True
+\end{code}
+
+\h{exprlist}\begin{code}
+sat (eval $ body f / (args f, map (/ sub) xs)) k ==> sat (eval $ Call f (map (/ sub) xs)) k
+    -- inline |eval| on RHS
+sat (eval $ body f / (args f, map (/ sub) xs)) k ==> sat (eval $ body f / (args f, map (/ sub) xs)) k
+    -- equal
+True
+\end{code}
 
 
 
