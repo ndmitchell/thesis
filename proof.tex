@@ -165,7 +165,7 @@ We wish to prove:
 In particular this requires the following theorems about the constraint language:
 
 \theorem{sat/|-<|}
-{|sat' (x -< cs) ==> maybe True (`elem` cs) (valCtor x)|}
+{|sat' (Val c xs -< cs) ==> c `elem` cs|}
 
 \theorem{sat/| ||> |}
 {|sat $ Sat (Val c xs) ((c,i) ||> k) ==> sat $ Sat (xs !! i) k|}
@@ -361,11 +361,10 @@ satE' (x -< (ctors c \\ [c]) `propOr` pre y) ==> rhs
 satE' (x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
     -- \lemma{satE/|-<|}
 sat' (eval x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
+    -- using |valCtor (eval x) == Just c|
+    -- we infer |eval x == Val c ys|
+sat' (Val c ys -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
     -- \lemma{sat/|-<|}
-maybe True (`elem` (ctors c \\ [c])) (valCtor $ eval x) || satE' (pre y) ==> rhs
-    -- using |valCtor (eval x) == c| from RHS
-maybe True (`elem` (ctors c \\ [c])) (Just c) || satE' (pre y) ==> satE' $ pre y
-    -- inline |maybe|
 c `elem` (ctors c \\ [c]) || satE' (pre y) ==> satE' $ pre y
     -- \lemma{elem}
 False || satE' (pre y) ==> satE' $ pre y
@@ -770,13 +769,9 @@ satE' ((x -< (ctors c \\ [c])) / sub) || satE' (red y k /# sub) ==> sat $ Sat (e
 satE' ((x / sub) -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
     -- \lemma{satE/|-<|}
 sat' (eval (x / sub) -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
-    -- \lemma{sat/|-<|}
-maybe True (`elem` (ctors c \\ [c])) (valCtor $ eval (x / sub)) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
     -- substitute |eval (x / sub) == Val c xs|
-maybe True (`elem` (ctors c \\ [c])) (valCtor $ Val c xs) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
-    -- inline |valCtor|
-maybe True (`elem` (ctors c \\ [c])) (Just c) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
-    -- inline |maybe|
+sat' (Val c xs -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- \lemma{sat/|-<|}
 c `elem` (ctors c \\ [c]) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
     -- \lemma{elem}
 False || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
@@ -806,31 +801,7 @@ c <| Con c_2 xs  =  propBool (c_2 == c) `propAnd` propAnds (map propLit (zipWith
 
 \proof{sat/|-<|} 
 
-By induction on |x|:
-
-\proof{|Bottom|:}{sat/|-<|}
-
 \h{exprlist}\begin{code}
-sat' (x -< cs) ==> maybe True (`elem` cs) (valCtor x)
-    -- |x == Bottom|
-sat' (x -< cs) ==> maybe True (`elem` cs) (valCtor Bottom)
-    -- inline |valCtor|
-sat' (x -< cs) ==> maybe True (`elem` cs) Nothing
-    -- inline |maybe|
-sat' (x -< cs) ==> True
-    -- implication
-True
-\end{code}
-
-\proof{|Val|:}{sat/|-<|}
-
-\h{exprlist}\begin{code}
-sat' (x -< cs) ==> maybe True (`elem` cs) (valCtor x)
-    -- |x == Val c xs|
-sat' (Val c xs -< cs) ==> maybe True (`elem` cs) (valCtor $ Val c xs)
-    -- inline |valCtor|
-sat' (Val c xs -< cs) ==> maybe True (`elem` cs) (Just c)
-    -- inline |maybe|
 sat' (Val c xs -< cs) ==> c `elem` cs
     -- inline |(-<)|
 sat' $ propOrs [propLit (Val c xs `Sat` anys c') | c' <- cs] ==> c `elem` cs
@@ -930,6 +901,15 @@ sat $ Sat (xs !! i) (Con c' ys) ==> sat $ Sat (xs !! i) (Con c' ys)
 True
 \end{code}
 
-
+% if 0
 \subsection{Correctness of MP-constraints}
+
+\proof{sat/|-<|}
+
+By induction on |x|:
+
+\proof{|Bottom|:}{sat/|-<|}
+
+\h{exprlist}\begin{code}
+sat' (Val c xs -< cs) ==> c `elem` cs
 
