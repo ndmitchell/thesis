@@ -4,8 +4,8 @@
 %format /# = "/"
 
 \hsdef{\begin{comment}
-k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws,c'
-vs,xs,y,as,ys,cs,rhs,lhs,g
+k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws,c',ms_1,ms_2
+vs,xs,y,as,ys,cs,rhs,lhs,g,f_lhd,f_rhd,ks
 \end{comment}}
 \begin{comment}
 \h{#*}\begin{code}
@@ -810,7 +810,7 @@ c <| Any         =  propTrue
 c <| Con c_2 xs  =  propBool (c_2 == c) `propAnd` propAnds (map propLit (zipWith Sat [0..] xs))
 \end{code}
 
-\proof{sat/|-<|} 
+\proof{sat/|-<|}
 
 \h{exprlist}\begin{code}
 sat' (Val c xs -< cs) ==> c `elem` cs
@@ -914,6 +914,33 @@ True
 
 \subsection{Correctness of MP-constraints}
 
+To perform some of these proofs, we will rely on the following theorem:
+
+\theorem{sat/MP}
+{\h{#mp}|sat (Sat (Val c xs) []) == False|}
+
+\proof{sat/MP}
+
+\h{#mp exprlist}\begin{code}
+sat (Sat (Val c xs) []) == False
+    -- introduce not
+not $ sat $ Sat (Val c xs) []
+    -- inline |sat|
+not $ sat' $ (c <| []) /# ([0..],xs)
+    -- inline | <|| |
+not $ sat' $ (propOrs $ map f []) /# ([0..],xs)
+    -- inline |map|
+not $ sat' $ propOrs [] /# ([0..],xs)
+    -- inline |propOrs|
+not $ sat' $ propFalse /# ([0..],xs)
+    -- inline |(/)|
+not $ sat' $ propFalse
+    -- inline |sat'|
+not False
+    -- inline |not|
+True
+\end{code}
+
 \proof{sat/|-<|}
 
 \h{#mp exprlist}\begin{code}
@@ -938,19 +965,7 @@ sat' $ propLit $ Sat (Val c xs) [] ==> c `elem` []
 sat' $ propLit $ Sat (Val c xs) [] ==> False
     -- inline |sat'|
 sat $ Sat (Val c xs) [] ==> False
-    -- inline |sat|
-sat' $ (c <| []) /# ([0..],xs) ==> False
-    -- inline | <|| |
-sat' $ (propOrs $ map f []) /# ([0..],xs) ==> False
-    -- inline |map|
-sat' $ propOrs [] /# ([0..],xs) ==> False
-    -- inline |propOrs|
-sat' $ propFalse /# ([0..],xs) ==> False
-    -- inline |(/)|
-sat' $ propFalse ==> False
-    -- inline |sat'|
-False ==> False
-    -- equals
+    -- \lemma{sat/MP}
 True
 \end{code}
 
@@ -1000,16 +1015,80 @@ True
 
 Note to self: We cannot induct on |k| as it is a list of |Val|.
 
-\h{exprlist}\begin{code}
-sat $ Sat (Val c xs) ((c,i) ||> k) ==> sat $ Sat (xs !! i) k
+\h{#mp exprlist}\begin{code}
+sat $ Sat (Val c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
     -- inline | ||> |
 sat $ Sat (Val c xs) (map f k) ==> sat $ Sat (xs !! i) k
     -- inline |sat|
 sat' $ (c <| map f_rhd k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
     -- inline | <|| |
-sat' $ orP (map f_lhd (map f_rhd k)) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
+sat' $ propOrs (map f_lhd (map f_rhd k)) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
     -- |map f . map g = map (f . g)
-sat' $ orP (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
+sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
+\end{code}
+
+We now proceed by induction over |k|. We assume |k| may take the values |[]|, |Any:ks| and \h{#mp}|(ms_1 :* ms_2):ks|.
+
+\proof[|[]|:]{sat/| ||> |}
+
+\h{#mp exprlist}\begin{code}
+sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
+    -- |k == []|
+sat' $ propOrs (map (f_lhd . f_rhd) []) /# ([0..],xs) ==> sat $ Sat (xs !! i) []
+    -- inline |map|
+sat' $ propOrs [] /# ([0..],xs) ==> sat $ Sat (xs !! i) []
+    -- inline |propOrs|
+sat' $ propFalse /# ([0..],xs) ==> sat $ Sat (xs !! i) []
+    -- inline |(/)|
+sat' propFalse ==> sat $ Sat (xs !! i) []
+    -- inline |sat'|
+False ==> sat $ Sat (xs !! i) []
+    -- implication
+True
+\end{code}
+
+\proof[|Any:ks|:]{sat/| ||> |}
+
+\h{#mp exprlist}\begin{code}
+sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
+    -- |k == Any:ks|
+sat' $ propOrs (map (f_lhd . f_rhd) (Any:ks)) /# ([0..],xs) ==> sat $ Sat (xs !! i) (Any:ks)
+    -- weaken implication
+sat $ Sat (xs !! i) (Any:ks)
+\end{code}
+
+Now, by case analysis on |xs !! i|, first assuming |xs !! i == Bottom|, then |Val c xs|.
+
+\h{#mp exprlist}\begin{code}
+sat $ Sat (xs !! i) (Any:ks)
+    -- |xs !! i == Bottom|
+sat $ Sat Bottom (Any:ks)
+    -- inline |sat|
+True
+\end{code}
+
+\h{#mp exprlist}\begin{code}
+sat $ Sat (xs !! i) (Any:ks)
+    -- |xs !! i == Val c xs|
+sat $ Sat (Val c xs) (Any:ks)
+    -- inline |sat|
+sat' $ (c <| (Any:ks)) /# ([0..],xs)
+    -- inline | <|| |
+sat' $ propOrs (map f (Any:ks)) /# ([0..],xs)
+    -- inline |map f|
+sat' $ propOrs (propTrue : map f ks) /# ([0..],xs)
+    -- inline |propOrs|
+sat' $ propTrue /# ([0..],xs)
+    -- inline |(/)|
+sat' propTrue
+    -- inline |sat'|
+True
+\end{code}
+
+\proof[\h{#mp}|(ms_1 :* ms_2):ks|:]{sat/| ||> |}
+
+\h{#mp exprlist}\begin{code}
+sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
 \end{code}
 
 \todo{finish off proof}
