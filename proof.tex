@@ -83,9 +83,10 @@ anys :: String -> Constraint
 \h{#mp}\begin{code}
 -- for MP
 type Constraint = [ValMP]
-data ValMP = [Pattern] :* [Pattern]
+data ValMP = [Pattern] :* [Pattern] | Any
 data Pattern = Pattern CtorName [ValMP]
 complete :: CtorName -> Pattern
+nonRecs :: CtorName -> [Int]
 \end{code}
 \end{comment}
 
@@ -973,27 +974,25 @@ sat' $ (propOrs [f $ map complete cs :* map complete (ctors (head cs))]) /# ([0.
 sat' $ (f $ map complete cs :* map complete (ctors (head cs))) /# ([0..],xs) ==> c `elem` cs
     -- inline |f|
 sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- map complete cs, c_1 == c] /# ([0..],xs) ==> c `elem` cs
-    -- substitute |cs == c':cs|
-sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- map complete (c':cs), c_1 == c] /# ([0..],xs) ==> c `elem` (c':cs)
-\end{code}
-
-Now assume either |c' == c|, or not.
-
-\h{#mp exprlist}\begin{code}
-sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- map complete (c':cs), c_1 == c] /# ([0..],xs) ==> c `elem` (c':cs)
-    -- assume |c' == c|, inlining |elem|
-sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- map complete (c':cs), c_1 == c] /# ([0..],xs) ==> True
-    -- implication
-True
-\end{code}
-
-\h{#mp exprlist}\begin{code}
-sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- map complete (c':cs), c_1 == c] /# ([0..],xs) ==> c `elem` (c':cs)
-    -- assume |c' /= c|, inlining |elem|
-sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- map complete (c':cs), c_1 == c] /# ([0..],xs) ==> c `elem` cs
-    -- inline |map complete|, filtering with list comprehension |c_1 == c|
-sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- map complete cs, c_1 == c] /# ([0..],xs) ==> c `elem` cs
-    -- inductive hypothesis
+    -- inline |(/)|
+sat' $ propOrs [propAnds $ map propLit $ g vs_1 /# ([0..],xs) | Pattern c_1 vs_1 <- map complete cs, c_1 == c] ==> c `elem` cs
+    -- inline |sat'|
+or [sat' $ propAnds $ map propLit $ g vs_1 /# ([0..],xs) | Pattern c_1 vs_1 <- map complete cs, c_1 == c] ==> c `elem` cs
+    -- move the guard
+or [c_1 == c && sat' (propAnds $ map propLit $ g vs_1 /# ([0..],xs)) | Pattern c_1 vs_1 <- map complete cs] ==> c `elem` cs
+    -- remove the list comprehension
+any (\(Pattern c_1 vs_1) -> c_1 == c && sat' (propAnds $ map propLit $ g vs_1 /# ([0..],xs))) (map complete cs) ==> c `elem` cs
+    -- |any f (map g xs) = any (f . g) xs|
+any ((\(Pattern c_1 vs_1) -> c_1 == c && sat' (propAnds $ map propLit $ g vs_1 /# ([0..],xs))) . complete) cs ==> c `elem` cs
+    -- |c `elem` cs == any (== c) cs|
+any ((\(Pattern c_1 vs_1) -> c_1 == c && sat' (propAnds $ map propLit $ g vs_1 /# ([0..],xs))) . complete) cs ==> any (== c) cs
+    -- lift implication over |any|
+(\(Pattern c_1 vs_1) -> c_1 == c && sat' (propAnds $ map propLit $ g vs_1 /# ([0..],xs))) (complete c') ==> c' == c
+    -- inline |complete|
+c' == c && sat' (propAnds $ map propLit $ g (map (const Any) (nonRecs c')) /# ([0..],xs)) ==> c' == c
+    -- weaken implication
+c' == c ==> c' == c
+    -- equals
 True
 \end{code}
 
