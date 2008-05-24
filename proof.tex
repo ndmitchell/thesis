@@ -4,7 +4,7 @@
 %format /# = "/"
 
 \hsdef{\begin{comment}
-k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws
+k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws,c'
 vs,xs,y,as,ys,cs,rhs,lhs
 \end{comment}}
 \begin{comment}
@@ -61,6 +61,7 @@ data Constraint = Constraint
 class SubstVar a where (/) :: a -> ([VarName],[Expr]) -> a
 instance SubstVar Expr
 instance SubstVar Alt
+instance SubstVar a => SubstVar [a]
 instance SubstVar a => SubstVar (Sat a)
 instance SubstVar a => SubstVar (Prop a)
 
@@ -715,8 +716,6 @@ sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==> sat $ Sat (eval $ bod
 True
 \end{code}
 
-%if 0
-
 \proof[|Case|:]{red}
 
 \h{exprlist}\begin{code}
@@ -724,12 +723,72 @@ satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
     -- |x == Case x as|
 satE' $ red (Case x as) k /# sub ==> sat $ Sat (eval $ Case x as / sub) k
     -- inline |red|
-satE' $ andP (map alt as) /# sub ==> sat $ Sat (eval $ Case x as / sub) k
+satE' $ propAnds (map alt as) /# sub ==> sat $ Sat (eval $ Case x as / sub) k
     -- inline |(/)| on LHS
-satE' $ andP $ map ((/# sub) . alt) as ==> sat $ Sat (eval $ Case x as / sub) k
+satE' $ propAnds $ map ((/# sub) . alt) as ==> sat $ Sat (eval $ Case x as / sub) k
     -- inline |satE'|
 all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case x as / sub) k
+    -- inline |(/)| on RHS
+all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
 \end{code}
+
+First let us assume that |eval (x / sub) == Bottom|, then that |eval (x / sub) == Val c xs|, being case analysis on |x|.
+
+\h{exprlist}\begin{code}
+all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
+    -- inline |eval|
+all (satE' . (/# sub) . alt) as ==> sat $ Sat Bottom k
+    -- inline |sat|
+all (satE' . (/# sub) . alt) as ==> True
+    -- implies
+True
+\end{code}
+
+\h{exprlist}\begin{code}
+all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
+    -- inline |eval|
+all (satE' . (/# sub) . alt) as ==> sat $ Sat (head [eval y | Alt c' vs y <- as / sub, c == c']) k
+    -- expand RHS, removing list comprehension
+all (satE' . (/# sub) . alt) as ==> all (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (as / sub)
+    -- lift implication over |all|
+satE' $ alt a /# sub ==> (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (a / sub)
+    -- instantiate |a == Alt c' vs y|
+satE' $ alt a /# sub ==> (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (Alt c' vs y / sub)
+    -- inline |(/)| on RHS
+satE' $ alt a /# sub ==> (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (Alt c' vs $ y / sub)
+    -- inline lambda on RHS
+satE' $ alt (Alt c' vs y) /# sub ==> (c == c' ==> sat $ Sat (eval $ y / sub) k)
+    -- use knowledge from RHS in LHS
+satE' $ alt (Alt c vs y) /# sub ==> sat $ Sat (eval $ y / sub) k
+    -- inline |alt| on LHS
+satE' $ (reduce (x -< (ctors c \\ [c])) `propOr` red y k) /# sub ==> sat $ Sat (eval $ y / sub) k
+    -- inline |(/)| on LHS
+satE' $ (reduce (x -< (ctors c \\ [c])) /# sub) `propOr` (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- inline |satE'| on LHS
+satE' (reduce (x -< (ctors c \\ [c])) /# sub) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- \lemma{reduce}
+satE' ((x -< (ctors c \\ [c])) / sub) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- inline |(/)| on LHS
+satE' ((x / sub) -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- \lemma{satE/|-<|}
+sat' (eval (x / sub) -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- \lemma{sat/|-<|}
+maybe True (`elem` (ctors c \\ [c])) (valCtor $ eval (x / sub)) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- substitute |eval (x / sub) == Val c xs|
+maybe True (`elem` (ctors c \\ [c])) (valCtor $ Val c xs) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- inline |valCtor|
+maybe True (`elem` (ctors c \\ [c])) (Just c) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- inline |maybe|
+c `elem` (ctors c \\ [c]) || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- \lemma{elem}
+False || satE' (red y k /# sub) ==> sat $ Sat (eval $ y / sub) k
+    -- inline |(||||)|
+satE' $ red y k /# sub ==> sat $ Sat (eval $ y / sub) k
+    -- \lemma{red}
+True
+\end{code}
+
+
 
 
 \subsection{Correctness of BP-constraints}
