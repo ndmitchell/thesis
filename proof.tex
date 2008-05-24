@@ -521,7 +521,7 @@ satE' $ pre' f xs / (vs,ys) ==> satE' $ pre' f (map (/ (vs, ys)) xs)
     -- inline |pre'|
 satE' $ (precond f /# (args f, xs)) / (vs,ys) ==> satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
     -- using the knowledge that |precond f| only has the free variables |args f|
-    -- we can inline |(/) on the left
+    -- we can inline |(/)| on the left
 satE' $ precond f /# (args f, map (/ (vs,ys)) xs) ==> satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
     -- equal
 True
@@ -551,7 +551,7 @@ satE' $ alt (Alt c ws y) / (vs, ys) ==> satE' $ alt $ Alt c ws y / (vs, ys)
 satE' $ alt (Alt c ws y) / (vs, ys) ==> satE' $ alt $ Alt c ws (y / (vs, ys))
     -- inline |alt|
 satE' $ (x -< (ctors c \\ [c]) `propOr` pre y) / (vs, ys) ==> satE' $ (x / (vs,ys) -< (ctors c \\ [c])) `propOr` pre (y / (vs, ys))
-    -- let |cs == ctors c \\ [c]
+    -- let |cs == ctors c \\ [c]|
 satE' $ (x -< cs `propOr` pre y) / (vs, ys) ==> satE' $ (x / (vs,ys) -< cs) `propOr` pre (y / (vs, ys))
     -- inline |(/)| on LHS
 satE' $ (x / (vs,ys) -< cs) `propOr` (pre y / (vs, ys)) ==> satE' $ (x / (vs,ys) -< cs) `propOr` pre (y / (vs, ys))
