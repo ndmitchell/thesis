@@ -146,7 +146,7 @@ satE' :: Prop (Sat Expr) -> Bool
 satE' = propTaut satE
 
 satE :: Sat Expr -> Bool
-satE (Sat x k) = sat (eval x) k
+satE (Sat x k) = satV (eval x) k
 
 satV' :: Prop (Sat Val) -> Bool
 satV' = propTaut satV
@@ -346,31 +346,29 @@ satE' $ pre x ==> satE' $ pre x
 True
 \end{code}
 
-We now need to ensure that the other call to |eval| meets its precondition. To simplify the proof we only consider case expressions containing the one alternative which is taken. Because the source language has static typing and complete alternatives, we know there will be exactly one matching alternative. All non-matching alternatives are filtered out, so this simplification is valid. We can assume that |eval x == Val c xs|.
+We now need to ensure that the other call to |eval| meets its precondition.
 
 \h{exprlist}\begin{code}
-satE' $ pre $ Case x [Alt c vs y] ==> satE' $ pre y
+satE' $ pre $ Case x as ==> all (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) as
     -- inline |pre|
-satE' $ pre x `propAnd` propAnds (map alt [Alt c vs y]) ==> satE' $ pre y
-    -- inline |map|
-satE' $ pre x `propAnd` propAnds [alt $ Alt c vs y] ==> satE' $ pre y
-    -- inline |propAnds|
-satE' $ pre x `propAnd` alt (Alt c vs y) ==> satE' $ pre y
+satE' $ pre x `propAnd` propAnds (map alt as) ==> rhs
     -- inline |satE'|
-satE' (pre x) && satE' (alt $ Alt c vs y) ==> satE' $ pre y
+satE' (pre x) && all (satE' . alt) as ==> rhs
     -- weaken implication
-satE' $ alt $ Alt c vs y ==> satE' $ pre y
+all (satE' . alt) as ==> all (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) as
+    -- lift implies over all
+satE' $ alt a ==> (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) a
+    -- instantiate |a == Alt c v ys|
+satE' $ alt $ Alt c v ys ==> (valCtor (eval x) == Just c ==> satE' $ pre y)
     -- inline |alt|
-satE' $ x -< (ctors c \\ [c]) `propOr` pre y ==> satE' $ pre y
+satE' (x -< (ctors c \\ [c]) `propOr` pre y) ==> rhs
     -- inline |satE'|
-satE' (x -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
+satE' (x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
     -- \lemma{satE/|-<|}
-satV' (eval x -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
+satV' (eval x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
     -- \lemma{satV/|-<|}
-maybe True (`elem` (ctors c \\ [c])) (valCtor $ eval x) || satE' (pre y) ==> satE' $ pre y
-    -- |eval x == Val c xs|
-maybe True (`elem` (ctors c \\ [c])) (valCtor $ Val c xs) || satE' (pre y) ==> satE' $ pre y
-    -- inline |valCtor|
+maybe True (`elem` (ctors c \\ [c])) (valCtor $ eval x) || satE' (pre y) ==> rhs
+    -- using |valCtor (eval x) == c| from RHS
 maybe True (`elem` (ctors c \\ [c])) (Just c) || satE' (pre y) ==> satE' $ pre y
     -- inline |maybe|
 c `elem` (ctors c \\ [c]) || satE' (pre y) ==> satE' $ pre y
@@ -381,6 +379,7 @@ satE' $ pre y ==> satE' $ pre y
     -- equals
 True
 \end{code}
+
 
 \proof{elem}
 
@@ -724,216 +723,20 @@ sat (eval $ body f / (args f, map (/ sub) xs)) k ==> sat (eval $ body f / (args 
 True
 \end{code}
 
-
-
 %if 0
-
-
-WANT: satE' (pre x /# (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)
-
-
-
-
-
-
-    -- inline |pre| on both sides
-
-satE' $ pre (Call f xs) /# (vs, ys) ==> satE' $ pre $ Call f $ map (/ (vs, ys)) xs
-
-
-satE' $ propAnds (map pre xs) /# (vs, ys) ==> satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
-    -- inline |(/)| on LHS
-satE' $ propAnds $ map ((/# (vs,ys)) . pre) xs ==> satE' $ propAnds $ map pre (/ (vs, ys)) xs
-    -- inline |satE'| on both sides
-all (satE' . (/# (vs,ys)) . pre) xs ==> all (satE' . pre . (/ (vs, ys))) xs
-    -- \lemma{pre}
-True
-\end{code}
-
-
-
-
-
-
-\proof{sat/reduce}
-
-\ignore\begin{code}
-reduce
-
-sat (reduce' x) ==> sat x
-    -- inline reduce'
-sat reduce $
-reduce' :: FuncName -> Prop (Sat VarName)
-reduce' f = substP (args f) $ reduce (body f)
-
-
-
-
-sat ((reduce $ pre $ body f) / (argsN f / xs)) && all (sat . pre) xs ==> sat $ pre $ body f / (args f, xs)
-    -- \lemma{reduce}
-sat (pre (body f) / (args f / xs)) && all (sat . pre) xs ==> sat $ pre $ body f / (args f, xs)
-\end{code}
-
-
-
-
-
-\proof{reduce}
-
-\theorem{reduce}
-{|sat (reduce x /# (vs, xs)) ==> sat (x / (vs, xs))|}
-
-\h{exprlist}\begin{code}
-sat (reduce x /# (vs, xs)) ==> sat (x / (vs, xs))
-    -- inline |reduce|
-sat (propMap (\(Sat x k) -> red x k) x /# (vs, xs)) ==> sat (x / (vs, xs))
-    -- inline |(/)| on LHS
-sat (propMap (\(Sat x k) -> red x k /# (vs, xs)) x) ==> sat (x / (vs, xs))
-    -- promote |sat|
-propBool $ propMap (\(Sat x k) -> sat $ red x k /# (vs, xs)) x ==> sat (x / (vs, xs))
-    -- \lemma{red}
-propBool $ propMap (\(Sat x k) -> sat $ red x k /# (vs, xs)) x ==> propBool $ propMap
-
-\end{code}
-
-\ignore\begin{code}
-let foo = (\(Sat x k) -> red x k /# (vs, xs))
-
-sat (propMap foo x) ==> sat (x / (vs, xs))
-
-
-sat (propMap (f . (/# (vs,xs))) x) ==> sat (x / (vs, xs))
-\end{code}
-
-\proof{red}
-
-\theorem{red}
-{|sat (red x k /# (vs, xs)) ==> satisfies (x / (vs, xs)) k|}
-
-By induction on x:
-
-\proof[|Var|:]{red}
-
-Now, either |var v| is equal to |Left i| or |Right (on,c)|. We deal with each case in turn.
-
-\h{exprlist}\begin{code}
-sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
-    -- inline |red|, assuming |var v == Left i|
-sat (propLit (Sat i k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
-    -- inline both substitutions
-sat (propLit (Sat x k)) ==> satisfies x k
-    -- inline |sat|
-satisfies x k ==> satisfies x k
-    -- implication
-True
-\end{code}
-
-Now lets assume it is equal to the |Right|. If |var v == Right (on,(c,i))|, we therefore know that |v| is not a free variable, and the substitution |(/)| will not apply. We also know that |on == Val c xs|, where |xsi == v|.
-
-\h{exprlist}\begin{code}
-sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
-    -- inline |red|, assuming |var v == Right (on,(c,i))|
-sat (red on ((c,i) |> k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
-    -- knowledge about |on == Val c xs|
-sat (red (Make c ys) ((c,i) |> k) /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
-    -- \lemma{| ||> |}
-sat (red ysi k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
-    -- knowledge that |ysi == v|
-sat (red v k /# (vs, xs)) ==> satisfies (v / (vs, xs)) k
-    -- \lemma{red}
-sat (v / (vs, xs)) k ==> satisfies (v / (vs, xs)) k
-    -- equals
-True
-\end{code}
-
-\proof[|Make|:]{red}
-
-\h{exprlist}\begin{code}
-sat (red (Make c xs) k /# (vs, zs)) ==> satisfies (Make c xs / (vs, zs)) k
-    -- inline |red|
-sat (reduce ((c <| k) /# xs) /# (vs, zs)) ==> satisfies (Make c xs / (vs, zs)) k
-    -- \lemma{reduce}
-sat (((c <| k) /# xs) / (vs, zs)) ==> satisfies (Make c xs / (vs, zs)) k
-    -- \lemma{sat/| <|| |}
-sat (Val c xs / (vs, zs)) k ==> satisfies (Make c xs / (vs, zs)) k
-    -- continue
-\end{code}
-
-\proof[|Call|:]{red}
-
-\h{exprlist}\begin{code}
-sat (red (Call f xs) k /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
-    -- inline |red|
-sat (reduce (prePost f k /# xs) /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
-    -- \lemma{reduce}
-sat ((prePost f k /# xs) / (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
-    -- \lemma{prePost}
-sat ((reduce (body f `Sat` k) /# xs) / (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
-    -- \lemma{reduce}
-    -- continue
-\end{code}
 
 \proof[|Case|:]{red}
 
 \h{exprlist}\begin{code}
-sat (red (Call f xs) k /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
+satE' $ red x k /# sub ==> sat (eval $ x / sub) k
+    -- |x == Case x as|
+satE' $ red (Case x as) k /# sub ==> sat (eval $ Case x as / sub) k
     -- inline |red|
-sat (reduce (prePost f k /# xs) /# (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
-    -- \lemma{reduce}
-sat ((prePost f k /# xs) / (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
-    -- \lemma{prePost}
-sat ((reduce (body f `Sat` k) /# xs) / (vs, zs)) ==> satisfies (Call f xs / (vs, zs)) k
-    -- \lemma{reduce}
-    -- continue
-\end{code}
-
-
-\h{exprlist}\begin{code}
-sat ((reduce $ pre $ body f) / (argsN f / xs)) && all (sat . pre) xs ==> sat $ pre $ body f / (args f, xs)
-\end{code}
-
-We can now do case analysis on the body of f.
-
-\h{exprlist}\begin{code}
-    -- body f == Var v
-sat ((reduce $ pre $ Var v) / (argsN f / xs)) && all (sat . pre) xs ==> sat $ pre $ v / (args f, xs)
-    -- apply the substitution
-sat ((reduce $ pre $ Var v) / (argsN f / xs)) && all (sat . pre) xs && y `elem` xs ==> sat $ pre y
-    -- weaken the precondition
-all (sat . pre) xs && y `elem` xs ==> sat $ pre y
-    -- \lemma{all/elem}
-sat $ pre y ==> sat $ pre y
-    -- implication
-True
-\end{code}
-
-\h{exprlist}\begin{code}
-    -- body f == Make c ys
-sat ((reduce $ pre $ Make c ys) / (argsN f, xs)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
-    -- inline |pre| on RHS
-sat ((reduce $ propAnd $ map pre ys) / (argsN f, xs)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
-    -- inline |reduce|
-sat (propAnds (map (reduce . pre) ys) / (argsN f, xs)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
+satE' $ andP (map alt as) /# sub ==> sat (eval $ Case x as / sub) k
     -- inline |(/)| on LHS
-sat (propAnds (map ((/ (argsN f, xs)) . reduce . pre) ys)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
-    -- inline |sat|
-all (sat . ((/ (argsN f, xs)) . reduce . pre) ys) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
-    -- inline |(/)| on RHS
-all (sat . ((/ (argsN f, xs)) . reduce . pre) ys) && all (sat . pre) xs ==> sat $ pre $ Make c $ map (/ (args f, xs)) ys
-    -- inline |pre| on RHS
-all (sat . ((/ (argsN f, xs)) . reduce . pre) ys) && all (sat . pre) xs ==> all (sat. pre . (/ (args f, xs))) ys
-    -- inductive hypothesis
-True
-\end{code}
-
-
-
-
-\h{exprlist}\begin{code}
-all (sat . reduce . pre) ys sat (propAnds (map (reduce . pre) ys) / (argsN f / xs)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
-
-sat ((reduce $ pre $ Make c ys) / (argsN f / xs)) && all (sat . pre) xs ==> sat $ pre $ Make c ys / (args f, xs)
-\end{code}
+satE' $ andP $ map ((/# sub) . alt) as ==> sat (eval $ Case x as / sub) k
+    -- inline |satE'|
+all (satE' . (/# sub) . alt) as ==> sat (eval $ Case x as / sub) k
 
 
 
