@@ -148,11 +148,12 @@ satE' = propTaut satE
 satE :: Sat Expr -> Bool
 satE (Sat x k) = satV (eval x) k
 
-satV' :: Prop (Sat Val) -> Bool
-satV' = propTaut satV
+sat' :: Prop (Sat Val) -> Bool
+sat' = propTaut sat'
 
-satV :: Sat Val -> Bool
-satV (Sat v k) = sat v k
+sat :: Sat Val -> Bool
+sat (Sat Bottom      k) = True
+sat (Sat (Val c xs)  k) = sat' $ (c <| k) / ([0..],xs)
 
 sat :: Val -> Constraint -> Bool
 \end{code}
@@ -168,14 +169,13 @@ We wish to prove:
 
 In particular this requires the following theorems about the constraint language:
 
-\theorem{satV/|-<|}
-{|satV' $ x -< cs ==> maybe True (`elem` cs) (valCtor x)|}
+\theorem{sat/|-<|}
+{|sat' (x -< cs) ==> maybe True (`elem` cs) (valCtor x)|}
 
 \theorem{sat/| ||> |}
-{|sat (Val c xs) ((c,i) ||> k) ==> sat (xs !! i) k|}
+{|sat $ Sat (Val c xs) ((c,i) ||> k) ==> sat $ Sat (xs !! i) k|}
 
-\theorem{sat/| <|| |}
-{|satV' $ (c <|| k) /# ([0..],xs) ==> sat (Val c xs) k|}
+Note that the definition of |sat| makes use of |(<||)|, so these theorems require the additional two definitions to be consistent with |(<||)|.
 
 We will also need the following general theorems:
 
