@@ -1023,7 +1023,7 @@ sat $ Sat (Val c xs) (map f k) ==> sat $ Sat (xs !! i) k
 sat' $ (c <| map f_rhd k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
     -- inline | <|| |
 sat' $ propOrs (map f_lhd (map f_rhd k)) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
-    -- |map f . map g = map (f . g)
+    -- |map f . map g = map (f . g)|
 sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
 \end{code}
 
