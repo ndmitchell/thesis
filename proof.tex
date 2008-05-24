@@ -996,3 +996,20 @@ c' == c ==> c' == c
 True
 \end{code}
 
+\proof{sat/| ||> |}
+
+Note to self: We cannot induct on |k| as it is a list of |Val|.
+
+\h{exprlist}\begin{code}
+sat $ Sat (Val c xs) ((c,i) ||> k) ==> sat $ Sat (xs !! i) k
+    -- inline | ||> |
+sat $ Sat (Val c xs) (map f k) ==> sat $ Sat (xs !! i) k
+    -- inline |sat|
+sat' $ (c <| map f_rhd k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
+    -- inline | <|| |
+sat' $ orP (map f_lhd (map f_rhd k)) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
+    -- |map f . map g = map (f . g)
+sat' $ orP (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
+\end{code}
+
+\todo{finish off proof}
