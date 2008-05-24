@@ -29,6 +29,7 @@ body   :: FuncName  -> Expr
 args   :: FuncName  -> [VarName]
 var    :: VarName   -> Maybe (Expr, Selector)
 ctors  :: CtorName  -> [CtorName]
+arity :: String -> Int
 type Selector  =  (CtorName, Int)
 
 precond   :: FuncName -> Prop (Sat VarName)
@@ -55,8 +56,6 @@ propTrue, propFalse       :: Prop alpha
 propBool                  :: Bool -> Prop alpha
 propLit                   :: alpha -> Prop alpha
 
-data Constraint = Constraint
-
 -- variable substitution, replacing free variables
 class SubstVar a where (/) :: a -> ([VarName],[Expr]) -> a
 instance SubstVar Expr
@@ -67,10 +66,8 @@ instance SubstVar a => SubstVar (Prop a)
 
 -- equality substitution, replacing items
 class SubstRep a b c | a c -> b, c b -> a, a b -> c where (/#) :: a -> b -> c
-instance SubstRep (Prop (Sat Int)) ([Int], [Val]) (Prop (Sat Val))
-instance SubstRep (Prop (Sat VarName)) ([VarName], [Expr]) (Prop (Sat Expr))
+instance SubstRep (Prop (Sat a)) ([a], [b]) (Prop (Sat b))
 instance SubstRep VarName ([VarName], [Expr]) Expr
-instance SubstRep (Prop (Sat Int)) ([Int], [Expr]) (Prop (Sat Expr))
 
 instance Eq Val
 instance Eq Expr
@@ -78,6 +75,7 @@ instance Eq Expr
 alt :: Alt -> Prop (Sat a)
 pre' :: String -> [Expr] -> Prop (Sat Expr)
 sub :: ([VarName],[Expr])
+anys :: String -> Constraint
 \end{code}
 \end{comment}
 
@@ -788,10 +786,149 @@ satE' $ red y k /# sub ==> sat $ Sat (eval $ y / sub) k
 True
 \end{code}
 
-
-
-
 \subsection{Correctness of BP-constraints}
+
+Since BP-constraints are presented throughout the document, we recap them here:
+
+\begin{code}
+data Constraint  =  Any
+                 |  Con CtorName [Constraint]
+
+a -< xs = propOrs [propLit (a `Sat` anys x) | x <- xs]
+    where anys x = Con x (replicate (arity x) Any)
+
+(c,i) |> k = Con c  [  if i == j then k else Any
+                    |  j <- [0..arity c - 1]]
+
+c <| Any         =  propTrue
+c <| Con c_2 xs  =  propBool (c_2 == c) `propAnd` propAnds (map propLit (zipWith Sat [0..] xs))
+\end{code}
+
+\proof{sat/|-<|} 
+
+By induction on |x|:
+
+\proof{|Bottom|:}{sat/|-<|}
+
+\h{exprlist}\begin{code}
+sat' (x -< cs) ==> maybe True (`elem` cs) (valCtor x)
+    -- |x == Bottom|
+sat' (x -< cs) ==> maybe True (`elem` cs) (valCtor Bottom)
+    -- inline |valCtor|
+sat' (x -< cs) ==> maybe True (`elem` cs) Nothing
+    -- inline |maybe|
+sat' (x -< cs) ==> True
+    -- implication
+True
+\end{code}
+
+\proof{|Val|:}{sat/|-<|}
+
+\h{exprlist}\begin{code}
+sat' (x -< cs) ==> maybe True (`elem` cs) (valCtor x)
+    -- |x == Val c xs|
+sat' (Val c xs -< cs) ==> maybe True (`elem` cs) (valCtor $ Val c xs)
+    -- inline |valCtor|
+sat' (Val c xs -< cs) ==> maybe True (`elem` cs) (Just c)
+    -- inline |maybe|
+sat' (Val c xs -< cs) ==> c `elem` cs
+    -- inline |(-<)|
+sat' $ propOrs [propLit (Val c xs `Sat` anys c') | c' <- cs] ==> c `elem` cs
+    -- inline |sat'|
+any (\c' -> sat $ Val c xs `Sat` anys c') cs ==> c `elem` cs
+    -- inline |sat|
+any (\c' -> sat' $ (c <| anys c') /# ([0..],xs)) cs ==> c `elem` cs
+    -- inline |anys|
+any (\c' -> sat' $ (c <| Con c' (replicate (arity c') Any)) /# ([0..],xs)) cs ==> c `elem` cs
+    -- inline | <|| |
+any (\c' -> sat' $ (propBool (c' == c) `propAnd` propAnds (map propLit (zipWith Sat [0..] (replicate (arity c') Any)))) /# ([0..],xs)) cs ==> c `elem` cs
+    -- inline |(/)|
+any (\c' -> sat' $ (propBool (c' == c) `propAnd` propAnds (map propLit (zipWith Sat [0..] (replicate (arity c') Any) /# ([0..],xs))))) cs ==> c `elem` cs
+    -- inline |sat'|
+any (\c' -> (c' == c) && all sat (zipWith Sat [0..] (replicate (arity c') Any) /# ([0..],xs))) cs ==> c `elem` cs
+    -- weaken implication
+any (\c' -> c' == c) cs ==> c `elem` cs
+    -- simplify
+any (== c) cs ==> c `elem` cs
+    -- definition of |elem|
+c `elem` cs ==> c `elem` cs
+    -- equal
+True
+\end{code}
+
+\proof{sat/| ||> |}
+
+By case analysis on |k|, first |Any| then |Con c' ys|.
+
+\proof[|Any|:]{sat/| ||> |}
+
+\h{exprlist}\begin{code}
+sat $ Sat (Val c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
+    -- |k == Any|
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
+    -- inline |sat| on RHS
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
+\end{code}
+
+Now by analysis on |xs !! i|, being either |Val c' ys| or |Bottom|.
+
+\h{exprlist}\begin{code}
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
+    -- |xs !! i == Bottom|
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> sat $ Sat Bottom Any
+    -- inline |sat| on RHS
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> True
+    -- implication
+True
+\end{code}
+
+\h{exprlist}\begin{code}
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
+    -- |xs !! i == Val c' ys|
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> sat $ Sat (Val c' ys) Any
+    -- inline |sat| on RHS
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> sat' $ (c' <| Any) /# ([0..],ys)
+    -- inline | <|| |
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> sat' $ propTrue /# ([0..],ys)
+    -- inline |(/)| on RHS
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> sat' propTrue
+    -- inline |sat'| on RHS
+sat $ Sat (Val c xs) ((c,i) |> Any) ==> True
+    -- implication
+True
+\end{code}
+
+\proof[|Con|:]{sat/| ||> |}
+
+\h{exprlist}\begin{code}
+sat $ Sat (Val c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
+    -- |k == Con c' ys|
+sat $ Sat (Val c xs) ((c,i) |> Con c' ys) ==> sat $ Sat (xs !! i) (Con c' ys)
+    -- inline |sat| on LHS
+sat' $ (c <| ((c,i) |> Con c' ys)) /# ([0..],xs) ==> rhs
+    -- inline | ||> |
+sat' $ (c <| (Con c [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]])) /# ([0..],xs) ==> rhs
+    -- inline | <| |
+sat' $ (propBool (c == c) `propAnd` propAnds (map propLit (zipWith Sat [0..] [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]]))) /# ([0..],xs) ==> rhs
+    -- inline |c == c|
+sat' $ (propTrue `propAnd` propAnds (map propLit (zipWith Sat [0..] [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]]))) /# ([0..],xs) ==> rhs
+    -- inline |propAnd|
+sat' $ (propAnds (map propLit (zipWith Sat [0..] [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]]))) /# ([0..],xs) ==> rhs
+    -- inline |(/)|
+sat' $ propAnds $ map propLit $ zipWith Sat [0..] [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]] /# ([0..],xs) ==> rhs
+    -- inline |sat'|
+all sat $ zipWith Sat [0..] [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]] /# ([0..],xs) ==> rhs
+    -- inline |(/)|
+all sat $ zipWith Sat xs [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]] ==> rhs
+    -- weaken LHS
+sat $ zipWith Sat xs [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]] !! i ==> rhs
+    -- inline |(!!)|
+sat $ Sat (xs !! i) (Con c' ys) ==> rhs
+    -- restore RHS
+sat $ Sat (xs !! i) (Con c' ys) ==> sat $ Sat (xs !! i) (Con c' ys)
+    -- equal
+True
+\end{code}
 
 
 \subsection{Correctness of RE-constraints}
