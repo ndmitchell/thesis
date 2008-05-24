@@ -908,7 +908,7 @@ sat $ Sat (Val c xs) ((c,i) |> Con c' ys) ==> sat $ Sat (xs !! i) (Con c' ys)
 sat' $ (c <| ((c,i) |> Con c' ys)) /# ([0..],xs) ==> rhs
     -- inline | ||> |
 sat' $ (c <| (Con c [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]])) /# ([0..],xs) ==> rhs
-    -- inline | <| |
+    -- inline | <|| |
 sat' $ (propBool (c == c) `propAnd` propAnds (map propLit (zipWith Sat [0..] [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]]))) /# ([0..],xs) ==> rhs
     -- inline |c == c|
 sat' $ (propTrue `propAnd` propAnds (map propLit (zipWith Sat [0..] [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]]))) /# ([0..],xs) ==> rhs
@@ -929,9 +929,6 @@ sat $ Sat (xs !! i) (Con c' ys) ==> sat $ Sat (xs !! i) (Con c' ys)
     -- equal
 True
 \end{code}
-
-
-\subsection{Correctness of RE-constraints}
 
 
 \subsection{Correctness of MP-constraints}
