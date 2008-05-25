@@ -21,18 +21,23 @@ Data.Generics.PlateDirect,Data.Generics.PlateTypeable,PlateData
 \end{comment}}
 \begin{comment}
 \h{#*}\begin{code}
+import Prelude hiding (mapM)
 import GHC.Exts(build)
-import Control.Monad.State
 import Data.Maybe
 import Data.Monoid
 import Data.Typeable
 import Data.Generics hiding (Unit)
+import Control.Monad.State hiding (mapM)
+import Data.Traversable(Traversable,mapM)
+import Data.Foldable(Foldable)
 
 instance Eq Expr
 instance Eq (a -> b)
 instance Eq (Str a)
 instance Typeable Expr
 instance Typeable Stmt
+instance Traversable Str
+instance Foldable Str
 
 class Compos t where
     compos :: (forall a. a -> m a) -> (forall a b. m (a -> b) -> m a -> m b) -> (forall a. t a -> m (t a)) -> t c -> m (t c)
@@ -86,7 +91,7 @@ variables :: Expr -> [String]
 variables x = [y | Var y <- universe x]
 \end{code}
 
-The type signature is optional, and would be inferred automatically if left absent. This example assumes a |Uniplate| instance for the |Expr| data type, given in \S\ref{secU:play_instances}. This example requires only Haskell 98. For more advanced examples we require multi-parameter type classes -- but no functional dependencies, rank-2 types or GADTs.
+The type signature is optional, and would be inferred automatically if left absent. This example assumes a |Uniplate| instance for the |Expr| data type, given in \S\ref{secU:play_instances}. This example requires only Haskell 98. For more advanced examples we require multi-parameter type classes \cite{jones:mptc} -- but no functional dependencies, rank-2 types or GADTs.
 
 The central idea is to exploit a common property of many traversals: they only require value-specific behaviour for a \textit{single uniform type}. Looking at the |variables| example, the only type of interest is |Expr|. In practical applications, this pattern is common\footnote{Most examples in boilerplate removal papers meet this restriction, even though the systems being discussed do not depend on it.}. By focusing only on uniform type traversals, we are able to exploit well-developed techniques in list processing.
 
@@ -95,12 +100,12 @@ The central idea is to exploit a common property of many traversals: they only r
 Ours is far from the first technique for `scrapping boilerplate'. The area has been researched extensively. But there are a number of distinctive features in our approach:
 
 \begin{itemize}
-\item We require \textit{no language extensions} for single-type traversals, and only multi-parameter type classes \citep{jones:mptc} for multi-type traversals.
+\item We require \textit{no language extensions} for single-type traversals, and only multi-parameter type classes for multi-type traversals.
 \item Our \textit{choice of operations} is new: we shun some traditionally provided operations, and provide some uncommon ones.
 \item Our type classes can be defined independently \textit{or} on top of |Typeable| and |Data| \citep{lammel:syb}, making \textit{optional use of built-in compiler support}.
 \item We make use of \textit{list-comprehensions} \citep{wadler:list_comprehensions} for succinct queries.
 \item We \textit{compare the conciseness} of operations using our library, by counting lexemes, showing our approach leads to less boilerplate.
-\item We \textit{compare the performance} of traversal mechanisms, something that has been neglected in previous papers.
+\item We \textit{compare the performance} of traversal mechanisms, something that has been neglected in previous work.
 \end{itemize}
 
 \section{Queries and Transformations}
@@ -127,7 +132,7 @@ The |children| function is occasionally useful, but is used more commonly as an 
 
 \subsection{Queries}
 
-The Uniplate library provides a the |universe| function to support queries.
+The Uniplate library provides the |universe| function to support queries.
 
 \begin{code}
 universe :: Uniplate alpha => alpha -> [alpha]
@@ -177,7 +182,7 @@ simplify x = transform f x
            f x          = x
 \end{code}
 
-This code can be read: apply the subtraction rule where you can, and where you cannot, do nothing. Adding additional rules is easy. Take for example: \ignore|x + y = 2 * x where x == y|. Now we can add this new rule into our existing transformation:
+This code can be read: apply the subtraction rule where you can, and where you cannot, do nothing. Adding more rules is easy. Take for example: \ignore|x + y = 2 * x where x == y|. Now we can add this new rule into our existing transformation:
 
 \begin{code}
 simplify x = transform f x
@@ -238,7 +243,7 @@ data Expr =  Let String Expr Expr
 \end{comment}
 
 \begin{example}
-Consider the addition of a constructor \ignore|Let String Expr Expr|. Now let us define a function |subst| to replace free variables with given expressions. In order to determine which variables are free, we need to ``remember'' variables that are bound as we descend\footnote{For simplicity, we ignore issues of hygienic substitution that may arise if substituted expressions themselves contain free variables.}. We can define |subst| using a descend transformation:
+Consider the addition of a constructor \ignore|Let String Expr Expr|. Now let us define a function |subst| to replace free variables with given expressions. In order to determine which variables are free, we need to ``remember'' variables that are bound as we descend\footnote{For simplicity, we ignore issues of hygienic substitution that may arise if substituted expressions themselves contain free variables.}. We can define |subst| using a |descend| transformation:
 
 \h{#expr2}\begin{code}
 subst :: [(String,Expr)] -> Expr -> Expr
@@ -344,7 +349,7 @@ The function |transformM| is a monadic variant of |transform|. Here a \textit{st
 
 \subsection{Paramorphisms}
 
-A paramorphism is a fold in which the recursive step may refer to the recursive component of a value, not just the results of folding over them \cite{meertens:paramorphisms}. We define a similar recursion scheme in our library.
+A paramorphism is a fold in which the recursive step may refer to the recursive components of a value, not just the results of folding over them \cite{meertens:paramorphisms}. We define a similar recursion scheme in our library.
 
 \begin{code}
 para :: Uniplate alpha => (alpha -> [r] -> r) -> alpha -> r
@@ -361,17 +366,15 @@ depth = para (\_ cs -> 1 + maximum (0:cs))
 \end{code}\codeexample
 \end{example}
 
-\subsection{Contexts}
+\subsection{Holes and Contexts}
 
-\todo{Add stuff about holes here}
-
-The final operation in the library seems to be a novelty -- we have not seen it in any other generics library, even in those which attempt to include all variations \citep{ren:generic_recursion_toolbox}. This operation is similar to contextual pattern matching \citep{mohnen:context_patterns}.\footnote{This function was contributed by Eric Mertens.}
+The final two operations in the library seem to be a novelty -- we have not seen them in any other generics library, even in those which attempt to include all variations \citep{ren:generic_recursion_toolbox}. These operations are similar to contextual pattern matching \citep{mohnen:context_patterns}.
 
 \begin{code}
-contexts :: Uniplate alpha => alpha -> [(alpha, alpha -> alpha)]
+holes, contexts :: Uniplate alpha => alpha -> [(alpha, alpha -> alpha)]
 \end{code}
 
-This function returns lists of pairs |(x,f)| where |x| is an element of the data structure which would have been returned by |universe|, and |f| replaces the hole which |x| was removed from.
+Given a value |y|, these functions both return lists of pairs |(x,f)| where |x| is a sub-expression of |y|, and |f| replaces the hole in |y| from which |x| was removed. In the case of |holes|, |x| will be a member of |children y|, and for |contexts|, |x| will be a member of |universe y|.
 
 \begin{example}
 Suppose that mutation testing requires all expressions obtained by incrementing or decrementing \textit{any single} literal in an original expression.
@@ -382,13 +385,16 @@ mutants x =  [c (Val j) | (Val i, c) <- contexts x,  j <- [i-1, i+1]]
 \end{code}
 \end{example}
 
-In general, |contexts| has the following properties:
+In general, these functions have the following properties:
 
 \begin{code}
-propUniverse  x = universe x == map fst (contexts x)
-propId        x = all (== x) [b a | (a,b) <- contexts x]
+propChildren  x = children x == map fst (holes    x)
+propId        x = all (== x) [b a | (a,b) <- holes     x]
 \end{code}
-
+\begin{code}
+propUniverse  x = universe x == map fst (contexts x)
+propId        x = all (== x) [b a | (a,b) <- contexts  x]
+\end{code}
 
 
 \subsection{Summary}
@@ -401,6 +407,7 @@ children    :: Uniplate alpha => alpha -> [alpha]
 contexts    :: Uniplate alpha => alpha -> [(alpha, alpha -> alpha)]
 descend     :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
 descendM    :: (Uniplate alpha, Monad m) => (alpha -> m alpha) -> alpha -> m alpha
+holes       :: Uniplate alpha => alpha -> [(alpha, alpha -> alpha)]
 para        :: Uniplate alpha => (alpha -> [r] -> r) -> alpha -> r
 rewrite     :: Uniplate alpha => (alpha -> Maybe alpha) -> alpha -> alpha
 rewriteM    :: (Uniplate alpha, Monad m)  => (alpha -> m (Maybe alpha)) -> alpha -> m alpha
@@ -440,14 +447,14 @@ listStr (x:xs)  = Two (One x) (listStr xs)
 \label{figU:str}
 \end{figure}
 
-Requiring each instance of the |Uniplate| class to implement ten separate methods would be an undue imposition. Instead, given a type specific instance for a \textit{single} auxiliary method with a pair as result, we can define \textit{all ten} operations generically, at the class level. The auxiliary use of the |Str| data type from Figure \ref{figU:str}, and is defined as:
+Requiring each instance of the |Uniplate| class to implement eleven separate methods would be an undue imposition. Instead, given a type specific instance for a \textit{single} auxiliary method with a pair as result, we can define \textit{all eleven} operations generically, at the class level. The auxiliary method is defined as:
 
 \ignore\begin{code}
 uniplate :: Uniplate alpha => alpha -> (Str alpha, Str alpha -> alpha)
 uniplate x = (children,context)
 \end{code}
 
-The original Uniplate paper \cite{me:uniplate} used lists of items, but we instead use the |Str| data type to collect items -- which simplifies the definition of instances. The |children| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has the same structure as the result of |children|. The result pair splits the information in the value, but by combining the |context| with the |children| the original value can be recovered:
+The original Uniplate paper \cite{me:uniplate} used lists of items, but we instead use the |Str| data type defined in Figure \ref{figU:str} to collect items. The use of |Str| simplifies the definition of instances and improves performance. The |children| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has the same structure of |Str| constructors as the result of |children|. The result pair splits the information in the value, but by combining the |context| with the |children| the original value can be recovered:
 
 \begin{code}
 propId x = x == context children
@@ -457,8 +464,7 @@ propId x = x == context children
 \subsection{Operations in terms of |uniplate|}
 \label{secU:using_replacechildren}
 
-All ten operations from \S\ref{secU:use_play} can be defined in terms of |uniplate|. We define four functions as examples.
-
+\begin{figure}
 \begin{code}
 children :: Uniplate alpha => alpha -> [alpha]
 children = strList . fst . uniplate
@@ -472,9 +478,40 @@ descend f x = context $ fmap f children
 
 transform :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
 transform f = f . descend (transform f)
-\end{code}
 
-The common pattern is to call |uniplate|, then operate on the current children, often calling |context| to create a modified value. Some of these definitions can be made more efficient -- see \S\ref{secU:optimise_everything}.
+rewrite :: Uniplate alpha => (alpha -> Maybe alpha) -> alpha -> alpha
+rewrite f = transform g
+    where g x = maybe x (rewrite f) (f x)
+
+descendM :: (Monad m, Uniplate alpha) => (alpha -> m alpha) -> alpha -> m alpha
+descendM f x = liftM context $ mapM f children
+    where (children, context) = uniplate x
+
+transformM :: (Monad m, Uniplate alpha) => (alpha -> m alpha) -> alpha -> m alpha
+transformM f x = f =<< descendM (transformM f) x
+
+rewriteM :: (Monad m, Uniplate alpha) => (alpha -> m (Maybe alpha)) -> alpha -> m alpha
+rewriteM f = transformM g
+    where g x = f x >>= maybe (return x) (rewriteM f)
+
+para :: Uniplate alpha => (alpha -> [r] -> r) -> alpha -> r
+para op x = op x $ map (para op) $ children x
+
+holes :: Uniplate alpha => alpha -> [(alpha, alpha -> alpha)]
+holes = f . uniplate
+  where  f (Zero     , g) = []
+         f (One x    , g) = [(x, g . One)]
+         f (Two l r  , g) = f (l, g . flip Two r) ++ f (r, g . Two l)
+
+contexts :: Uniplate alpha => alpha -> [(alpha, alpha -> alpha)]
+contexts x  =  (x,id) : [ (x_2, g_1 . g_2)
+            |  (x_1, g_1) <- holes x, (x_2, g_2) <- contexts x_1]
+\end{code}
+\caption{Implementation of all |Uniplate| methods.}
+\label{fig:Uimplements}
+\end{figure}
+
+All eleven operations from \S\ref{secU:use_play} can be defined in terms of |uniplate|. We define all eleven operations in Figure \ref{fig:Uimplements}. The common pattern is to call |uniplate|, then operate on the current children, often calling |context| to create a modified value. Some of these definitions can be made more efficient -- see \S\ref{secU:optimise_everything}.
 
 \subsection{Writing |Uniplate| instances}
 \label{secU:play_instances}
@@ -575,7 +612,7 @@ By applying simple transformation steps we can obtain the same instance as prese
 \subsection{Automated Derivation of |uniplate|}
 \label{secU:derive}
 
-Applying these derivation rules is a form of boilerplate coding! The DrIFT tool \citep{drift} derives instances automatically given rules depending only on the information contained in a type definition. However DrIFT is unable to operate with certain Haskell extensions ({\TeX} style literate Haskell, C pre processor), and requires a separate pre-processing stage.
+Applying these derivation rules is a form of boilerplate coding! The DrIFT tool \citep{drift} derives instances automatically given rules depending only on the information contained in a type definition. However DrIFT is unable to operate with certain Haskell extensions (eg. {\TeX} style literate Haskell), and requires a separate pre-processing stage.
 
 In collaboration with Stefan O'Rear we have developed the Derive tool \citep{derive}. Derive is based on Template Haskell \citep{template_haskell} and has predefined rules for derivation of |Uniplate| instances. It has special rules to remove redundant patterns to produce simpler and more efficient instances.
 
@@ -737,7 +774,7 @@ In this redefinition we have again made a single change to the equation: the add
 \section{Implementing |Biplate|}
 \label{secU:implement_playex}
 
-The complicating feature of |biplate| is that when defining |Biplate| where \ignore|alpha == beta| the function does not descend to the children, but simply returns its argument. This ``same type'' restriction can be captured either using the type system, or using the |Typeable| class \cite{lammel:syb}. We present three methods for defining a |Biplate| instance -- offering a trade-off between performance, compatibility and volume of code.
+The complicating feature of |biplate| is that when defining |Biplate| where \ignore|alpha == beta| the function does not descend to the children, but simply returns its argument. This rule can be captured either using the type system, or using the |Typeable| class \cite{lammel:syb}. We present three methods for defining a |Biplate| instance -- offering a trade-off between performance, compatibility and volume of code.
 
 \begin{enumerate}
 \item Direct definition requires $O(n^2)$ instances, but offers the highest performance with the fewest extensions.
@@ -1206,6 +1243,8 @@ Here the Uniplate solution wins by being able to use a list comprehension to sel
 \end{examplename}
 
 \subsubsection{Uniplate compared to SYB and Compos}
+
+\todo{table is ugly}
 
 \begin{sidewaystable}
 \caption{Table of lexeme counts and runtime performance.}
