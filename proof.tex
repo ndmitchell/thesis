@@ -1085,7 +1085,7 @@ sat' propTrue
 True
 \end{code}
 
-\proof[\h{#mp}|(ms_1 :* ms_2):ks|:]{sat/| ||> |}
+\proof[\ignore|(ms_1 :* ms_2):ks|:]{sat/| ||> |}
 
 \h{#mp exprlist}\begin{code}
 sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k

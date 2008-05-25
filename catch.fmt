@@ -1,5 +1,9 @@
 %format <| = "\mathbin{\lhd}"
 %format |> = "\mathbin{\rhd}"
+
+%format f_lhd = f "_{\lhd}"
+%format f_rhd = f "_{\rhd}"
+
 %format -< = "\mbox{\ensuremath{<\hspace{-1em}-}}"
 %format :- = "\!\rightsquigarrow{}\!"
 %format :* = "\star{}"
