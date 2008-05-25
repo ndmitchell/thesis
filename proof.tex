@@ -31,6 +31,7 @@ var    :: VarName   -> Maybe (Expr, Selector)
 ctors  :: CtorName  -> [CtorName]
 arity :: String -> Int
 type Selector  =  (CtorName, Int)
+isRec :: Selector -> Bool
 
 precond   :: FuncName -> Prop (Sat VarName)
 prePost   :: FuncName -> Constraint -> Prop (Sat VarName)
@@ -87,6 +88,9 @@ data ValMP = [Pattern] :* [Pattern] | Any
 data Pattern = Pattern CtorName [ValMP]
 complete :: CtorName -> Pattern
 nonRecs :: CtorName -> [Int]
+merge :: [Pattern] -> [Pattern] -> [Pattern]
+non :: [Int]
+rec :: [Int]
 \end{code}
 \end{comment}
 
@@ -916,30 +920,63 @@ True
 
 To perform some of these proofs, we will rely on the following theorem:
 
-\theorem{sat/MP}
-{\h{#mp}|sat (Sat (Val c xs) []) == False|}
+\theorem{sat/any}
+{\h{#mp}|sat (Sat (Val c xs) ks) == any (\k -> sat $ Sat (Val c xs) [k]) ks|}
 
-\proof{sat/MP}
+\theorem{sat/merge}
+{\h{#mp}|sat $ Sat (Val c xs) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==> sat $ Sat (Val c xs) [ms_1 :* ms_2]|}
+
+\proof{sat/any}
 
 \h{#mp exprlist}\begin{code}
-sat (Sat (Val c xs) []) == False
-    -- introduce not
-not $ sat $ Sat (Val c xs) []
+sat (Sat (Val c xs) ks) == any (\k -> sat $ Sat (Val c xs) [k]) ks
     -- inline |sat|
-not $ sat' $ (c <| []) /# ([0..],xs)
+sat' ((c <| ks) /# ([0..],xs)) == rhs
     -- inline | <|| |
-not $ sat' $ (propOrs $ map f []) /# ([0..],xs)
-    -- inline |map|
-not $ sat' $ propOrs [] /# ([0..],xs)
-    -- inline |propOrs|
-not $ sat' $ propFalse /# ([0..],xs)
+sat' (propOrs (map f ks) /# ([0..],xs)) == rhs
     -- inline |(/)|
-not $ sat' $ propFalse
+sat' (propOrs (map f ks /# ([0..],xs))) == rhs
     -- inline |sat'|
-not False
-    -- inline |not|
+any sat' (map f ks /# ([0..],xs)) == rhs
+    -- inline |(/)|
+any sat' (map ((/# ([0..],xs)) . f) ks) == rhs
+    -- combine |any| and |map|
+any (sat' . (/# ([0..],xs)) . f) ks == rhs
+    -- insert |k|
+any (\k -> sat' $ f k /# ([0..],xs)) ks == rhs
+    -- insert RHS
+any (\k -> sat' $ f k /# ([0..],xs)) ks == any (\k -> sat $ Sat (Val c xs) [k]) ks
+    -- unwrap common parts
+sat' (f k /# ([0..],xs)) == sat (Sat (Val c xs) [k])
+    -- inline |sat|
+lhs == sat' ((c <| [k]) /# ([0..],xs))
+    -- inline | <|| |
+lhs == sat' (propOrs (map f [k]) /# ([0..],xs))
+    -- inline |map|
+lhs == sat' (propOrs [f k] /# ([0..],xs))
+    -- inline |propOrs|
+sat' (f k /# ([0..],xs)) == sat' (f k /# ([0..],xs))
+    -- equal
 True
 \end{code}
+
+
+\proof{sat/merge}
+
+\h{#mp exprlist}\begin{code}
+sat $ Sat (Val c xs) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==> sat $ Sat (Val c xs) [ms_1 :* ms_2]
+    -- inline |sat|
+sat' $ (c <| [merge ms_1 ms_2 :* merge ms_1 ms_2]) /# ([0..],xs) ==> sat' $ (c <| [ms_1 :* ms_2]) /# ([0..],xs)
+    -- inline | <|| |
+sat' $ propOrs (map f [merge ms_1 ms_2 :* merge ms_1 ms_2]) /# ([0..],xs) ==> sat' $ propOrs (map f [ms_1 :* ms_2]) /# ([0..],xs)
+    -- inline |map|
+sat' $ propOrs [f $ merge ms_1 ms_2 :* merge ms_1 ms_2] /# ([0..],xs) ==> sat' $ propOrs [f $ ms_1 :* ms_2] /# ([0..],xs)
+    -- inline |propOrs|
+sat' $ (f $ merge ms_1 ms_2 :* merge ms_1 ms_2) /# ([0..],xs) ==> sat' $ (f $ ms_1 :* ms_2) /# ([0..],xs)
+    -- inline |f|
+    -- \todo{finish off}
+\end{code}
+
 
 \proof{sat/|-<|}
 
@@ -965,7 +1002,11 @@ sat' $ propLit $ Sat (Val c xs) [] ==> c `elem` []
 sat' $ propLit $ Sat (Val c xs) [] ==> False
     -- inline |sat'|
 sat $ Sat (Val c xs) [] ==> False
-    -- \lemma{sat/MP}
+    -- \lemma{sat/any}
+any (\k -> sat $ Sat (Val c xs) [k]) [] ==> False
+    -- inline |any|
+False ==> False
+    -- equal
 True
 \end{code}
 
@@ -1012,8 +1053,6 @@ True
 \end{code}
 
 \proof{sat/| ||> |}
-
-Note to self: We cannot induct on |k| as it is a list of |Val|.
 
 \h{#mp exprlist}\begin{code}
 sat $ Sat (Val c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
@@ -1089,6 +1128,145 @@ True
 
 \h{#mp exprlist}\begin{code}
 sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
+    -- |k == (ms_1 :* ms_2):ks|
+sat' $ propOrs (map (f_lhd . f_rhd) ((ms_1 :* ms_2):ks)) /# ([0..],xs) ==> sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
+    -- inline |map|
+sat' $ propOrs ((f_lhd $ f_rhd $ ms_1 :* ms_2) : map (f_lhd . f_rhd) ks) /# ([0..],xs) ==> rhs
+    -- inline |(/)|
+sat' $ propOrs (((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) : (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==> rhs
+    -- inline |propOrs|
+sat' $ ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) `propOr` propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs)) ==> rhs
+    -- inline |sat'|
+sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) || sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==> rhs
+    -- reinstate RHS
+sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) || sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==> sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
 \end{code}
 
-\todo{finish off proof}
+Now by case analysis. Either |xs !! i == Bottom|, or |Val c' ys|
+
+\h{#mp exprlist}\begin{code}
+sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) || sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==> sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
+    -- weaken implication
+sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
+    -- |xs !! i = Bottom|
+sat $ Sat Bottom ((ms_1 :* ms_2):ks)
+    -- inline |sat|
+True
+\end{code}
+
+\h{#mp exprlist}\begin{code}
+sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) || sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==> sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
+    -- |xs !! i = Val c' ys|
+lhs ==> sat $ Sat (Val c' ys) ((ms_1 :* ms_2):ks)
+    -- \lemma{sat/any}
+lhs ==> any (\k -> sat $ Sat (Val c' ys) [k]) ((ms_1 :* ms_2):ks) 
+    -- inline |any|
+lhs ==> sat (Sat (Val c' ys) [ms_1 :* ms_2]) || any (\k -> sat $ Sat (Val c' xs) [k]) ks
+    -- \lemma{sat/any}
+lhs ==> sat (Sat (Val c' ys) [ms_1 :* ms_2]) || sat (Sat (Val c' ys) ks)
+    -- reinstate LHS
+sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) || sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==> sat (Sat (Val c ys) [ms_1 :* ms_2]) || sat (Sat (Val c' ys) ks)
+    -- split the implication
+(sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ==> sat (Sat (Val c' ys) [ms_1 :* ms_2])) && (sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==> sat (Sat (Val c' ys) ks))
+    -- |xs !! i == Val c' ys|
+(sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ==> sat (Sat (xs !! i) [ms_1 :* ms_2])) && (sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==> sat (Sat (xs !! i) ks))
+    -- inductive hypothesis
+sat' $ (f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs) ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
+\end{code}
+
+We can now perform case analysis, assuming either |isRec (c,i) == False|, or the reverse.
+
+\h{#mp exprlist}\begin{code}
+sat' $ (f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs) ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
+    -- inline |f_rhd|, assuming |isRec (c,i) == False|
+sat' $ (f_lhd $ [Pattern c [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]] :* map complete (ctors c)) /# ([0..],xs) ==> lhs
+    -- inline |f_lhd|
+sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- [Pattern c [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]], c_1 == c] /# ([0..],xs) ==> lhs
+    -- simplify list comprehension
+sat' $ propOrs [propAnds $ map propLit $ g [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]] /# ([0..],xs) ==> lhs
+    -- inline |propOrs|
+sat' $ (propAnds $ map propLit $ g [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]) /# ([0..],xs) ==> lhs
+    -- inline |(/)|
+sat' $ propAnds $ map propLit $ g [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c] /# ([0..],xs) ==> lhs
+    -- inline |sat'|
+all sat $ g [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c] /# ([0..],xs) ==> lhs
+    -- inline |g|
+all sat $ (zipWith Sat non (map (:[]) [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]) ++ map (`Sat` [map complete (ctors c) :* map complete (ctors c)]) rec) /# ([0..],xs) ==> lhs
+    -- inline |(/)|
+all sat $ zipWith Sat (non /# ([0..],xs)) (map (:[]) [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]) ++ map (`Sat` [map complete (ctors c) :* map complete (ctors c)]) (rec /# ([0..],xs)) ==> lhs
+    -- inline |all|
+all sat (zipWith Sat (non /# ([0..],xs)) (map (:[]) [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c])) && all sat (map (`Sat` [map complete (ctors c) :* map complete (ctors c)]) (rec /# ([0..],xs))) ==> lhs
+    -- weaken implication
+all sat $ zipWith Sat (non /# ([0..],xs)) (map (:[]) [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]) ==> lhs
+    -- inline |map|
+all sat $ zipWith Sat (non /# ([0..],xs)) [if i == j then [ms_1 :* ms_2] else [Any] | j <- nonRecs c] ==> lhs
+    -- |non == nonRecs c|, by definition of |nonRecs|
+all sat $ zipWith Sat (non /# ([0..],xs)) [if i == j then [ms_1 :* ms_2] else [Any] | j <- non] ==> lhs
+    -- rewrite list comprehension
+all sat $ zipWith Sat (non /# ([0..],xs)) (map (\j -> if i == j then [ms_1 :* ms_2] else [Any]) non) ==> lhs
+    -- inline |(/)|
+all sat $ zipWith Sat (map (/# ([0..],xs)) non) (map (\j -> if i == j then [ms_1 :* ms_2] else [Any]) non) ==> lhs
+    -- |zipWith f (map g xs) (map h xs) == map (\x -> f (g x) (h x)) xs|
+all sat $ map (\j -> Sat (j /# ([0..],xs)) (if i == j then [ms_1 :* ms_2] else [Any])) non ==> lhs
+    -- weaken implication, using |i `elem` non| because of false |isRec| test
+all sat $ map (\j -> Sat (j /# ([0..],xs)) (if i == j then [ms_1 :* ms_2] else [Any])) [i] ==> lhs
+    -- inline |map|
+all sat $ [Sat (i /# ([0..],xs)) (if i == i then [ms_1 :* ms_2] else [Any])] ==> lhs
+    -- inline |all|
+sat $ Sat (i /# ([0..],xs)) (if i == i then [ms_1 :* ms_2] else [Any]) ==> lhs
+    -- |(i == i) == True|
+sat $ Sat (i /# ([0..],xs)) [ms_1 :* ms_2] ==> lhs
+    -- inline |(/)|
+sat $ Sat (xs !! i) [ms_1 :* ms_2] ==> lhs
+    -- reinstate LHS
+sat $ Sat (xs !! i) [ms_1 :* ms_2] ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
+    -- equals
+True
+\end{code}
+
+
+\h{#mp exprlist}\begin{code}
+sat' $ (f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs) ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
+    -- inline |f_rhd|, assuming |isRec (c,i)|
+sat' $ (f_lhd $ [complete c] :* merge ms_1 ms_2) /# ([0..],xs) ==> lhs
+    -- inline |f_lhd|
+sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- [complete c], c_1 == c] /# ([0..],xs) ==> lhs
+    -- inline |complete c|
+sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- [Pattern c (map (const Any) (nonRecs c))], c_1 == c] /# ([0..],xs) ==> lhs
+    -- simplify list comprehension
+sat' $ propOrs [propAnds $ map propLit $ g $ map (const Any) (nonRecs c)] /# ([0..],xs) ==> lhs
+    -- inline |propOrs|
+sat' $ propAnds (map propLit $ g $ map (const Any) (nonRecs c)) /# ([0..],xs) ==> lhs
+    -- inline |(/)|
+sat' $ propAnds $ map propLit $ (g $ map (const Any) (nonRecs c)) /# ([0..],xs) ==> lhs
+    -- inline |sat'|
+all sat $ (g $ map (const Any) (nonRecs c)) /# ([0..],xs) ==> lhs
+    -- inline |g|
+all sat $ (zipWith Sat non (map (:[]) vs) ++ map (`Sat` [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec) /# ([0..],xs) ==> lhs
+    -- inline |(/)|
+all sat $ zipWith Sat non (map (:[]) vs) /# ([0..],xs) ++ map (`Sat` [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec /# ([0..],xs) ==> lhs
+    -- inline |all|
+all sat (zipWith Sat non (map (:[]) vs) /# ([0..],xs)) && all sat (map (`Sat` [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec /# ([0..],xs)) ==> lhs
+    -- weaken implication
+all sat $ map (`Sat` [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec /# ([0..],xs) ==> lhs
+    -- eta expand
+all sat $ map (\j -> Sat j [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec /# ([0..],xs) ==> lhs
+    -- inline |(/)|
+all sat $ map (\j -> Sat (j /# ([0..],xs)) [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec ==> lhs
+    -- combine |all| and |map|
+all (\j -> sat $ Sat (j /# ([0..],xs)) [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec ==> lhs
+    -- weaken implication, as |i `elem` rec|, because of |isRec| test
+all (\j -> sat $ Sat (j /# ([0..],xs)) [merge ms_1 ms_2 :* merge ms_1 ms_2]) [i] ==> lhs
+    -- inline |all|
+sat $ Sat (i /# ([0..],xs)) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==> lhs
+    -- inline |(/)|
+sat $ Sat (xs !! i) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==> rhs
+    -- reinstate RHS
+sat $ Sat (xs !! i) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
+    -- |xs !! i == Val c' ys|
+sat $ Sat (Val c' ys) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==> sat $ Sat (Val c' ys) [ms_1 :* ms_2]
+    -- \lemma{sat/merge}
+True
+\end{code}
+
+
