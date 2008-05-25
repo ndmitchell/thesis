@@ -489,13 +489,11 @@ prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $
 \subsection{Semantics of Constraints}
 \label{secC:constraint_semantics}
 
-% \todo{Remove this section}
-
 The semantics of a constraint are determined by which values satisfy it. We can model values in our first-order Core with the data type:
 
 \begin{code}
-data Value  =  Bottom
-            |  Value CtorName [Value]
+data Value  =  Value CtorName [Value]
+            |  Bottom
 \end{code}
 
 Given this value representation, we can implement a |satisfies| function using the |<||| operator:
@@ -527,7 +525,7 @@ propOneOf  v@(Value c xs) cs
 propOneOf  _ _ = True
 \end{code}
 
-\noindent The |propOneOf| property requires that |v -< cs| must not match values constructed by constructors not in |cs|. Note that both properties allow for constraints to be more restrictive than necessary.
+\noindent The |propOneOf| property requires that |v -< cs| must not match values constructed by constructors not in |cs|. Note that both properties allow for constraints to be more restrictive than necessary. In Chapter \ref{chp:proof} we will show that these properties are sufficient to prove correctness.
 
 \subsection{Finite Refinement of Constraints}
 \label{secC:bounded}

@@ -95,8 +95,8 @@ rec :: [Int]
 \end{comment}
 
 
-\section{Argument for Correctness}
-\label{secC:correct}
+\chapter{Proof of Pattern Match Analysis}
+\label{chp:proof}
 
 \newcommand{\lemma}[1]{(\textit{#1})}
 \newcommand{\theorem}[2]{#2 \hspace{5mm} \lemma{#1} \\}
@@ -106,13 +106,13 @@ The algorithm is correct if given a function application whose arguments meet th
 
 To perform the proof, we require various laws about the |-<|, | ||>| and |<||| operators, which we then show hold for each of the three constraint systems.
 
-\subsection{Evaluator}
+\section{Evaluator}
 
 First we introduce functions and definitions which will be required later.
 
 \h{#*}\begin{code}
-data Val  =  Val CtorName [Val]
-          |  Bottom
+data Val   =  Val CtorName [Val]
+            |  Bottom
 
 data Expr  =  Make CtorName [Expr]
            |  Call FuncName [Expr]
@@ -170,7 +170,7 @@ sat (Sat (Val c xs)  k) = sat' $ (c <| k) /# ([0..],xs)
 
 Of these functions, |sat| is primitive and different for each constraint language. All the expressions given to |satE| must have no free variables, as |eval| cannot deal with them.
 
-\subsection{Theorems}
+\section{Theorems}
 
 We wish to prove:
 
@@ -185,7 +185,7 @@ In particular this requires the following theorems about the constraint language
 \theorem{sat/| ||> |}
 {|sat $ Sat (Val c xs) ((c,i) ||> k) ==> sat $ Sat (xs !! i) k|}
 
-Note that the definition of |sat| makes use of |(<||)|, so these theorems require the additional two definitions to be consistent with |(<||)|.
+Both of these theorems are given in \S\label{secC:constraint_semantics}, as properties. Note that the definition of |sat| makes use of |(<||)|, so these theorems require the additional two definitions to be consistent with |(<||)|.
 
 We will also need the following general theorems:
 
@@ -210,7 +210,7 @@ We will also need the following general theorems:
 \theorem{elem}
 {|(x `elem` (xs \\ [x])) == False|}
 
-\subsubsection{The Proof}
+\section{Proofs of Theorems}
 
 We prove each lemma in turn.
 
@@ -796,7 +796,7 @@ satE' $ red y k /# sub ==> sat $ Sat (eval $ y / sub) k
 True
 \end{code}
 
-\subsection{Correctness of BP-constraints}
+\section{Correctness of BP-constraints}
 
 Since BP-constraints are presented throughout the document, we recap them here:
 
@@ -916,7 +916,7 @@ sat $ Sat (xs !! i) (Con c' ys) ==> sat $ Sat (xs !! i) (Con c' ys)
 True
 \end{code}
 
-\subsection{Correctness of MP-constraints}
+\section{Correctness of MP-constraints}
 
 To perform some of these proofs, we will rely on the following theorem:
 
@@ -1269,5 +1269,9 @@ sat $ Sat (Val c' ys) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==> sat $ Sat (Val c'
     -- \lemma{sat/merge}
 True
 \end{code}
+
+\section{Conclusion}
+
+We have shown that the Catch algorithm is correct, given certain laws on the operators. We have shown that these properties are satisfied by the BP and MP constraint systems. We believe these properties are satisfied by the RE constraints, but as these are not used by the Catch tool, we have chosen not to prove these.
 
 
