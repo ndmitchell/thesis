@@ -86,7 +86,7 @@ Our goal is an automatic optimisation that makes high-level Haskell programs run
 \section{Supercompilation}
 \label{secS:optimisation}
 
-Our supercompiler takes a Core program as input, in the format described in \S\ref{secB:core}, and produces an equivalent Core program as output. To improve the program we do not make small local changes to the original, but instead \textit{evaluate it} so far as possible at compile time, leaving a \textit{residual program} to be run.
+Our supercompiler takes a Core program as input, in the format described in \S\ref{secB:core}, and produces an equivalent Core program as output. To improve the program we do not make small local changes to the original, but instead \textit{evaluate it at compile time} so far as possible, leaving a \textit{residual program} to be run.
 
 \begin{figure}
 \ignore\begin{code}
@@ -116,7 +116,7 @@ Where |psi| is a mapping from expressions to function names, and \ignore|freeVar
 \label{figS:supercompile}
 \end{figure}
 
-The general method of supercompilation is shown in Figure \ref{figS:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost element in the expression becomes part of the residual program -- making use of a Uniplate instance for our Core language (see Chapter \ref{chp:uniplate}). All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to alpha renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions are then supercompiled as before.
+The general method of supercompilation is shown in Figure \ref{figS:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost shell of the expression becomes part of the residual program -- making use of a Uniplate instance for our Core language (see Chapter \ref{chp:uniplate}). All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to $\alpha$-renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions is then supercompiled as before.
 
 \begin{figure}
 \ignore\begin{code}
@@ -125,7 +125,7 @@ case v of {... ; c vs_ -> x ; ...}
 
 let v = x in y
     => y[v/x]
-    where x {-" \hbox{is a lambda or a variable } "-}
+    where x {-" \hbox{ is a lambda or a variable } "-}
 
 let v = c x_1 ... x_n in y
     =>  let v_1 = x_1 in
@@ -138,7 +138,7 @@ let v = c x_1 ... x_n in y
 \label{figS:simplify}
 \end{figure}
 
-The supercompilation of an expression proceeds by repeatedly inlining a function application until some termination criterion is met. Once the termination criterion holds, the expression is generalised before the outer spine becomes part of the residual program and all subexpressions are assigned names. After each inlining step, the expression is simplified using the standard simplification rules from \S\ref{secB:core_simplify}, along with additional simplification rules from Figure \ref{figS:simplify}. The additional simplification rules all reduce the sharing in an expression, but by small constant amounts, and permit additional transformations. There are three key decisions in the supercompilation of an expression:
+The supercompilation of an expression proceeds by repeatedly inlining a function application until some termination criterion is met. Once the termination criterion holds, the expression is generalised before the outer shell of the expression becomes part of the residual program and all subexpressions are assigned names. After each inlining step, the expression is simplified using the standard simplification rules from \S\ref{secB:core_simplify}, along with additional simplification rules from Figure \ref{figS:simplify}. The additional simplification rules all reduce the sharing in an expression, but by small constant amounts, and permit additional transformations. There are three key decisions in the supercompilation of an expression:
 
 \begin{enumerate}
 \item Which function to inline.
@@ -172,7 +172,7 @@ h_0 as  = map (\b -> b + 1) as
                 d:ds  -> d+1 : map (\b -> b + 1) ds
 \end{code}
 
-We now have a |case| with a variable as the scrutinee at the root of the expression, which cannot be reduced further, so we residuate the spine. When processing the expression |map (\b -> b + 1) ds| we spot this to be an alpha renaming of the body of an existing generated function, namely |h_0|, and use this function:
+We now have a |case| with a variable as the scrutinee at the root of the expression, which cannot be reduced further, so we residuate the outer shell of the expression. When processing the expression |map (\b -> b + 1) ds| we spot this to be an $\alpha$-renaming of the body of an existing generated function, namely |h_0|, and use this function:
 
 \begin{code}
 h_0 as = case  as of
@@ -223,7 +223,7 @@ Both intermediate lists have been removed, and the functional arguments to |map|
 \subsection{Which function to inline}
 \label{secS:which_inline}
 
-During the supercompilation of an expression, at each step some function needs to be inlined. Which to choose? In most supercompilation work the choice is made following the runtime semantics of the program. But in a language with let expressions this may be inappropriate. If a function in a let binding is inlined, its application when reduced may be simple enough to substitute in the let body. However, if a function in a let body is inlined, the let body may now only refer to the let binding once, allowing the binding to be substituted. Let us take two expressions, based on intermediate steps obtained from real programs (word counting and prime number calculation respectively):
+During the supercompilation of an expression, at each step some function needs to be inlined. Which to choose? In most supercompilation work the choice is made following the runtime semantics of the program. But in a language with let expressions this may be inappropriate. If a function applied \textit{in a let binding} is inlined, its application when reduced may be simple enough to substitute in the let body. However, if a function applied \textit{in a let body} is inlined, the let body may now only refer to the let binding once, allowing the binding to be substituted. Let us take two expressions, based on intermediate steps obtained from real programs (word counting and prime number calculation respectively):
 
 \begin{center}
 \begin{tabular}{p{5cm}p{5cm}}
@@ -253,7 +253,7 @@ unfolds (EFun f xs_) = [ EApp (inline f) xs_ ]
 unfolds x = [gen y | (c,gen) <- holes x, y <- unfolds c]
 \end{code}
 
-The |unfolds| function computes all possible one-step inlinings, using an in-order traversal of the abstract syntax tree, making use of the |holes| function defined by Uniplate \todo{make sure holes is in uniplate}. The |unfold| function chooses the first unfolding which does not cause the supercompilation to terminate. If no such expression exists, the first unfolding is chosen.
+The |unfolds| function computes all possible one-step inlinings, using an in-order traversal of the abstract syntax tree, making use of the |holes| function defined by Uniplate in \S\ref{secU:holes_contexts}. The |unfold| function chooses the first unfolding which does not cause the supercompilation to terminate. If no such expression exists, the first unfolding is chosen.
 
 \subsection{The Termination Criterion}
 
@@ -261,13 +261,13 @@ The original Supero program used a size bound on the expression to determine whe
 
 We use the homeomorphic embedding relation (described in \S\ref{secB:homeomorphic}). We terminate the supercompilation of an expression |y| if on the chain of reductions from |main| to |y| we have encountered an expression |x| such that $x \unlhd y$.
 
-In addition to using the homeomorphic embedding, we also terminate if further unfolding cannot yield any improvement to the root of the expression. For example, if the root of an expression is a constructor application, no further unfolding will change the root constructor. When terminating for this reason, we always residuate the outer spine of the expression, without applying any generalisation.
+In addition to using the homeomorphic embedding, we also terminate if further unfolding cannot yield any improvement to the root of the expression. For example, if the root of an expression is a constructor application, no further unfolding will change the root constructor. When terminating for this reason, we always residuate the outer shell of the expression, without applying any generalisation.
 
 \subsection{Generalisation}
 
-When the termination criterion has been met, it is necessary to discard information about the current expression, so that the supercompilation terminates. We always residuate the outer spine of the expression, but first we attempt to generalise the expression so that the information lost is minimal. The paper by \citet{sorensen:supercompilation} provides a method for generalisation, which works by taking the most specific generalisation of the current expression and expression which is a homeomorphic embedding of it.
+When the termination criterion has been met, it is necessary to discard information about the current expression, so that the supercompilation terminates. We always residuate the outer shell of the expression, but first we attempt to generalise the expression so that the information lost is minimal. The paper by \citet{sorensen:supercompilation} provides a method for generalisation, which works by taking the most specific generalisation of the current expression and an expression which is a homeomorphic embedding of it.
 
-The most specific generalisation of two expressions $s$ and $t$, $\text{msg}(s,t)$, is produced by applying the following rewrite rule to the initial triple $(x,\{x=s\},\{x=t\})$, resulting in a common expression and two sets of bindings.
+The most specific generalisation of two expressions $s$ and $t$, $\text{msg}(s,t)$, is produced by applying the following rewrite rule to the initial triple \linebreak $(x,\{x=s\},\{x=t\})$, resulting in a common expression and two sets of bindings.
 
 \[
 \left( \begin{array}{lcl}
@@ -367,7 +367,7 @@ We performed all benchmarks on a machine running Windows XP, with a 3GHz process
 \label{figS:c_results}
 \end{figure}
 
-The results are given in Figure \ref{figS:c_results}. In all the benchmarks C and Supero are within 10\% of each other, while GHC trails further behind.
+The results are given in Figure \ref{figS:c_results}. In all the benchmarks C and Supero+GHC are within 10\% of each other, while GHC trails further behind.
 
 \subsection{Identified Haskell Speedups}
 
@@ -438,7 +438,7 @@ We exclude two benchmarks, paraffins and gen\_regexps. The paraffins benchmark m
 \end{center}
 
 \smallskip
-\textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{spine} applies no generalisation operation; \textbf{none} never performs any inlining. \\
+\textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{shell} applies no generalisation operation; \textbf{none} never performs any inlining. \\
 
 \caption{Runtime, relative to GHC being 1.}
 \label{figS:haskell_results}
@@ -447,7 +447,7 @@ We exclude two benchmarks, paraffins and gen\_regexps. The paraffins benchmark m
 \begin{table}
 \bigskip
 \begin{tabular*}{\linewidth}{@@{\extracolsep{\fill}}lrrrrrr@@{\extracolsep{0cm}}}
-\textbf{Program} & \textbf{Supero} & \textbf{msg} & \textbf{spine} & \textbf{none} & \textbf{Size} & \textbf{Memory} \\
+\textbf{Program} & \textbf{Supero} & \textbf{msg} & \textbf{shell} & \textbf{none} & \textbf{Size} & \textbf{Memory} \\
 bernouilli 		& 1.41 & 1.53 & 1.58 & 1.18 & 1.10 & 0.97 \\
 digits-of-e1	& 1.03 & 1.16 & 1.03 & 1.06 & 1.01 & 1.11 \\
 digits-of-e2	& 0.72 & 0.72 & 0.72 & 1.86 & 1.00 & 0.84 \\
@@ -463,13 +463,13 @@ x2n1 			& 0.58 & 0.64 & 1.61 & 3.04 & 1.09 & 0.33 \\
 \end{tabular*}
 \bigskip
 
-\textbf{Program} is the name of the program; \textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{spine} applies no generalisation operation; \textbf{none} never performs any inlining; \textbf{Size} is the size of the Supero generated executable; \textbf{Memory} is the amount of memory allocated on the heap by the Supero executable. \\
+\textbf{Program} is the name of the program; \textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{shell} applies no generalisation operation; \textbf{none} never performs any inlining; \textbf{Size} is the size of the Supero generated executable; \textbf{Memory} is the amount of memory allocated on the heap by the Supero executable. \\
 
 \caption{Runtime, relative to GHC being 1.}
 \label{tabS:haskell_results}
 \end{table}
 
-The results of these benchmarks are given in Figure \ref{figS:haskell_results}, along with detailed breakdowns in Table \ref{tabS:haskell_results}. All results are relative to the runtime of a program compiled with GHC -O2, lower numbers being better. The first three variants (Supero, msg, spine) all use homeomorphic embedding as the termination criterion, and $\bowtie$, msg or nothing respectively as the generalisation function. The final variant, none, uses a termination test that always causes a residuation. The `none' variant is useful as a control to determine which improvements are due to bringing all definitions into one module scope, and which are a result of supercompilation. Compilation times ranged from a few seconds to five minutes.
+The results of these benchmarks are given in Figure \ref{figS:haskell_results}, along with detailed breakdowns in Table \ref{tabS:haskell_results}. All results are relative to the runtime of a program compiled with GHC -O2, lower numbers being better. The first three variants (Supero, msg, shell) all use homeomorphic embedding as the termination criterion, and $\bowtie$, msg or nothing respectively as the generalisation function. The final variant, none, uses a termination test that always causes a residuation. The `none' variant is useful as a control to determine which improvements are due to bringing all definitions into one module scope, and which are a result of supercompilation. Compilation times ranged from a few seconds to five minutes.
 
 The Bernouilli benchmark is the only one where Supero is slower than GHC by more than 3\%. The reason for this anomaly is that a dictionary is referred to in an inner loop which is specialised away by GHC, but not by Supero.
 
@@ -477,7 +477,7 @@ With the exception of the wheel-sieve2 benchmark, our $\bowtie$ generalisation s
 
 \subsection{GHC's optimisations}
 
-For these benchmarks it is important to clarify which optimisations are performed by GHC, and which are performed by Supero. The `none' results show that, on average, taking the Core output from Yhc and compiling with GHC does \textit{not} perform as well as the original program compiled using GHC. GHC has two special optimisations that work in a restricted number of cases, but which Supero produced Core is unable to take advantage of.
+For these benchmarks it is important to clarify which optimisations are performed by GHC, and which are performed by Supero. The `none' results show that, on average, taking the Core output from Yhc and compiling with GHC does \textit{not} perform as well as the original program compiled using GHC. GHC has two special optimisations that work in a restricted number of cases, but which Supero-produced Core is unable to take advantage of.
 
 \paragraph{Dictionary Removal} Functions which make use of type classes are given an additional dictionary argument. In practice, GHC specialises many such functions by creating code with a particular dictionary frozen in. This optimisation is specific to type classes -- a tuple of higher order functions is not similarly specialised. After compilation with Yhc, the type classes have already been converted to tuples, so Supero must be able to remove the dictionaries itself. One benchmark where dictionary removal is critical is digits-of-e2.
 
@@ -492,7 +492,7 @@ The compile times for the benchmarks presented in Table \ref{tabS:haskell_result
 
 \paragraph{Homeomorphic Embedding} We use homeomorphic embedding to test a single element against a set of elements. The cost of homeomorphic embedding is related to the number of tests performed, and the size of the set at the time of each test. We perform many tests because of the unfolding strategy described in \S\ref{secS:which_inline}. The set is large because we maintain one set from the root function, including every inlining to the current point.
 
-We have a solution -- split the homeomorphic embedding set in two. One set can be global and used for residuation, the other set can be local and used for inlining. Each expression is optimised within the context of a fresh local set, then for residuation the global set is used. The local set will be bounded by the number of inlinings since the last residuation, while the global set will be the number of residuations from the root function. These restrictions still ensure termination, and will decrease the size of the sets substantially. This scheme would permit more inlining steps to be performed, so would change the runtime performance, but we suspect the effect would be positive.
+We have a solution -- split the homeomorphic embedding set in two. One set can be global and used for residuation, the other set can be local and used for inlining. Each expression is optimised within the context of a fresh local set, then for residuation the global set is used. The local set will be bounded by the number of inlinings since the last residuation, while the global set will be the number of residuations from the root function. These restrictions still ensure termination, and will decrease the size of the sets substantially. This scheme would permit more inlining steps to be performed, so would change the runtime performance, but we expect the effect to be positive.
 
 
 \section{Related Work}
@@ -525,7 +525,7 @@ Our optimisation works at the Core level, but even once efficient Core has been 
 
 \subsection{Other Transformations}
 
-One of the central operations within our optimisation in inlining, a technique that has been used extensively within GHC \cite{spj:inlining}. We generalise the constructor specialisation technique \cite{spj:specconstr}, by allowing specialisation on any arbitrary expression, including constructors.
+One of the central operations within our optimisation is inlining, a technique that has been used extensively within GHC \cite{spj:inlining}. We generalise the constructor specialisation technique \cite{spj:specconstr}, by allowing specialisation on any arbitrary expression, including constructors.
 
 One optimisation we do not currently support is the use of user provided transformation rules \cite{spj:rules}, which can be used to automatically replace certain expressions with others -- for example |sort . nub| removes duplicates then sorts a list, but can be done asymptotically faster in a single operation.
 
