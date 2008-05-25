@@ -11,7 +11,7 @@ In this chapter, we first discuss the motivation underlying the problems we have
 \section{Motivation and Objectives}
 \label{secI:motivation}
 
-This thesis has three main objectives: making functional programs shorter, faster and safer. This section explains the particular aims within each area, and how the areas are related.
+This thesis has three main objectives: making functional programs shorter, faster and safer. This section explains the particular aims within each area, and how the areas are related. \todo{explain the order of these three sections}
 
 \subsection{Making Programs Safer}
 
@@ -23,7 +23,7 @@ Haskell is a strongly typed language, ensuring that a large class of errors are 
 \item[Calling |error|] The final cause of failure is calling |error|, often as the result of an incomplete pattern-match. This issue has not received as much attention, with suggestions that programmers only use exhaustive patterns \cite{turner:total}, or local analysis to decide which patterns are exhaustive \cite{maranget:pattern_warnings}. The problem of calling |error| is a practical one, with such failures being a common occurrence when developing a Haskell program.
 \end{description}
 
-In order to make programs safer, we have developed the Catch tool, which ensures a program does not call |error|. We decided to make our analysis \textit{conservative} -- if it reports that a program will not call |error|, then the program is guaranteed not to call |error|. To reduce the burden of applying this tool, we require no annotations from the programmer.
+In order to make programs safer, we have developed the Catch tool, which ensures a program does not call |error|. We decided to make our analysis \textit{conservative} -- if it reports that a program will not call |error|, then the program is guaranteed not to call |error|. We require no annotations from the programmer.
 
 The Catch tool operates on a first-order language. We attempted to extend Catch to a higher-order language, but failed. A higher-order program has more complicated flow-control, which causes problems for Catch. In order to apply Catch to all Haskell programs, we have investigated defunctionalisation -- converting a higher-order program to a first-order program. Our defunctionalisation method is called Firstify, and uses well-known transformations, particularly specialisation and inlining, applied in particular ways. The defunctionalisation method is designed to be used as a transformation before analysis, primarily for Catch, but can be used independently.
 
@@ -35,7 +35,9 @@ We have developed a supercompiler named Supero. Our work on supercompilation aim
 
 \subsection{Making Programs Shorter}
 
-Our final contribution is the Uniplate library. The expression type of the Core language we work with has over ten constructors. Most of these constructors contain embedded subexpressions. For most operations, we wish to have value-specific behaviour for a handful of constructors, and a default operation for the others. We started developing a small library of useful functions to deal with this complexity, and gradually abstracted the ideas. After refinement, the Uniplate library emerged. The library is particularly focused on concisely expressing common patterns. The Uniplate library stands apart from the rest of the thesis in that it does not work on a core functional language, but is instead a general purpose library. However, the Uniplate techniques have been invaluable in implementing the other transformations.
+Our final contribution is the Uniplate library. The expression type of the Core language we work with has over ten constructors. Most of these constructors contain embedded subexpressions. For most operations, we wish to have value-specific behaviour for a handful of constructors, and a default operation for the others. We started developing a small library of useful functions to deal with this complexity, and gradually abstracted the ideas. After refinement, the Uniplate library emerged. The library is particularly focused on concisely expressing common patterns. Compared to other work on generic programming patterns, such as SYB \cite{lammel:syb} and Compos \cite{bringert:compos}, the Uniplate library makes use of fewer language extensions and permits more concise operations.
+
+The Uniplate library stands apart from the rest of the thesis in that it does not work on a core functional language, but is instead a general purpose library. However, the Uniplate techniques have been invaluable in implementing the other transformations.
 
 
 \section{Implementations}
@@ -43,7 +45,7 @@ Our final contribution is the Uniplate library. The expression type of the Core 
 
 We have implemented all the ideas presented in this thesis, and include sample code in the related chapters. Most of our implementations make use of a monadic framework to deal with issues such as obtaining unique free variables and tracking termination constraints. But to simplify the presentation, we ignore these issues -- they are mostly tedious engineering concerns, and do not effect the underlying algorithms.
 
-All the code is available from the authors homepage\footnote{\url{http://www.cs.york.ac.uk/~ndm/}}. Additionally, we have released the following packages on the Hackage website\footnote{\url{http://hackage.haskell.org/}}:
+All the code is available from the author's homepage\footnote{\url{http://www.cs.york.ac.uk/~ndm/}}. Additionally, we have released the following packages on the Hackage website\footnote{\url{http://hackage.haskell.org/}}:
 
 \begin{description}
 \item[Homeomorphic] This is a library for testing for homeomorphic embedding, used to ensure termination, as described in \S\ref{secB:homeomorphic}.
@@ -63,7 +65,7 @@ The Background chapter (\ref{chp:background}) describes a common Core language w
 
 The Boilerplate Removal chapter (\ref{chp:uniplate}) describes the Uniplate library. In particular, it describes the interface to the library -- both the traversal functions and the information a data type must provide. It also compares the Uniplate library to the Scrap Your Boilerplate (SYB) library \cite{lammel:syb} and the Compos library \cite{bringert:compos} -- both in terms of speed and conciseness.
 
-The Supercompilation chapter (\ref{chp:supero}) describes the design and implementation of the Supero tool. The method includes techniques for dealing with let bindings, and a new method for generalisation. Results are presented comparing Supero to C, and to the Glasgow Haskell Compiler (GHC) \cite{ghc}.
+The Supercompilation chapter (\ref{chp:supero}) describes the design and implementation of the Supero tool. The method includes techniques for dealing with let bindings, and a new method for generalisation. Results are presented comparing a combination of Supero and the Glasgow Haskell Compiler (GHC) \cite{ghc} to C, and to the comparing Supero and GHC to GHC alone.
 
 The Defunctionalisation chapter (\ref{chp:firstify}) describes how to combine several existing transformations to produce a defunctionalisation method. The main focus is how to restrict the existing methods to ensure they terminate and cooperate to obtain a program with few residual functional values.
 
