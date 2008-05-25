@@ -974,7 +974,8 @@ sat' $ propOrs [f $ merge ms_1 ms_2 :* merge ms_1 ms_2] /# ([0..],xs) ==> sat' $
     -- inline |propOrs|
 sat' $ (f $ merge ms_1 ms_2 :* merge ms_1 ms_2) /# ([0..],xs) ==> sat' $ (f $ ms_1 :* ms_2) /# ([0..],xs)
     -- inline |f|
-    -- \todo{finish off}
+sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- merge ms_1 ms_2, c_1 == c] /# ([0..],xs) ==> rhs
+    -- \todo{finish proof}
 \end{code}
 
 
@@ -1159,7 +1160,7 @@ sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) || sat' (propOrs (map (f_lhd
     -- |xs !! i = Val c' ys|
 lhs ==> sat $ Sat (Val c' ys) ((ms_1 :* ms_2):ks)
     -- \lemma{sat/any}
-lhs ==> any (\k -> sat $ Sat (Val c' ys) [k]) ((ms_1 :* ms_2):ks) 
+lhs ==> any (\k -> sat $ Sat (Val c' ys) [k]) ((ms_1 :* ms_2):ks)
     -- inline |any|
 lhs ==> sat (Sat (Val c' ys) [ms_1 :* ms_2]) || any (\k -> sat $ Sat (Val c' xs) [k]) ks
     -- \lemma{sat/any}
