@@ -193,7 +193,7 @@ Each equation corresponds to the natural Haskell translation of the rule. The |t
 
 The Scrap Your Boilerplate approach \cite{lammel:syb} (known as SYB) provides a top-down transformation named |everywhere'|. We describe this traversal, and our reasons for \textit{not} providing it, even though it could easily be defined. We instead provide |descend|, based on the |composOp| operator \cite{bringert:compos}.
 
-The |everywhere' f| transformation applies |f| to a value, then recursively applies the transformation on all the children of the freshly generated value. Typically, the intention in a transformation is to apply |f| to \textit{every node exactly once}. Unfortunately, |everywhere' f| does not necessarily have this effect.
+The \ignore|everywhere' f| transformation applies |f| to a value, then recursively applies the transformation on all the children of the freshly generated value. Typically, the intention in a transformation is to apply |f| to \textit{every node exactly once}. Unfortunately, \ignore|everywhere' f| does not necessarily have this effect.
 
 \begin{example}
 Consider the following transformation:
