@@ -57,9 +57,9 @@ Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over f
 \label{figB:core}
 \end{figure}
 
-The syntax of our Core language is given in Figure \ref{figB:core}. To specify a list of items of unspecified length we write either \ignore|x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. During future chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation. The language is based upon Yhc.Core, a semantics for which is given in \cite{me:yhc_core}.
+The syntax of our Core language is given in Figure \ref{figB:core}. To specify a list of items of unspecified length we write either \ignore|x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. In later chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation. The language is based upon Yhc.Core, a semantics for which is given in \cite{me:yhc_core}.
 
-A program is a list of functions, with a root function named |main|. A function is a name, a list of arguments and a body expression. Variables and lambda abstractions are much as they would be in any Core language.  Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary. We have three forms of application, all of which take two values: the first value may be either a constructor, a top-level named function, or any arbitrary expression; the second value is a list of arguments, which may be empty. These forms of application give rise to three equivalences:
+A program is a list of functions, with a root function named |main|. A function definition gives a name, a list of arguments and a body expression. Variables and lambda abstractions are much as they would be in any Core language.  Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary. We have three forms of application, all of which take two values: the first value may be either a constructor, a top-level named function, or any arbitrary expression; the second value is a list of arguments, which may be empty. These forms of application give rise to three equivalences:
 
 \ignore\begin{code}
 (x xs_) ys_ == x xs_ ys_
@@ -75,7 +75,7 @@ let v = x ; binds_ in y  => let v = x in (let binds_ in y)
 let v vs_ = x xs_ in y   => let v = x in (let vs_ = xs_ in y)
 \end{code}
 
-The arity of a top-level function is the number of arguments in its associated definition. If a function is given fewer arguments than its arity we refer to it as \textit{partially-applied}, matching the arity is \textit{fully-applied}, and more than the arity is \textit{over-applied}.
+The arity of a top-level function is the number of arguments in its associated definition. In any application, if the function is given fewer arguments than its arity we refer to it as \textit{partially-applied}, matching the arity is \textit{fully-applied}, and more than the arity is \textit{over-applied}.
 
 Some functions are used but lack corresponding definitions in the program. These are defined to be \textit{primitive}. They have some meaning to an underlying runtime system, but are not available for transformation. A primitive function may perform an action such as outputting a character to the screen, or may manipulate primitive numbers such as addition.
 
@@ -90,7 +90,7 @@ A list is either an empty list, or a cons cell which contains an element of the 
 
 \subsection{Operations on Core}
 
-There are several operations that can be defined on our Core expressions type. We present some of the most useful, which are used in future chapters.
+There are several operations that can be defined on our Core expressions type. We present some of those used in later chapters.
 
 \subsubsection{General Operations}
 
@@ -110,12 +110,12 @@ ctors  :: CtorName  -> [CtorName]
 \label{figB:core_operations}
 \end{figure}
 
-Figure \ref{figB:core_operations} gives the signatures for helper functions over the core data types. We use the functions |body f| and |args f| to denote the body and arguments of |f|. We use the function |rhs| to extract the expression on the right of a case alternative. Every function and constructor has an arity, which can be obtained with the |arity| function. To determine alternative constructors the |ctors| function can be used; for example \h{stmt}|ctors "True" = ["False", "True"]| and \h{stmt}|ctors "[]" = ["[]",":"]|.
+Figure \ref{figB:core_operations} gives the signatures for helper functions over the core data types. We use the functions |body f| and |args f| to denote the body and arguments of the function definition |f|. We use the function |rhs| to extract the expression on the right of a case alternative. Every function and constructor has an arity, which can be obtained with the |arity| function. To determine alternative constructors the |ctors| function can be used; for example \h{stmt}|ctors "True" = ["False", "True"]| and \h{stmt}|ctors "[]" = ["[]",":"]|.
 
 
 \subsubsection{Substitution}
 
-We define \ignore|e[v / x]| to be the capture free substitution of the variable |v| for the expression |x| within the expression |e|. We define \ignore|e[v_1,...,v_n / x_1,...,x_n]| to be the simultaneous substitution of each variable |v_i| for each expression |x_i| in |e|.
+We define \ignore|e[v / x]| to be the capture-free substitution of the variable |v| for the expression |x| within the expression |e|. We define \ignore|e[v_1,...,v_n / x_1,...,x_n]| to be the simultaneous substitution of each variable |v_i| for each expression |x_i| in |e|.
 
 \begin{example}
 \ignore\begin{code}
@@ -144,9 +144,9 @@ freeVars' xs_ = unions (map freeVars xs_)
 \label{figB:free_variables}
 \end{figure}
 
-The variables in the patterns of case expressions, the arguments of lambda abstractions and the bindings of let expressions are \textit{bound}; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |freeVars e|, and can be computed using the function in Figure \ref{figB:free_variables}. Within a function definition all variables must be bound.
+An occurrence of a variable |v| is \textit{bound} if it occurs on the right-hand side a case alternative whose pattern includes |v|, as the argument of an enclosing lambda abstraction or as a binding in an enclosing let expression; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |freeVars e|, and can be computed using the function in Figure \ref{figB:free_variables}.
 
-In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume this invariant, and afterwards any repeated bound variables can be assigned fresh names.
+In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume and should preserve this invariant.
 
 \subsection{Simplification Rules}
 \label{secB:core_simplify}
@@ -333,7 +333,7 @@ There is no rule for case of a lambda abstraction, as this situation is not perm
 \section{Sharing}
 \label{secB:sharing}
 
-This section informally discusses the relevant sharing properties of Haskell. In general, any optimisation must take account of sharing, but semantic analysis can sometimes ignore the effects of sharing. The sharing present in Haskell is not specified in the Haskell Report \cite{haskell}, but is defined elsewhere \cite{bakewell:space_semantics}.
+This section informally discusses the relevant sharing properties of Haskell. In general, any optimisation must take account of sharing, but semantic analysis can sometimes ignore the effects of sharing. The sharing present in Haskell is not specified in the Haskell Report \cite{haskell}, but a possible interpretation is defined elsewhere \cite{bakewell:space_semantics}.
 
 \subsection{Let bindings}
 
@@ -352,7 +352,7 @@ The semantic rules for evaluating this expression result in:
 (f 1 + f 1)
 \end{code}
 
-In the semantics, the expression |f 1| will be reduced twice. However, the a compiler would only evaluate |f 1| once. The first time the value of |x| was demanded, |f 1| would be evaluated to WHNF, and bound to |x|. Any successive examinations of |x| would return immediately, pointing at the same result.
+In the semantics, the expression |f 1| is reduced twice. However, the a compiler would only evaluate |f 1| once. The first time the value of |x| is demanded, |f 1| evaluates to WHNF, and is bound to |x|. Any successive examinations of |x| return immediately, pointing at the same result.
 \end{example}
 
 \begin{figure}
@@ -376,35 +376,29 @@ linear v x = occurs v x <= 1
 \label{figB:linear}
 \end{figure}
 
-In general, the substitution of a bound variable for the associated expression may cause duplicate computation to be formed. However, in some circumstances, duplicate computation can be guaranteed not to occur. If a bound variable can be used at most once in an expression, it is said to be \textit{linear}, and substitution can be performed. A variable is linear if it is used at most once, i.e. occurs at most once down each possible flow of control, and can be computed following Figure \ref{figB:linear}.
+In general, the substitution of a bound variable for the associated expression may cause duplicate computation to be formed. However, in some circumstances, duplicate computation can be guaranteed not to occur. If a bound variable can be used at most once in an expression, it is said to be \textit{linear}, and substitution can be performed. A variable is linear if it is used at most once, i.e. occurs at most once down each possible flow of control according to the definition in Figure \ref{figB:linear}.
 
 \subsection{Recursive let bindings}
 
-A recursive let binding is one where the bound variables are in scope during the computation of their associated expression. In the Haskell language, let bindings can be \textit{recursive}. In other languages, such as ML \cite{ml}, recursive let binding are made explicit with the |letrec| keyword. One common use of |letrec| in Haskell is the |repeat| function:
+In the Haskell language, let bindings can be \textit{recursive}. A recursive let binding is one where the local variable is in scope during the computation of its associated expression. The |repeat| function is often defined using a recursive let binding.
 
 \begin{example}
 \label{exB:repeat}
-\ignore\begin{code}
-repeat x =  letrec xs = x : xs
+\begin{code}
+repeat x =  let xs = x : xs
             in xs
 \end{code}
 
 Here the variable |xs| is both defined and referenced in the binding. Given the application |repeat 1|, regardless of how much of the list is examined, the program will only ever create one single cons cell. This construct effectively ties a loop in the memory.
 \end{example}
 
-Our Core language does not allow recursive let bindings, for reasons of simplicity. If there is a |letrec| bound to a function, it will be removed by lambda lifting. The only remaining case is a value letrec. We can remove these letrec's by inserting a dummy argument. Our algorithm is:
-
-\begin{enumerate}
-\item For each recursive let binding, replace it with a lambda containing a dummy argument. For each reference to a recursive let variable, replace it with an application with the same dummy variable.
-\item Perform lambda lifting as normal.
-\item Optionally, remove the inserted |dummy| markers.
-\end{enumerate}
+Our Core language does not allow recursive let bindings, for reasons of simplicity. If there is a recursive binding to a function, it will be removed by lambda lifting. To remove all recursive let bindings, we can replace value bindings with lambda expressions applied to dummy arguments, then lambda lift.
 
 \begin{examplerevisit}{\ref{exB:repeat}}
-Applying this to our example from before, we first add dummy arguments:
+Applying this algorithm to our example from before, we first add a lambda expression and a dummy argument:
 
-\ignore\begin{code}
-repeat x =  letrec xs = \dummy ->  x : xs dummy
+\begin{code}
+repeat x =  let xs = \dummy ->  x : xs dummy
             in xs dummy
 \end{code}
 
@@ -418,7 +412,7 @@ f dummy x = x : f dummy x
 \end{code}
 \end{onepage}
 
-Optionally, we can remove the |dummy| arguments:
+Optionally, we can remove the inserted |dummy| argument:
 
 \begin{code}
 repeat x = f x
@@ -427,13 +421,11 @@ f x = x : f x
 \end{code}
 \end{examplerevisit}
 
-If the |dummy| argument is not the only argument to a function, removal of this argument simplifies the function, without changing the space behaviour. If it is the only argument, removing the |dummy| argument will result in a CAF, which will be computed only once at runtime -- changing the space behaviour.
-
-In the |repeat| example we have lost the sharing, but in this case we occur only a constant time overhead compared to the original value. Because we are working in a referentially transparent language, to examine the $n$th element of the list generated by |repeat| will take at least $O(n)$. To generate those elements using the first algorithm will take $O(1)$, but using the second version will take $O(n)$. If the elements are not examined they will not be required due to lazy evaluation, therefore the time complexity does not change.
+In the |repeat| example we have lost the sharing, but in this case we incur only a constant time overhead compared to the original. \todo{muddy} Because we are working in a referentially transparent language, to examine the $n$th element of the list generated by |repeat| will take at least $O(n)$. To generate those elements using the first algorithm will take $O(1)$, but using the second version will take $O(n)$. If the elements are not examined they will not be required due to lazy evaluation, therefore the time complexity does not change.
 
 The |repeat| example can change the space complexity from $O(1)$ to $O(n)$ -- if the whole result is referenced as another function walks the result.
 
-\subsection{Constant Applicative Form}
+\subsection{Constant Applicative Forms}
 
 A Constant Applicative Form (CAF) is a top level definition of zero arity. In Haskell, CAFs are computed at most once per program run, and retained as long as references to them remain.
 
@@ -444,10 +436,10 @@ caf = expensive
 main = caf + caf
 \end{code}
 
-While the semantics presented will lookup the expression bound to |caf| twice, and compute it twice, a compiler will only perform |expensive| once.
+A compiler will only compute |expensive| once.
 \end{example}
 
-If a general function is inlined, this will not dramatically change the runtime behaviour of a program. If a CAF is inlined, this may have adverse effects on the performance.
+If a function with positive arity is inlined, this will not dramatically change the runtime behaviour of a program. If a CAF is inlined, this may have adverse effects on the performance.
 
 
 \section{Generating Core}
@@ -510,7 +502,7 @@ The dictionary transformation is a global transformation. In Example \ref{exB:di
 \label{figB:homeomorphic}
 \end{figure}
 
-The homeomorphic embedding relation \cite{leuschel:homeomorphic} has recently been used to guarantee termination of certain program transformations \cite{sorensen:supercompilation}. An expression $x$ is an embedding of $y$, written $x \unlhd y$, if the relationship can be inferred by the rules given in Figure \ref{figB:homeomorphic}, $\sim$ corresponds to equality of expression shells. The homeomorphic embedding uses the relations dive and couple. The dive relation checks if the first term is contained as a child of the second term, while the couple relation checks if both terms have the same outer shell.
+The homeomorphic embedding relation \cite{leuschel:homeomorphic} has recently been used to guarantee termination of certain program transformations \cite{sorensen:supercompilation}. An expression $x$ is an embedding of $y$, written $x \unlhd y$, if the relationship can be inferred by the rules given in Figure \ref{figB:homeomorphic}, given a $\sim$ relation corresponding to equality of expression shells. The homeomorphic embedding uses the relations dive and couple. The dive relation checks if the first term is contained as a child of the second term, while the couple relation checks if both terms have the same outer shell.
 
 Some examples:
 
@@ -525,14 +517,14 @@ $d(a,a)$ & $c(b(a),c(c(a)))$    & $b(a,a)$ & $b(a,a,a)$
 
 \smallskip
 
-The homeomorphic embedding $\unlhd$ is a well-binary relation, meaning there are no infinite admissible sequences. A sequence $s_1,s_2 \ldots$ is admissible if there are no $i < j$ such that $s_i \unlhd s_j$. Given a set $S$, we permit the insertion of an element $t$ if $\forall s \in S \bullet \neg(s \unlhd t)$. Following this restriction, the set $S$ will remain finite.
+The homeomorphic embedding $\unlhd$ is a well-founded binary relation, meaning there are no infinite admissible sequences. A sequence $s_1,s_2 \ldots$ is admissible if there are no $i < j$ such that $s_i \unlhd s_j$. Given a set $S$, we permit the insertion of an element $t$ if $\forall s \in S \bullet \neg(s \unlhd t)$. Following this restriction, the set $S$ will remain finite.
 
 The homeomorphic embedding assumes all elements are expressions over a finite alphabet. To ensure this condition, we weaken the $\sim$ relation to consider all variables and literals to be equivalent.
 
 \subsection{Fast Homeomorphic Embedding}
 
-To compute $s \unlhd t$, using the algorithm presented in Figure \ref{figB:homeomorphic}, takes greater than polynomial time in the size of the expressions. Fortunately, there exists an algorithm \cite{stillman:computational_problems,stillman:homeomorphic} which takes $O(\text{size}(s) \cdot \text{size}(t) \cdot a)$, where $a$ is the maximum arity of any subexpression in $s$ or $t$.
+To compute $s \unlhd t$, by direct application of the rules in Figure \ref{figB:homeomorphic}, takes worse than polynomial time in the size of the expressions. Fortunately, there exists an algorithm \cite{stillman:computational_problems,stillman:homeomorphic} which takes $O(\text{size}(s) \cdot \text{size}(t) \cdot a)$, where $a$ is the maximum arity of any subexpression in $s$ or $t$.
 
-The faster algorithm first constructs a $\text{size}(s)$ by $\text{size}(t)$ table, recording whether each pair of subexpressions within $s$ and $t$ satisfy the homeomorphic embedding. By computing the homeomorphic embedding in a bottom-up manner, making use of the table to cache pre-computed results, much duplicate computation can be eliminated. By first assigning each subexpression a uniquely identifying number, the table can be accessed and modified in $O(1)$ per operation. The result is a polynomial algorithm.
+The faster algorithm first constructs a $\text{size}(s)$ by $\text{size}(t)$ table, recording whether each pair of subexpressions within $s$ and $t$ satisfy the homeomorphic embedding. By computing the homeomorphic embedding in a bottom-up manner, making use of the table to cache pre-computed results, much duplicate computation can be eliminated. By first assigning each subexpression a uniquely identifying number, table access and modification are both $O(1)$ operations. The result is a polynomial algorithm.
 
-We have implemented both the standard homeomorphic algorithm, and the polynomial algorithm, in Haskell. Haskell is not well-suited to the use of mutable arrays, so we have instead used tree data structures to model the table. In practical experiments, the faster algorithm seems to be around three times faster than the simple algorithm, but does not seem to change the complexity class. We suspect that our implementation could be improved, and that the worst-case behaviour of the simple algorithm occurs infrequently.
+We have implemented both the direct homeomorphic algorithm, and the polynomial algorithm, in Haskell. Haskell is not well-suited to the use of mutable arrays, so we have instead used tree data structures to model the table. In practical experiments, the table-based algorithm seems to be around three times faster than the simple algorithm, but does not seem to change the complexity class. We suspect that our implementation could be improved, and that the worst-case behaviour of the simple algorithm occurs infrequently.
