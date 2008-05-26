@@ -104,13 +104,13 @@ rec :: [Int]
 \newcommand{\theorem}[2]{\lemma{#1} \vspace{-1mm} \\ \nopagebreak #2 }
 \newcommand{\proof}[2][]{\textbf{Proof of \lemma{#2} \textsf{#1}} \\  \nopagebreak}
 
-This chapter shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then it is guaranteed not to call |error|. The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the Catch algorithms and the constraint languages.
+This chapter shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then it is guaranteed not to call |error|. The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
 
 \section{Notation}
 
-The proof is based on equational reasoning, making use of induction, application of theorems and inlining. The proof has not been formally checked by any tool. We do not seem to make the proof fully correct, and ignore issues such as termination or strictness that may otherwise be relevant in Haskell programs.
+The proof is based on equational reasoning, making use of induction, application of theorems and inlining of function definitions. The proof has not been automatically checked. While performing the reasoning steps, we ignore issues such as strictness. All the properties are boolean valued expressions, typically implications.
 
-In order to reduce the size of some of the intermediate expressions, we have replaced sides of an equation we are not working on with either |lhs| or |rhs|, designating either the left-hand side or right-hand side of an equation. We also make heavy use of the Haskell operators |(.)| and |($)|. These can be read with the translations:
+In order to reduce the size of some of the intermediate expressions, we have replaced one side of an implication with either |lhs| or |rhs|, designating either the left-hand side or right-hand side. We also make heavy use of the function composition and function application operators, namely |(.)| and |($)|. These can be read with the translations:
 
 \ignore\begin{code}
 (f . g) x  = f $ g x = f (g x)
@@ -119,7 +119,7 @@ In order to reduce the size of some of the intermediate expressions, we have rep
 
 \section{Evaluator}
 
-We start with an evaluator for the Core expression language.
+We start with an evaluator for a Core expression language.
 
 \h{#*}\begin{code}
 data Value  =  Value CtorName [Value]
@@ -144,11 +144,11 @@ eval (Case x as   ) = case eval x of
     Bottom -> Bottom
 \end{code}
 
-We have introduced |Sel| for variables bound at a case expression. For the algorithm presented previously, the |Sel| constructor embodies the information returned by the |var| function. In the |Sel| alternative we know that the selector matches, and that we are beneath a |Case| on the same expression |x|.
+The |Expr| data type is based on a first-order variant of the Core language from \S\ref{secB:core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluated to the constructor mentioned in the selector.
 
-There is no case in |eval| for |Var|, and the behaviour of |eval| if there are free variables is undefined. There is no |eval| alternative for |Var|, as an expression at evaluation will not have any free variables, as substitution will remove them. We can assume the argument to |eval| has no free variables. The free variables of a function are its arguments.
+There is no case in |eval| for |Var|, and the behaviour of |eval| with free variables is undefined. The |Call| equation will replace any free variables in the body of a function with the supplied arguments.
 
-We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs,ys)| to denote replacing the free variables |vs| in |x| with |ys|. We use |(/)| instead of |substP| in the proofs.
+We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs,ys)| to denote replacing the free variables |vs| in |x| with |ys|. We use |(/)| instead of |substP| in the proofs, where |substP (zip vs ys) x == x / (vs,ys)|.
 
 We also make use of a number of auxiliaries throughout the proof:
 
@@ -181,22 +181,24 @@ sat (Sat Bottom        k) = True
 sat (Sat (Value c xs)  k) = sat' $ (c <| k) /# ([0..],xs)
 \end{code}
 
-All the expressions given to |satE| must have no free variables, as |eval| cannot deal with them. The |sat| function decides whether a value satisfies a given expression.
+The |sat| function tests whether a value satisfies a constraint, using the |(<||)| operator from the constraint language. The |satE| function tests whether the result of evaluating an expression satisfies a constraint. The |sat'| and |satE'| functions operate over a proposition.
 
 \section{Theorems}
 
+In this section we define several theorems, which we prove in the following sections.
+
 \subsection{Correctness}
 
-The goal of this chapter is to prove correctness, which can be defined as:
+The goal of this chapter is to prove correctness, which can be defined as a proof of the following theorem:
 
 \theorem{pre/eval}
 {|satE' $ pre x ==> not $ isBottom $ eval x|}
 
-This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}. In the particular case on an entire program, we can consider the expression |x| to be |Call "main" []|, which is safe only if |precond "main" == propTrue|.
+This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}. This theorem is proved in \S\ref{secP:proof}. To prove safety for a whole program, we can consider the expression |x| to be |Call "main" []|, which is safe if |precond "main" == propTrue|.
 
 \subsection{Constraint Theorems}
 
-In particular this requires the following theorems about the constraint language:
+We assume the following two theorems about each constraint language:
 
 \theorem{sat/|-<|}
 {|sat' (Value c xs -< cs) ==> c `elem` cs|}
@@ -204,13 +206,11 @@ In particular this requires the following theorems about the constraint language
 \theorem{sat/| ||> |}
 {|sat $ Sat (Value c xs) ((c,i) ||> k) ==> sat $ Sat (xs !! i) k|}
 
-To perform the proof, we require various laws about the |-<|, | ||>| and |<||| operators, which we then show hold for each of the three constraint systems.
-
-Both of these theorems are given in \S\ref{secC:constraint_semantics}, as properties. Note that the definition of |sat| makes use of |(<||)|, so these theorems require the additional two definitions to be consistent with |(<||)|.
+Both of these theorems are given in \S\ref{secC:constraint_semantics}, as properties. Note that the definition of |sat| makes use of |(<||)|, so these theorems require the additional two operators to be consistent with |(<||)|. We prove these theorems for the BP-constraint and MP-constraint systems in \S\ref{secP:bp} and \S\ref{secP:mp}. Since RE-constraints do not scale sufficiently, we do not recommend their use, and have therefore not proven them to be consistent.
 
 \subsection{Additional Theorems}
 
-We will also need the following general theorems, which we will prove.
+We will also need the following theorems, which we prove in \S\ref{secP:proof}.
 
 \theorem{precond/error}
 {|precond "error" == propFalse|}
@@ -234,6 +234,7 @@ We will also need the following general theorems, which we will prove.
 {|(x `elem` (xs \\ [x])) == False|}
 
 \section{Proofs of Theorems}
+\label{secP:proofs}
 
 We prove each theorem in turn.
 
@@ -247,30 +248,30 @@ By induction. We do not need to consider |Var| as |eval| cannot be called on exp
 
 \proof[|Sel|]{pre/eval}
 
-The initial definition is:
+The |Sel| equation of |eval| is:
 
 \begin{code}
 eval (Sel x (c,i)) | c == c' = xs !! i
     where Value c' xs = eval x
 \end{code}
 
-We know that any \ignore|Sel x _| value must be contained within a \ignore|Case x _| expression. If we assume that the original |Case| did satisfy its precondition, we obtain:
+We know that any \ignore|Sel x _| value must be contained within an alternative of a \ignore|Case x _| expression. If we assume that the original |Case| expression satisfied its, we obtain:
 
 \h{exprlist}\begin{code}
-satE' $ pre $ Case x as ==> satE' $ pre $ x
+satE' $ pre $ Case x as ==> satE' $ pre x
     -- inline |pre|
-satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre $ x
+satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre x
     -- inline |satE'|
-satE' (pre x) && satE' (propAnds $ map alt as) ==> satE' $ pre $ x
+satE' (pre x) && satE' (propAnds $ map alt as) ==> satE' $ pre x
     -- weaken implication
-satE' $ pre x ==> satE' $ pre $ x
-    -- equals
+satE' $ pre x ==> satE' $ pre x
+    -- equal
 True
 \end{code}
 
 \proof[|Make|]{pre/eval}
 
-The initial definition is:
+The initial equation is:
 
 \begin{code}
 eval (Make c xs) = Value c (map eval xs)
@@ -294,14 +295,14 @@ True
 
 \proof[|Call|]{pre/eval}
 
-The initial definition is:
+The initial equation is:
 
 \begin{code}
 eval (Call f xs)  | f == "error" = Bottom
                   | otherwise = eval $ body f / (args f, xs)
 \end{code}
 
-There are two ways to get |Bottom| from this fragment. The first is the explicit |Bottom|, and the second is the recursive call to |eval|. The first |Bottom| is avoided under the condition:
+There are two ways to that |Bottom| may occur in this fragment. The first is the explicit |Bottom|, and the second is the recursive call to |eval|. The explicit |Bottom| is avoided under the condition:
 
 \h{exprlist}\begin{code}
 satE' $ pre $ Call f xs ==> f /= "error"
@@ -359,13 +360,15 @@ True
 
 \proof[|Case|]{pre/eval}
 
+The |Case| equation is:
+
 \begin{code}
-eval (Case x as   ) = case eval x of
+eval (Case x as) = case eval x of
     Value c xs -> head [eval y | Alt c' vs y <- as, c == c']
     Bottom -> Bottom
 \end{code}
 
-This equation may generate |Bottom| in two ways -- either the explicit |Bottom| may be taken, or the nested |eval| may be taken. In both cases, if we can prove the expression passed to |eval| satisfies its precondition, then we can eliminate the possibility of |Bottom|.
+This equation may generate |Bottom| in two ways -- either the explicit |Bottom| may be taken, or the recursive call to |eval| may result in |Bottom|. In both cases, if we can prove the expression passed to |eval| satisfies its precondition, then we can eliminate the possibility of |Bottom|.
 
 We first prove that the explicit |Bottom| is not reached, assuming the initial expression does not violate the precondition check.
 
@@ -467,7 +470,7 @@ The theorems for free work \cite{wadler:theorems} shows that the first argument 
 satE' (pre x / (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)
 \end{code}
 
-This proof is by case analysis on |x|. We assume that all free variables in |x| are bound in |vs|. To shorten all the proofs we hide the |all (satE' . pre) ys| term, as it is never manipulated.
+This proof is by case analysis on |x|. We assume that all free variables in |x| are bound in |vs|. To shorten the proofs we do not explicitly write the |all (satE' . pre) ys| term, as it is never manipulated.
 
 \proof[|Var|]{pre}
 
@@ -556,15 +559,15 @@ satE' $ (pre' f (map (/ (vs, ys)) xs)) `propAnd` propAnds (map (pre . (/ (vs, ys
 satE' (pre' f (map (/ (vs, ys)) xs)) && all (satE' . pre . (/ (vs, ys))) xs
 \end{code}
 
-We can now combine these sides, eliminating the common bit:
+We can now combine these sides, eliminating the common term:
 
 \h{exprlist}\begin{code}
 satE' $ pre' f xs / (vs,ys) ==> satE' $ pre' f (map (/ (vs, ys)) xs)
     -- inline |pre'|
 satE' $ (precond f /# (args f, xs)) / (vs,ys) ==>
     satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
-    -- using the knowledge that |precond f| only has the free variables |args f|
-    -- we can inline |(/)| on the left
+    -- using the knowledge that |precond f| only has free variables in |args f|
+    -- we can inline |(/)| on the LHS
 satE' $ precond f /# (args f, map (/ (vs,ys)) xs) ==>
     satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
     -- equal
@@ -618,8 +621,6 @@ True
 
 \proof{reduce}
 
-We wish to prove:
-
 \h{exprlist}\begin{code}
 satE' $ reduce x /# sub ==> satE' $ x / sub
     -- inline |reduce|
@@ -648,13 +649,11 @@ True
 
 \proof{red}
 
-We wish to prove:
-
 \h{expr}\begin{code}
 satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
 \end{code}
 
-We do so by case analysis on the expression |x|.
+We prove by case analysis on the expression |x|.
 
 \proof[|Var|]{red}
 
@@ -679,7 +678,7 @@ True
 
 \proof[|Sel|]{red}
 
-For this section, we assume |eval (x / sub) == Value c xs|.
+In this proof, we assume |eval (x / sub) == Value c xs|, due to being in the alternative of a |Case| expression.
 
 \h{exprlist}\begin{code}
 satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
@@ -755,7 +754,7 @@ sat $ Sat (eval $ body f / (args f, map (/sub) xs)) k ==>
     sat $ Sat (eval $ Call f (map (/ sub) xs)) k
 \end{code}
 
-We now split and assume that either |f| is equal to error, or not. First we consider the case where |f == "error"|.
+We now assume that either |f| is equal to error, or not.
 
 \h{exprlist}\begin{code}
 sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
@@ -775,7 +774,7 @@ True
 \h{exprlist}\begin{code}
 sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
     sat $ Sat (eval $ Call f (map (/ sub) xs)) k
-    -- inline |eval| on RHS
+    -- inline |eval| on RHS, assuming |f /= "error"|
 sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
     sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k
     -- equal
@@ -798,11 +797,11 @@ all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case x as / sub) k
 all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
 \end{code}
 
-First let us assume that |eval (x / sub) == Bottom|, then that |eval (x / sub) == Value c xs|, being case analysis on |x|.
+First assume that |eval (x / sub) == Bottom|, then that |eval (x / sub) == Value c xs|.
 
 \h{exprlist}\begin{code}
 all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
-    -- inline |eval|
+    -- inline |eval|, assuming |eval (x / sub) == Bottom|
 all (satE' . (/# sub) . alt) as ==> sat $ Sat Bottom k
     -- inline |sat|
 all (satE' . (/# sub) . alt) as ==> True
@@ -812,7 +811,7 @@ True
 
 \h{exprlist}\begin{code}
 all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
-    -- inline |eval|
+    -- inline |eval|, assuming |eval (x / sub) == Value c xs|
 lhs ==> sat $ Sat (head [eval y | Alt c' vs y <- as / sub, c == c']) k
     -- expand RHS, removing list comprehension
 all (satE' . (/# sub) . alt) as ==>
@@ -856,8 +855,9 @@ True
 \end{code}
 
 \section{Correctness of BP-constraints}
+\label{secP:bp}
 
-Since BP-constraints are presented throughout the document, we recap them here:
+Since BP-constraints are presented piecemeal throughout \S\ref{secC:manipulate}, we recap them here:
 
 \begin{code}
 data Constraint  =  Any
@@ -993,8 +993,9 @@ True
 \end{code}
 
 \section{Correctness of MP-constraints}
+\label{secP:mp}
 
-This section corresponds to a proof of the code contained in Figure \ref{figC:enumeration}. To perform some of these proofs, we will rely on the following two theorems:
+This section corresponds to a proof of the code contained in Figure \ref{figC:enumeration}. To perform some of these proofs, we will rely on the following theorems about MP-constraints:
 
 \theorem{sat/any}
 {\h{#mp}|sat (Sat (Value c xs) ks) == any (\k -> sat $ Sat (Value c xs) [k]) ks|}
@@ -1083,7 +1084,7 @@ sat' $ propLit $ Sat (Value c xs)
     [map complete cs :* map complete (ctors (head cs)) | not (null cs)] ==> c `elem` cs
 \end{code}
 
-Induction on |cs| being either null, or not.
+Case analysis on |cs|, being either null, or not.
 
 \h{#mp exprlist}\begin{code}
 sat' $ propLit $ Sat (Value c xs)
