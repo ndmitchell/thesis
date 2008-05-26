@@ -58,13 +58,13 @@ instance Eq Val
 \newcommand{\para}[1]{\vspace{2mm}\noindent\textbf{#1}}
 
 
-\chapter{Pattern Match Analysis}
+\chapter{Pattern-Match Analysis}
 \label{chp:catch}
 
 This chapter describes an automated analysis to check for pattern match errors, which we have called Catch. \S\ref{secC:catch_intro} gives a small example, and \S\ref{secC:walkthrough} gives an overview of the checking process for this example. \S\ref{secC:manipulate} introduces a small core functional language and a mechanism for reasoning about this language, \S\ref{secC:constraint} describes two constraint languages. \S\ref{secC:correct} argues for the correctness of the system. \S\ref{secC:results} evaluates Catch on programs from the Nofib suite, on a widely-used library and on a larger application program. \S\ref{secC:catch_related} offers comparisons with related work.
 
 
-\section{Introductory Example}
+\section{Motivation}
 \label{secC:catch_intro}
 
 Many functional languages support case-by-case definition of functions
@@ -240,7 +240,7 @@ data Int = Neg | Zero | One | Pos
 data Char = Char
 \end{code}
 
-Where knowledge about values is encoded as a set of possible constructions. In our experience, integers are most often constrained to be a natural, or to be non-zero. Addition or subtraction of one is the most common operation. Though very simple, the |Int| abstraction models the common properties and operations quite well. For characters, we have found little benefit in any refinement other than considering all characters to be abstracted to the same value.
+Knowledge about values is encoded as \textit{a set of} possible constructions. In our experience, integers are most often constrained to be a natural, or to be non-zero. Addition or subtraction of one is the most common operation. Though very simple, the |Int| abstraction models the common properties and operations quite well. For characters, we have found little benefit in any refinement other than considering all characters to be abstracted to the same value.
 
 The final issue of abstraction relates to primitive functions in the |IO| monad, such as |getArgs| (which returns the command-line arguments), or |readFile| (which reads from the file-system). In most cases an IO function is modelled as returning \textit{any} value of the correct type, using a function primitive to the checker.
 
@@ -615,7 +615,7 @@ We implement REs using the data type |RegExp| from Figure \ref{figC:regexp}, wit
 
 \begin{example}
 \label{exC:map_head}
-|(map head xs)| is safe if |xs| evaluates to a list of non-empty lists. The RE-constraint is: \ignore|xs `Sat` (tl^* ^. hd :- {:})|. From the root of |xs|, following any number of tails, then exactly one head, we reach a |(:)|. If |xs| is |[]|, it still satisfies the constraint, as the path is not well defined, having no |hd| selector. If |xs| is infinite then all its infinitely many elements must be |(:)|-constructed.
+|(map head xs)| is safe if |xs| evaluates to a list of non-empty lists. The RE-constraint is: \ignore|xs `Sat` (tl^* ^. hd :- {:})|. From the root of |xs|, following any number of tails, then exactly one head, we reach a |(:)|. If |xs| is |[]|, it still satisfies the constraint, as there are no well defined paths containing a |hd| selector. If |xs| is infinite then all its infinitely many elements must be |(:)|-constructed.
 \end{example}
 
 \begin{example}
@@ -650,7 +650,7 @@ The |2^rec| term corresponds to the number of possible constraints under |Star|.
 \subsubsection{RE-Constraint Propositions}
 \label{secC:re-propositions}
 
-Catch computes over propositional formulae with constraints as atomic propositions. Among other operators on propositions, they are compared for equality to obtain a fixed point. All the fixed-point algorithms given in this chapter stop once equal constraints are found. We use Binary Decision Diagrams (BDD) \cite{lee:bdd} to make these equality tests fast. Since the complexity of performing an operation is often proportional to the number of atomic constraints in a proposition, we apply simplification rules to reduce this number. For example, three of the nineteen rules are:
+Catch computes over propositional formulae with constraints as atomic propositions. Among other operators on propositions, they are compared for equality to obtain a fixed point. All the fixed-point algorithms given in this chapter stop once equal constraints are found. We use Binary Decision Diagrams (BDD) \cite{lee:bdd} to make these equality tests fast. Since the complexity of performing an operation is often proportional to the number of atomic constraints in a proposition, we apply simplification rules to reduce this number. For example, the three  simplest of the nineteen rules are:
 
 \para{Exhaustion:} In the constraint \h{#re}|x `Sat` (r :- [":","[]"])| the condition lists all the possible constructors. Because of static typing, |x| must be one of these constructors. Any such constraint simplifies to True.
 
@@ -747,7 +747,7 @@ For the |<||| operator, if the root pattern matches, then all non-recursive fiel
 
 \bigskip
 
-MP-constraints also have simplification rules.  For example, two of the eight rules are:
+MP-constraints also have simplification rules.  For example, the two simplest of the eight rules are:
 
 \para{|Val|-list simplification:} Given a |Val|-list, if the value |Any| is in this list, the list is equal to |[Any]|. If a value occurs more than once in the list, one copy can be removed.
 
@@ -907,7 +907,7 @@ HsColour*      & 823 & 5060 &  4 &  9 & 2.1 & 2.7 \\
 \label{tabC:results}
 \end{table}
 
-The entire Nofib suite \cite{nofib} is large. We concentrate on the `Imaginary' section. These programs are all under a page of text, excluding any Prelude or library definitions used, and particularly stress list operations and numeric computations.
+The entire Nofib suite \cite{nofib} is large. We concentrate on the `Imaginary' section. These programs are all under a page of text, \textit{excluding} any Prelude or library definitions used, and particularly stress list operations and numeric computations.
 
 Results are given in Table \ref{tabC:results}. Only four programs contain no calls to |error| as all pattern-matches are exhaustive. Four programs use the list-indexing operator |(!!)|, which requires the index to be non-negative and less than the length of the list; Catch can only prove this condition if the list is infinite. Eight programs include applications of either |head| or |tail|, most of which can be proven safe. Seven programs have incomplete patterns, often in a |where| binding and Catch performs well on these. Nine programs use division, with the precondition that the divisor must not be zero; most of these can be proven safe.
 
@@ -943,7 +943,7 @@ Instead of crashing on malformed command line arguments, the modified program in
 
 \paragraph{Bernoulli}
 
-This program has one instance of |tail (tail x)|. MP-constraints are unable to express that a list must be of at least length two, so Catch conservatively strengthens this to the condition that the list must be infinite -- a condition that Bernoulli does not satisfy. One remedy is to replace |tail (tail x)| with |drop 2 x|. After this change, the program still has several non-exhaustive pattern matches, but all are proven safe.
+This program has one instance of |tail (tail x)|. \todo{discuss depth indexed family} MP-constraints are unable to express that a list must be of at least length two, so Catch conservatively strengthens this to the condition that the list must be infinite -- a condition that Bernoulli does not satisfy. One remedy is to replace |tail (tail x)| with |drop 2 x|. After this change, the program still has several non-exhaustive pattern matches, but all are proven safe.
 
 
 \paragraph{Digits of E1}
@@ -1022,7 +1022,7 @@ carryPropagate base (d:ds) = ellipses
          nextcarry:fraction = carryPropagate (base+1) ds
 \end{code}
 
-\noindent There are four potential pattern-match errors in as many lines. Two of these are the calls to |div| and |mod|, both requiring \ignore|base| to be non-zero. A possibly more subtle pattern match error is the \ignore|nextcarry:fraction| left-hand side of the third line. Catch is able to prove that none of these pattern-matches fail. Now consider:
+\noindent There are four potential pattern-match errors in as many lines. Two of these are the calls to |div| and |mod|, both requiring \ignore|base| to be non-zero. A possibly more subtle pattern match error is the \ignore|nextcarry:fraction| left-hand side of the third line. Catch is able to prove that none of these pattern-matches fails. Now consider:
 
 \begin{code}
 e =  ("2."++) $
@@ -1060,7 +1060,7 @@ The solution is to use the |compare| function which returns one of |GT|, |EQ| or
 Artificial benchmarks are not necessarily intended to be fail-proof. But a real program, with real users, should \textit{never} fail with a pattern-match error. We have taken the HsColour program\footnote{http://www.cs.york.ac.uk/fp/darcs/hscolour/} and analysed it using Catch. HsColour has 12 modules, is 5 years old and has had patches from 6 different people.
 We have contributed patches back to the author of HsColour, with the result that the development version can be proved free from pattern-match errors.
 
-Catch required 4 small patches to the HsColour program before it could be verified free of pattern-match failures. Details are given in Table \ref{tabC:results}. Of the 4 patches, 3 were genuine pattern-match errors which could be tripped by constructing unexpected input. The issues were: (1) |read| was called on a preferences file from the user, this could crash given a malformed preferences file; (2) by giving the document consisting of a single double quote character \texttt{"}, and passing the ``-latex'' flag, a crash occurred; (3) by giving the document \texttt{(`)}, namely open bracket, backtick, close bracket, and passing ``-html -anchor'' a crash occurred. The one patch which did not (as far as we are able to ascertain) fix a real bug could still be considered an improvement, and was minor in nature (a single line).
+Catch required 4 small patches to the HsColour program before it could be verified free of pattern-match failures. Details of the checking process are given in Table \ref{tabC:results}. Of the 4 patches, 3 were genuine pattern-match errors which could be tripped by constructing unexpected input. The issues were: (1) |read| was called on a preferences file from the user, this could crash given a malformed preferences file; (2) by giving the document consisting of a single double quote character \texttt{"}, and passing the ``-latex'' flag, a crash occurred; (3) by giving the document \texttt{(`)}, namely open bracket, backtick, close bracket, and passing ``-html -anchor'' a crash occurred. The one patch which did not (as far as we are able to ascertain) fix a real bug could still be considered an improvement, and was minor in nature (a single line).
 
 Examining the |read| error in more detail, by default Catch outputs the potential error message, and a list of potentially unsafe functions in a call stack:
 
