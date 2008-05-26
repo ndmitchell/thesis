@@ -1245,33 +1245,53 @@ Here the Uniplate solution wins by being able to use a list comprehension to sel
 
 \subsubsection{Uniplate compared to SYB and Compos}
 
-\todo{table is ugly}
+\begin{table}
+\bigskip
 
-\begin{sidewaystable}
-\caption{Table of lexeme counts and runtime performance.}
-\label{tabU:uniplate_results}
-\vspace{3mm}
-\newlength{\maxany}
-\settowidth{\maxany}{00.00}
-\begin{tabular*}{\textwidth}{@@{\extracolsep{\fill}}lrrrrrrrrrrrr@@{\extracolsep{0cm}}}
-& \makebox[\maxany][r]{simp} & \makebox[\maxany][r]{var} & \makebox[\maxany][r]{zero} & \makebox[\maxany][r]{const} & \makebox[\maxany][r]{ren} & \makebox[\maxany][r]{syms} & \makebox[\maxany][r]{bill} & \makebox[\maxany][r]{incr} & \makebox[\maxany][r]{incr1} & \textbf{Query} & \textbf{Transform} & \makebox[\maxany][r]{\textbf{All}} \\
+\renewcommand{\f}[1]{\makebox[10mm][r]{#1}}
+\newlength{\ff}
+\setlength{\ff}{1mm}
+\begin{tabular}{@@{}l@@{\hspace{-1.5mm}}r@@{\hspace{\ff}}r@@{\hspace{\ff}}r@@{\hspace{\ff}}r@@{\hspace{\ff}}r@@{\hspace{\ff}}r@@{\hspace{\ff}}r@@{\hspace{\ff}}r@@{\hspace{\ff}}r}
+& \f{simp} & \f{var} & \f{zero} & \f{const} & \f{ren} & \f{syms} & \f{bill} & \f{incr} & \f{incr1} \\
 \textbf{Lexemes} \\
-Uniplate   & 40 & 12 & 18 & 27 & 16 & 17 & 13 & 21 & 30 &  60 & 134 & 194 \\
-SYB        & 43 & 29 & 29 & 30 & 19 & 34 & 21 & 24 & 56 & 113 & 172 & 285 \\
-Compos     & 71 & 30 & 32 & 54 & 27 & 36 & 25 & 33 & 40 & 123 & 225 & 348 \\
+Uniplate   & 40 & 12 & 18 & 27 & 16 & 17 & 13 & 21 & 30 \\
+SYB        & 43 & 29 & 29 & 30 & 19 & 34 & 21 & 24 & 56 \\
+Compos     & 71 & 30 & 32 & 54 & 27 & 36 & 25 & 33 & 40 \\
 \\
 \textbf{Performance} \\
-Uniplate Manual    & 1.26 & 1.31 & 1.89 & 1.25 & 1.25 & 1.33 & 2.18 & 1.28 & 1.15 & 1.68 & 1.24 & 1.43 \\
-Uniplate Direct    & 1.30 & 1.37 & 2.17 & 1.34 & 1.36 & 1.28 & 2.89 & 1.40 & 1.24 & 1.93 & 1.33 & 1.59 \\
-Compos             & 1.50 & 1.17 & 1.65 & 1.50 & 1.38 & 1.46 & 3.70 & 1.65 & 1.60 & 2.00 & 1.53 & 1.73 \\
-Uniplate Typeable  & 1.50 & 1.72 & 2.86 & 2.09 & 2.00 & 3.10 & 9.49 & 1.74 & 1.81 & 4.29 & 1.83 & 2.92 \\
-Uniplate Data      & 2.35 & 3.76 & 7.52 & 2.31 & 2.50 & 4.10 & 16.72 & 2.08 & 2.03 & 8.03 & 2.25 & 4.81 \\
-SYB                & 3.24 & 7.28 & 16.33 & 3.69 & 3.33 & 9.75 & 54.70 & 4.09 & 3.70 & 22.02 & 3.61 & 11.79 \\
+Uniplate Manual    & 1.26 & 1.31 & 1.89 & 1.25 & 1.25 & 1.33 & 2.18 & 1.28 & 1.15 \\
+Uniplate Direct    & 1.30 & 1.37 & 2.17 & 1.34 & 1.36 & 1.28 & 2.89 & 1.40 & 1.24 \\
+Compos             & 1.50 & 1.17 & 1.65 & 1.50 & 1.38 & 1.46 & 3.70 & 1.65 & 1.60 \\
+Uniplate Typeable  & 1.50 & 1.72 & 2.86 & 2.09 & 2.00 & 3.10 & 9.49 & 1.74 & 1.81 \\
+Uniplate Data      & 2.35 & 3.76 & 7.52 & 2.31 & 2.50 & 4.10 & 16.72 & 2.08 & 2.03 \\
+SYB                & 3.24 & 7.28 & 16.33 & 3.69 & 3.33 & 9.75 & 54.70 & 4.09 & 3.70 \\
 \\
-\end{tabular*}
+\end{tabular}
 
-\textbf{Lexemes} are the number of lexemes for each of the solutions to the test problems using each of Uniplate, SYB and Compos. \textbf{Performance} is expressed as multiples of the run-time for a hand-optimised version not using any traversal library, with lower being better.
-\end{sidewaystable}
+\renewcommand{\f}[1]{\textbf{#1}}
+\begin{tabular}{@@{}lrrr}
+& \f{Query} & \f{Transform} & \f{All} \\
+\textbf{Lexemes} \\
+Uniplate   &  60 & 134 & 194 \\
+SYB        & 113 & 172 & 285 \\
+Compos     & 123 & 225 & 348 \\
+\\
+\textbf{Performance} \\
+Uniplate Manual    & 1.68 & 1.24 & 1.43 \\
+Uniplate Direct    & 1.93 & 1.33 & 1.59 \\
+Compos             & 2.00 & 1.53 & 1.73 \\
+Uniplate Typeable  & 4.29 & 1.83 & 2.92 \\
+Uniplate Data      & 8.03 & 2.25 & 4.81 \\
+SYB                & 22.02 & 3.61 & 11.79 \\
+\\
+\end{tabular}
+
+\textbf{Lexemes} are the number of lexemes for each of the solutions to the test problems using each of Uniplate, SYB and Compos. \textbf{Performance} is expressed as multiples of the run-time for a hand-optimised version not using any traversal library, with lower being better. \\
+
+\caption{Table of lexeme counts and runtime performance.}
+\label{tabU:uniplate_results}
+\end{table}
+
 
 In order to measure conciseness of expression, we have taken the code for all solutions and counted the number of lexemes -- using the |lex| function provided by Haskell. A table of results is given in Table \ref{tabU:uniplate_results}. The definitions of functions shared between SYB and Uniplate are included in both measurements. For the |incrOne| function we have not included the code for |increase| as well.
 
