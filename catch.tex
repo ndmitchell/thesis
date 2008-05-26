@@ -934,8 +934,9 @@ Instead of crashing on malformed command line arguments, the modified program in
 
 \paragraph{Bernoulli}
 
-This program has one instance of |tail (tail x)|. \todo{discuss depth indexed family} MP-constraints are unable to express that a list must be of at least length two, so Catch conservatively strengthens this to the condition that the list must be infinite -- a condition that Bernoulli does not satisfy. One remedy is to replace |tail (tail x)| with |drop 2 x|. After this change, the program still has several non-exhaustive pattern matches, but all are proven safe.
+This program has one instance of |tail (tail x)|. MP-constraints are unable to express that a list must be of at least length two, so Catch conservatively strengthens this to the condition that the list must be infinite -- a condition that Bernoulli does not satisfy. One remedy is to replace |tail (tail x)| with |drop 2 x|. After this change, the program still has several non-exhaustive pattern matches, but all are proven safe.
 
+Another approach would be to increase the power of MP-constraints. Currently MP-constraints store the root of a value separately from its recursive components. If they were modified to also store the first recursive component separately, then the Bernoulli example could be proved safe. The disadvantage of increasing the power of MP-constraints is that the checking process would take longer.
 
 \paragraph{Digits of E1}
 
