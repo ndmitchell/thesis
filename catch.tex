@@ -61,8 +61,6 @@ instance Eq Val
 \chapter{Pattern-Match Analysis}
 \label{chp:catch}
 
-\todo{change algorithm type signatures}
-
 This chapter describes an automated analysis to check for pattern match errors, which we have called Catch. A proof of the work presented in this chapter is given in Chapter \ref{chp:proof}. \S\ref{secC:catch_intro} gives a small example, and \S\ref{secC:walkthrough} gives an overview of the checking process for this example. \S\ref{secC:manipulate} introduces a small core functional language and a mechanism for reasoning about this language, \S\ref{secC:constraint} describes two constraint languages. \S\ref{secC:results} evaluates Catch on programs from the Nofib suite, on a widely-used library and on a larger application program. \S\ref{secC:catch_related} offers comparisons with related work.
 
 
@@ -198,9 +196,8 @@ This section describes the method used to calculate preconditions for functions.
 \begin{figure}
 \h{#*}\begin{code}
 type Selector  =  (CtorName, Int)
-type ArgPos    =  Int
 
-var    :: VarName   -> Either ArgPos (Expr, Selector)
+var    :: VarName   -> Maybe (Expr, Selector)
 isRec  :: Selector  -> Bool
 \end{code}
 \caption{Operations on Core.}
@@ -209,7 +206,7 @@ isRec  :: Selector  -> Bool
 
 We use a first-order Core language, based on that presented in \S\ref{secB:core}, but restricted to contain no lambda expressions, no general application, and all function and constructor applications must be fully-applied.
 
-Figure \ref{figC:catch_core_operations} gives the signatures for two helper functions over the core data types. The |var| function returns |Left i| for a variable bound as the |i|th argument of a top-level function, and |Right (e,(c,i))| for a variable bound as the |i|th component in the |c|-constructed alternative of a case-expression whose scrutinee is |e|.
+Figure \ref{figC:catch_core_operations} gives the signatures for two helper functions over the core data types. The |var| function returns |Nothing| for a variable bound as the argument of a top-level function, and |Just (e,(c,i))| for a variable bound as the |i|th component in the |c|-constructed alternative of a case-expression whose scrutinee is |e|.
 
 \begin{example}
 Given the definition:
@@ -223,10 +220,10 @@ map f xs = case  xs of
 We would obtain the following results:
 
 \begin{code}
-var "f"   = Left 0
-var "xs"  = Left 1
-var "y"   = Right (EVar "xs", (":",0))
-var "ys"  = Right (EVar "xs", (":",1))
+var "f"   = Nothing
+var "xs"  = Nothing
+var "y"   = Just (EVar "xs", (":",0))
+var "ys"  = Just (EVar "xs", (":",1))
 \end{code}
 \end{example}
 
@@ -274,7 +271,7 @@ data Sat alpha = Sat alpha Constraint
 
 (-<)  :: alpha -> [CtorName] -> Prop (Sat alpha)
 (|>)  :: Selector -> Constraint -> Constraint
-(<|)  :: CtorName -> Constraint -> Prop (Sat ArgPos)
+(<|)  :: CtorName -> Constraint -> Prop (Sat Int)
 \end{code}
 \caption{Constraint operations.}
 \label{figC:constraint}
@@ -284,12 +281,12 @@ Three operations must be provided by every constraint model, whose signatures ar
 
 \begin{figure}
 \begin{code}
-precond   :: FuncName -> Prop (Sat ArgPos)
-prePost   :: FuncName -> Constraint -> Prop (Sat ArgPos)
-reduce    :: Prop (Sat Expr) -> Prop (Sat ArgPos)
+precond   :: FuncName -> Prop (Sat VarName)
+prePost   :: FuncName -> Constraint -> Prop (Sat VarName)
+reduce    :: Prop (Sat Expr) -> Prop (Sat VarName)
 
-substP ::  [alpha] -> Prop (Sat ArgPos) -> Prop (Sat alpha)
-substP xs p = propMap (\(Sat i k ) -> propLit $ Sat (xs!!i) k) p
+substP ::  Eq alpha => [(alpha,beta)] -> Prop (Sat alpha) -> Prop (Sat beta)
+substP xs = propMap (\(Sat i k ) -> propLit $ Sat (fromJust $ lookup i xs) k)
 \end{code}
 \caption{Operations to generate preconditions and entailments.}
 \label{figC:operations}
@@ -336,7 +333,7 @@ pre ::  Expr -> Prop (Sat Expr)
 pre (EVar v       ) = propTrue
 pre (ECon c xs_   ) = propAnds (map pre xs_)
 pre (EFun f xs_   ) = pre' f xs_ `propAnd` propAnds (map pre xs_)
-    where pre' f xs = substP xs_ (precond f)
+    where pre' f xs = substP (zip (args f) xs_) (precond f)
 pre (ECase x as_  ) = pre x `propAnd` propAnds (map alt as_)
     where alt (EAlt c vs_ y) = x -< (ctors c \\ [c]) `propOr` pre y
 \end{code}
@@ -370,7 +367,7 @@ This predicate states that the invocation of |null xs| must be safe, and either 
 
 \begin{figure}
 \ignore\begin{code}
-precond  :: FuncName -> Prop (Sat ArgPos)
+precond  :: FuncName -> Prop (Sat VarName)
 precond Rec0   f =  if f == "error" then propFalse else propTrue
 precond RecN1  f =  precond RecN f `propAnd` reduce (pre{precond RecN} (body f))
 \end{code}
@@ -390,25 +387,17 @@ The |pre| function defined in Figure \ref{figC:precondition} does not exploit la
 \subsection{Manipulating constraints}
 \label{secC:backward}
 
-\begin{comment}
-% for paper haskell
-\begin{code}
-substP ::  [alpha] -> Prop (Sat ArgPos) -> Prop (Sat alpha)
-prePost :: FuncName -> Constraint -> Prop (Sat ArgPos)
-\end{code}
-\end{comment}
-
 \begin{figure}
 \begin{code}
-reduce :: Prop (Sat Expr) -> Prop (Sat ArgPos)
+reduce :: Prop (Sat Expr) -> Prop (Sat VarName)
 reduce = propMap (\(Sat x k) -> red x k)
 
-red :: Expr -> Constraint -> Prop (Sat ArgPos)
+red :: Expr -> Constraint -> Prop (Sat VarName)
 red (EVar   v     )  k =  case var v of
-                            Left   i       -> propLit (i `Sat` k)
-                            Right  (on,s)  -> red on (s |> k)
-red (ECon c xs_   )  k =  reduce $ substP xs_ (c <| k)
-red (EFun f xs_   )  k =  reduce $ substP xs_ (prePost f k)
+                            Nothing     -> propLit (v `Sat` k)
+                            Just (x,s)  -> red x (s |> k)
+red (ECon c xs_   )  k =  reduce $ substP (zip [0..] xs_) (c <| k)
+red (EFun f xs_   )  k =  reduce $ substP (zip (args f) xs_) (prePost f k)
 red (ECase x as_  )  k =  propAnds (map alt as_)
     where alt (EAlt c vs_ y) = reduce (x -< (ctors c \\ [c])) `propOr` red y k
 \end{code}
@@ -478,7 +467,7 @@ The intuition is that given knowledge of the root constructor of a data value, w
 
 \begin{figure}
 \ignore\begin{code}
-prePost :: FuncName -> Constraint -> Prop (Sat ArgPos)
+prePost :: FuncName -> Constraint -> Prop (Sat VarName)
 prePost Rec0   f k =  propTrue
 prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $ body f `Sat` k)
 \end{code}
@@ -504,7 +493,7 @@ Given this value representation, we can implement a |satisfies| function using t
 \begin{code}
 satisfies :: Value -> Constraint -> Bool
 satisfies Bottom        k = True
-satisfies (Value c xs)  k = satisfiesP $ substP xs (c <| k)
+satisfies (Value c xs)  k = satisfiesP $ substP (zip [0..] xs) (c <| k)
 
 satisfiesP :: Prop (Sat Value) -> Bool
 satisfiesP x =  (propTrue :: Prop ()) == propMap (\(Sat v k) -> propBool $ satisfies v k) x
