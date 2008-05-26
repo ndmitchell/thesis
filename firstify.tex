@@ -50,6 +50,8 @@ primCatch :: alpha -> (IOError -> alpha) -> alpha
 \chapter{Defunctionalisation}
 \label{chp:firstify}
 
+\todo{refrees comments}
+
 This chapter details a method to reduce the number of functional values in a higher-order program, typically resulting in a first-order program. Unlike Reynolds style defunctionalisation, it does not introduce any new data types, and the results are more amenable to subsequent analysis operations. Our motivation is that the Catch analysis tool (see Chapter \ref{chp:catch}) is designed to work only upon a first-order language, but our method may have wider applicability such as termination checking \cite{sereni:higher_order_termination}.
 
 The sections begin with an introductory example (\S\ref{secF:intro}), followed by a definition of what we consider to be a first-order program (\S\ref{secF:first_order}). Next we present an overview of our method (\S\ref{secF:overview}), followed by a more detailed account (\S\ref{secF:detailed}), along with a number of examples (\S\ref{secF:examples}). We classify where functional values may remain in a resultant program (\S\ref{secF:completeness}) and show how to modify our method to guarantee termination (\S\ref{secF:termination}). Finally we give results (\S\ref{secF:results}) and review related work (\S\ref{secF:related}).

@@ -61,6 +61,8 @@ instance Eq Val
 \chapter{Pattern-Match Analysis}
 \label{chp:catch}
 
+\todo{change algorithm type signatures}
+
 This chapter describes an automated analysis to check for pattern match errors, which we have called Catch. A proof of the work presented in this chapter is given in Chapter \ref{chp:proof}. \S\ref{secC:catch_intro} gives a small example, and \S\ref{secC:walkthrough} gives an overview of the checking process for this example. \S\ref{secC:manipulate} introduces a small core functional language and a mechanism for reasoning about this language, \S\ref{secC:constraint} describes two constraint languages. \S\ref{secC:results} evaluates Catch on programs from the Nofib suite, on a widely-used library and on a larger application program. \S\ref{secC:catch_related} offers comparisons with related work.
 
 
