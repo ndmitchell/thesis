@@ -102,11 +102,11 @@ rec :: [Int]
 \newcommand{\theorem}[2]{\lemma{#1} \vspace{-1mm} \\ \nopagebreak #2 }
 \newcommand{\proof}[2][]{\textbf{Proof of \lemma{#2} \textsf{#1}} \\  \nopagebreak}
 
-This chapter shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then it is guaranteed not to call |error|. The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
+This chapter shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
 
 \section{Notation}
 
-The proof is based on equational reasoning, making use of induction, application of theorems and inlining of function definitions. The proof has not been automatically checked. While performing the reasoning steps, we ignore issues such as strictness. All the properties are boolean valued expressions, typically implications.
+The proof is based on equational reasoning, making use of induction, application of theorems, case analysis and inlining of function definitions. The proof has not been automatically checked. While performing the reasoning steps, we ignore issues such as strictness. All the properties are boolean valued expressions, typically implications.
 
 In order to reduce the size of some of the intermediate expressions, we have replaced one side of an implication with either |lhs| or |rhs|, designating either the left-hand side or right-hand side. We also make heavy use of the function composition and function application operators, namely |(.)| and |($)|. These can be read with the translations:
 
@@ -132,17 +132,17 @@ data Expr  =  Make CtorName [Expr]
 data Alt = Alt CtorName [VarName] Expr
 
 eval :: Expr -> Value
-eval (Sel x (c,i)) | c == c' = xs !! i
+eval (Sel x (c,i)  )  |  c == c' = xs !! i
     where Value c' xs = eval x
-eval (Make c xs   ) = Value c (map eval xs)
-eval (Call f xs)  | f == "error" = Bottom
-                  | otherwise = eval $ body f / (args f, xs)
-eval (Case x as   ) = case eval x of
+eval (Make c  xs   )  =  Value c (map eval xs)
+eval (Call f  xs   )  |  f == "error"  = Bottom
+                      |  otherwise     = eval $ body f / (args f, xs)
+eval (Case x as    )  =  case eval x of
     Value c xs -> head [eval y | Alt c' vs y <- as, c == c']
     Bottom -> Bottom
 \end{code}
 
-The |Expr| data type is based on a first-order variant of the Core language from \S\ref{secB:core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluated to the constructor mentioned in the selector.
+The |Expr| data type is based on a first-order variant of the Core language from \S\ref{secB:core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluates to the constructor mentioned in the selector.
 
 There is no case in |eval| for |Var|, and the behaviour of |eval| with free variables is undefined. The |Call| equation will replace any free variables in the body of a function with the supplied arguments.
 
@@ -232,7 +232,7 @@ We will also need the following theorems, which we prove in \S\ref{secP:proof}.
 {|(x `elem` (xs \\ [x])) == False|}
 
 \section{Proofs of Theorems}
-\label{secP:proofs}
+\label{secP:proof}
 
 We prove each theorem in turn.
 
