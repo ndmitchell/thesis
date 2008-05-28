@@ -998,17 +998,10 @@ This section corresponds to a proof of the code contained in Figure \ref{figC:en
 \theorem{sat/any}
 {\h{#mp}|sat (Sat (Value c xs) ks) == any (\k -> sat $ Sat (Value c xs) [k]) ks|}
 
-\lemma{sat/merge1}
+\theorem{sat/merge}
 \vspace{-5mm}
 \h{#mp}\begin{code}
-sat $ Sat (Value c xs) [merge ms_1 m :* ms_2] ==>
-    sat $ Sat (Value c xs) [ms_1 :* ms_2]
-\end{code}
-
-\lemma{sat/merge2}
-\vspace{-5mm}
-\h{#mp}\begin{code}
-sat $ Sat (Value c xs) [ms_1 :* merge m ms_2] ==>
+sat $ Sat (Value c xs) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
     sat $ Sat (Value c xs) [ms_1 :* ms_2]
 \end{code}
 
@@ -1046,74 +1039,44 @@ sat' (f k /# ([0..],xs)) == sat' (f k /# ([0..],xs))
 True
 \end{code}
 
+\proof{sat/merge}
 
-\proof{sat/merge1}
+We have not proved \lemma{sat/merge}: although we believe it could be proven, we suspect the proof is very long. Instead we have used Lazy SmallCheck \cite{lazysmallcheck} to test the property. Lazy SmallCheck exhaustively tests properties up to some depth of input values. Here is the property we have tested, along with the variants on values:
 
-\h{#mp exprlist}\begin{code}
-sat $ Sat (Value c xs) [ms_1 :* ms_2]
-    -- inline |sat|
-sat' $ (c <| [ms_1 :* ms_2]) /# ([0..],xs)
-    -- inline | <|| |
-sat' $ propOrs (map f [ms_1 :* ms_2]) /# ([0..],xs)
-    -- inline |map|
-sat' $ propOrs [f $ merge ms_1 m :* ms_2] /# ([0..],xs)
-    -- inline |propOrs|
-sat' $ (f $ merge ms_1 m :* ms_2) /# ([0..],xs)
-    -- inline |f|
-sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c] /# ([0..],xs)
-    -- inline |(/)|
-sat' $ propOrs [propAnds $ map propLit $ g vs_1  /# ([0..],xs) | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c]
-    -- inline |sat'|
-or [all sat $ g vs_1  /# ([0..],xs) | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c]
-    -- inline |g|
-or [all sat $ (zipWith Sat non (map (:[]) vs_1) ++ )  /# ([0..],xs) | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c]
+\begin{code}
+prop :: (Value, [Pattern], [Pattern]) -> Bool
+prop (v,ms1,ms2) = 
+        validValue v && validPatterns ms1 && validPatterns ms2 &&
+        sat (Sat v [ms :* ms]) ==> sat (Sat v [ms1 :* ms2])
+    where ms = merge ms1 ms2
 
+validValue Bottom        = True
+validValue (Value c xs)  = arity c == length xs && all validValue xs
 
+validVal Any           = True
+validVal (ms1 :* ms2)  = validPatterns ms1 && validPatterns ms2
 
+validPatterns = all validPattern
+validPattern (Pattern c xs) = fields c == length xs && all validVal xs
 
-\h{#mp}\begin{code}
-sat $ Sat (Value c xs) [merge ms_1 m :* ms_2] ==>
-    sat $ Sat (Value c xs) [ms_1 :* ms_2]
-    -- inline |sat|
-sat' $ (c <| [merge ms_1 m :* ms_2]) /# ([0..],xs) ==> sat' $ (c <| [ms_1 :* ms_2]) /# ([0..],xs)
-    -- inline | <|| |
-sat' $ propOrs (map f [merge ms_1 m :* ms_2]) /# ([0..],xs) ==> sat' $ propOrs (map f [ms_1 :* ms_2]) /# ([0..],xs)
-    -- inline |map|
-sat' $ propOrs [f $ merge ms_1 m :* ms_2] /# ([0..],xs) ==> sat' $ propOrs [f $ ms_1 :* ms_2] /# ([0..],xs)
-    -- inline |propOrs|
-sat' $ (f $ merge ms_1 m :* ms_2) /# ([0..],xs) ==> sat' $ (f $ ms_1 :* ms_2) /# ([0..],xs)
-    -- inline |f|
-sat' $ orP [andP $ map lit $ g vs_1 | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c] /# ([0..],xs) ==> sat' $ (f $ ms_1 :* ms_2) /# ([0..],xs)
-
-
-sat (Sat (Value c xs)  k) = sat' $ (c <| k) /# ([0..],xs)
-
-
+fields c = length [isRec (c,i) | i <- [0..arity c - 1]]
 \end{code}
 
+We check that values and patterns are well-formed using |validValue| and |validPatterns|. These functions both check that the arity of constructors are correct, and that patterns have an appropriate number of non-recursive fields.
 
-\todo{prove merge1}
+Running this property with an increasing depth gives:
 
-\begin{comment}
-\h{#mp exprlist}\begin{code}
-sat $ Sat (Value c xs) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==> sat $ Sat (Value c xs) [ms_1 :* ms_2]
-    -- inline |sat|
-sat' $ (c <| [merge ms_1 ms_2 :* merge ms_1 ms_2]) /# ([0..],xs) ==> sat' $ (c <| [ms_1 :* ms_2]) /# ([0..],xs)
-    -- inline | <|| |
-sat' $ propOrs (map f [merge ms_1 ms_2 :* merge ms_1 ms_2]) /# ([0..],xs) ==> sat' $ propOrs (map f [ms_1 :* ms_2]) /# ([0..],xs)
-    -- inline |map|
-sat' $ propOrs [f $ merge ms_1 ms_2 :* merge ms_1 ms_2] /# ([0..],xs) ==> sat' $ propOrs [f $ ms_1 :* ms_2] /# ([0..],xs)
-    -- inline |propOrs|
-sat' $ (f $ merge ms_1 ms_2 :* merge ms_1 ms_2) /# ([0..],xs) ==> sat' $ (f $ ms_1 :* ms_2) /# ([0..],xs)
-    -- inline |f|
-sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- merge ms_1 ms_2, c_1 == c] /# ([0..],xs) ==> rhs
-    -- \todo{finish proof, and change initial theorem}
-\end{code}
-\end{comment}
+\begin{verbatim}
+Passed 1 tests at depth 0
+Passed 20 tests at depth 1
+Passed 262 tests at depth 2
+Passed 9132 tests at depth 3
+Passed 750376 tests at depth 4
+Passed 75517778 tests at depth 5
+proof: interrupted
+\end{verbatim}
 
-\proof{sat/merge2}
-
-\todo{prove merge2}
+We do not believe it is feasible to test this property at any greater depth. Testing at depth 5 gives us reasonable confidence that the property is indeed true.
 
 
 \proof{sat/|-<|}
@@ -1485,10 +1448,7 @@ sat $ Sat (xs !! i) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
     -- |xs !! i == Value c' ys|
 sat $ Sat (Value c' ys) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
     sat $ Sat (Value c' ys) [ms_1 :* ms_2]
-    -- \lemma{sat/merge1}
-sat $ Sat (Value c' ys) [ms_1 :* merge ms_1 ms_2] ==>
-    sat $ Sat (Value c' ys) [ms_1 :* ms_2]
-    -- \lemma{sat/merge2}
+    -- \lemma{sat/merge}
 sat $ Sat (Value c' ys) [ms_1 :* ms_2] ==> sat $ Sat (Value c' ys) [ms_1 :* ms_2]
     -- equal
 True
