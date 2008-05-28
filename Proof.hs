@@ -3,7 +3,7 @@ module Main where
 
 import Data.List
 import Data.Maybe
-import LazySmallCheck
+import LazySmallCheck hiding (Prop)
 import System.Environment
 
 
@@ -53,11 +53,18 @@ merge :: [Pattern] -> [Pattern] -> [Pattern]
 merge  ms_1 ms_2 = [Pattern c_1 (zipWith mergeVal vs_1 vs_2) |
        Pattern c_1 vs_1 <- ms_1, Pattern c_2 vs_2 <- ms_2, c_1 == c_2]
 
+validConstraint = all validVal
+validVal Any = True
+validVal (ms1 :* ms2) = validPatterns ms1 && validPatterns ms2
+validPatterns = all validPattern
+validPattern (Pattern c xs) = fields c == length xs && all validVal xs
+
 
 -- Evaluator
 
 data Value  =  Value CtorName [Value]
             |  Bottom
+               deriving (Eq,Show)
 
 sat :: Sat Value -> Bool
 sat (Sat Bottom        k) = True
@@ -71,55 +78,56 @@ sat' (Lit x) = sat x
 
 -- Core language
 
-data CtorName = Ctor | CtorN | CtorR | CtorNR | CtorRN
+data CtorName = Ctor | CtorN | CtorR | CtorNR
                 deriving (Show,Eq)
 
 arity Ctor = 0
 arity CtorN = 1
 arity CtorR = 1
 arity CtorNR = 2
-arity CtorRN = 2
+
+fields Ctor = 0
+fields CtorN = 1
+fields CtorR = 0
+fields CtorNR = 1
 
 isRec (CtorR,  0) = True
 isRec (CtorNR, 1) = True
-isRec (CtorRN, 0) = True
 isRec _ = False
 
-data CtorVal = Ctor_ | CtorN_ CtorVal | CtorR_ CtorVal | CtorNR_ CtorVal CtorVal | CtorRN_ CtorVal CtorVal
-               deriving (Show,Eq)
-
-conv (Ctor_) = Value Ctor []
-conv (CtorN_ a) = Value CtorN [conv a]
-conv (CtorR_ a) = Value CtorR [conv a]
-conv (CtorNR_ a b) = Value CtorNR [conv a, conv b]
-conv (CtorRN_ a b) = Value CtorRN [conv a, conv b]
+validValue :: Value -> Bool
+validValue Bottom = True
+validValue (Value c xs) = arity c == length xs && all validValue xs
 
 
 -- Generators
 
-instance Serial CtorVal where
-    series = cons0 Ctor_ \/ cons1 CtorN_ \/ cons1 CtorR_ \/ cons2 CtorNR_ \/ cons2 CtorRN_
+-- SmallCheck Typed Variant
 
-instance Serial CtorName where
-    series = cons0 Ctor \/ cons0 CtorN \/ cons0 CtorR \/ cons0 CtorNR \/ cons0 CtorRN
+instance Refine Value where
+    cons = cons0 Bottom \/ cons2 Value
+    decons (Value a b) = decons2 Value a b
 
-instance Serial Val where
-    series = cons2 (:*) \/ cons0 Any
+instance Refine CtorName where
+    cons = cons0 Ctor \/ cons0 CtorN \/ cons0 CtorR \/ cons0 CtorNR
 
-instance Serial Pattern where
-    series = cons2 Pattern
+instance Refine Val where
+    cons = cons2 (:*) \/ cons0 Any
+    decons (a :* b) = decons2 (:*) a b
+
+instance Refine Pattern where
+    cons = cons2 Pattern
+    decons (Pattern a b) = decons2 Pattern a b
 
 
 -- Property
 
-prop :: CtorVal -> [Pattern] -> [Pattern] -> Bool
-prop v ms1 ms2 = sat (Sat v2 [ms :* ms]) ==> sat (Sat v2 [ms1 :* ms2])
+prop :: (Value, [Pattern], [Pattern]) -> Bool
+prop (v,ms1,ms2) = validValue v && validPatterns ms1 && validPatterns ms2 &&
+                   sat (Sat v [ms :* ms]) ==> sat (Sat v [ms1 :* ms2])
     where
-        v2 = conv v
         ms = merge ms1 ms2
 
 
 main :: IO ()
-main = do
-    [x] <- getArgs
-    depthCheck (read x) prop
+main = test prop
