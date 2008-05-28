@@ -1041,7 +1041,7 @@ True
 
 \proof{sat/merge}
 
-We have not proved \lemma{sat/merge}: although we believe it could be proven, we suspect the proof is very long. Instead we have used Lazy SmallCheck \cite{lazysmallcheck} to test the property. Lazy SmallCheck exhaustively tests properties up to some depth of input values. Here is the property we have tested, along with the invariants on values:
+We have not proved \lemma{sat/merge}, as we suspect the proof is very long. Instead we have used Lazy SmallCheck \cite{lazysmallcheck} to test the property. Lazy SmallCheck exhaustively tests properties up to some depth of input values. Here is the property we have tested, along with the invariants on values:
 
 \begin{code}
 prop :: (Value, [Pattern], [Pattern]) -> Bool
