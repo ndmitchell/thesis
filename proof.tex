@@ -1064,7 +1064,9 @@ sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- merge ms_1
     -- inline |(/)|
 sat' $ propOrs [propAnds $ map propLit $ g vs_1  /# ([0..],xs) | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c]
     -- inline |sat'|
-or [all sat' $ g vs_1  /# ([0..],xs) | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c]
+or [all sat $ g vs_1  /# ([0..],xs) | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c]
+    -- inline |g|
+or [all sat $ (zipWith Sat non (map (:[]) vs_1) ++ )  /# ([0..],xs) | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c]
 
 
 
