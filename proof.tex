@@ -1049,6 +1049,47 @@ True
 
 \proof{sat/merge1}
 
+\h{#mp exprlist}\begin{code}
+sat $ Sat (Value c xs) [ms_1 :* ms_2]
+    -- inline |sat|
+sat' $ (c <| [ms_1 :* ms_2]) /# ([0..],xs)
+    -- inline | <|| |
+sat' $ propOrs (map f [ms_1 :* ms_2]) /# ([0..],xs)
+    -- inline |map|
+sat' $ propOrs [f $ merge ms_1 m :* ms_2] /# ([0..],xs)
+    -- inline |propOrs|
+sat' $ (f $ merge ms_1 m :* ms_2) /# ([0..],xs)
+    -- inline |f|
+sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c] /# ([0..],xs)
+    -- inline |(/)|
+sat' $ propOrs [propAnds $ map propLit $ g vs_1  /# ([0..],xs) | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c]
+    -- inline |sat'|
+or [all sat' $ g vs_1  /# ([0..],xs) | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c]
+
+
+
+
+\h{#mp}\begin{code}
+sat $ Sat (Value c xs) [merge ms_1 m :* ms_2] ==>
+    sat $ Sat (Value c xs) [ms_1 :* ms_2]
+    -- inline |sat|
+sat' $ (c <| [merge ms_1 m :* ms_2]) /# ([0..],xs) ==> sat' $ (c <| [ms_1 :* ms_2]) /# ([0..],xs)
+    -- inline | <|| |
+sat' $ propOrs (map f [merge ms_1 m :* ms_2]) /# ([0..],xs) ==> sat' $ propOrs (map f [ms_1 :* ms_2]) /# ([0..],xs)
+    -- inline |map|
+sat' $ propOrs [f $ merge ms_1 m :* ms_2] /# ([0..],xs) ==> sat' $ propOrs [f $ ms_1 :* ms_2] /# ([0..],xs)
+    -- inline |propOrs|
+sat' $ (f $ merge ms_1 m :* ms_2) /# ([0..],xs) ==> sat' $ (f $ ms_1 :* ms_2) /# ([0..],xs)
+    -- inline |f|
+sat' $ orP [andP $ map lit $ g vs_1 | Pattern c_1 vs_1 <- merge ms_1 m, c_1 == c] /# ([0..],xs) ==> sat' $ (f $ ms_1 :* ms_2) /# ([0..],xs)
+
+
+sat (Sat (Value c xs)  k) = sat' $ (c <| k) /# ([0..],xs)
+
+
+\end{code}
+
+
 \todo{prove merge1}
 
 \begin{comment}
