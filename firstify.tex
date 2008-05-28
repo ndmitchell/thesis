@@ -298,7 +298,7 @@ fix f x = if x == x' then x else fix f x'
 \label{figF:fixp_op}
 \end{figure}
 
-Each stage will be described separately. The overall control of the algorithm is given by the |(+||+)| operator, defined in Figure \ref{figF:fixp_op}. The expression |f +||+ g| applies |f| to an input until it reaches a fixed point, then applies |g|. If |g| changes the value, then the whole process is repeated until until a fixed point of both |f| and |g| is achieved. This formulation has several important properties:
+Each stage will be described separately. The overall control of the algorithm is given by the |(+||+)| operator, defined in Figure \ref{figF:fixp_op}. The expression |f +||+ g| applies |f| to an input until it reaches a fixed point, then applies |g|. If |g| changes the value, then the whole process is repeated until a fixed point of both |f| and |g| is achieved. This formulation has several important properties:
 
 \begin{description}
 \item[Joint fixpoint] After the operation has completed, applying either |f| or |g| does not change the value.
@@ -781,7 +781,7 @@ Given these assumptions, a lambda or boxed lambda may only occur in the followin
 
 \subsection{Proof of the Proposition}
 
-First we show that residual expressions belong to a subset of |s_0|, by defining successively smaller subsets, where \ignore|s_n `supset` s{-"_{\mathsf{n}\text{\tiny{+}}1}"-}|. We use the joint fixpoint property of the |(+||+)| operator to calculate the restrictions imposed by each stage. Secondly we describe which expressions may be the parent of residual lambda expressions, using our refined set of possible expressions.
+First we show that residual expressions belong to a proper subset of |s_0|, by defining successively smaller subsets, where \ignore|s_n `supset` s{-"_{\mathsf{n}\text{\tiny{+}}1}"-}|. We use the joint fixpoint property of the |(+||+)| operator to calculate the restrictions imposed by each stage. Secondly we describe which expressions may be the parent of residual lambda expressions, using our refined set of possible expressions.
 
 \paragraph{Restriction 1: Type Safety}
 We know our original program is type safe, and each of our stages preserves semantics, and therefore type safety. This means that the scrutinee of a case cannot be a functional value. Likewise, we know that all constructor expressions are saturated, so will evaluate to a data value, and cannot be the first argument of an application. Refining our bounding set to take account of this, we have:
@@ -923,7 +923,7 @@ let(lam(x),y)    -> lam(let(x,y))
 \label{figF:term_simplification}
 \end{figure}
 
-In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. An encoding of a simplified version of our rules is given in Figure \ref{figF:term_simplification}. We have proven termination using both this simple formulation, which considers all constructors to have one alternative of exactly arity one, and a more complex encoding. In both cases, the system is able to report success.
+In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. An encoding of a simplified version of our rules is given in Figure \ref{figF:term_simplification}. We have proven termination using both this simple formulation, which considers all data types to have one constructor of arity one, and a more complex encoding. In both cases, the system is able to report success.
 
 The encoding of the (bind-box) and (bind-lam) rules is excluded. Given these rules, there are non terminating sequences. For example:
 
@@ -943,7 +943,7 @@ Functions may only ever increase in arity, and provided the function bodies do n
 
 \subsection{Termination of Inlining}
 
-A standard technique to ensure termination of inlining is to refuse to inline recursive functions \cite{spj:inlining}. For our purposes, this non-recursive restriction is too cautious as it would leave residual lambda expressions in cases such as Example \ref{exF:inlining_boxed_lambdas}. We first present a program which causes our method to non-terminate, then our means of ensuring termination.
+A standard technique to ensure termination of inlining is to refuse to inline recursive functions \cite{spj:inlining}. For our purposes, this non-recursive restriction is too cautious as it would leave residual lambda expressions in cases such as Example \ref{exF:inlining_boxed_lambdas}. We first present a program which causes our method to fail to terminate, then our means of ensuring termination.
 
 \begin{example}
 \begin{code}
@@ -957,7 +957,7 @@ The |f| inside the case is a candidate for inlining:
 \ignore\begin{code}
 case f of B _ -> B (\x -> x)
     => -- inlining rule
-case (case f of B _ -> B (\x -> x)) of B_ -> B (\x -> x)
+case (case f of B _ -> B (\x -> x)) of B _ -> B (\x -> x)
     => -- (case-case) rule
 case f of B _ -> case B (\x -> x) of B _ -> B (\x -> x)
     => -- (case-con) rule
@@ -1164,7 +1164,7 @@ map f []     = []
 map f (x:xs) = f x : map f xs
 \end{code}
 
-\noindent Reynolds method works by creating a data type to represent all values that |f| may take anywhere in the whole program. For instance, it might be:
+\noindent Reynolds' method works by creating a data type to represent all values that |f| may take anywhere in the whole program. For instance, it might be:
 
 \ignore\begin{code}
 data Function = Head | Tail
@@ -1179,11 +1179,11 @@ map f (x:xs) = apply f x : map f xs
 \noindent Now all calls to |map head| are replaced by \ignore|map Head|.
 \end{example}
 
-Reynolds method works on all programs. Defunctionalised code is still type safe, but type checking would require a dependently typed language. Others have proposed variants of Reynolds' method that are type safe in the simply typed lambda calculus \cite{bell:type_driven_defunctionalization}, and within a polymorphic type system \cite{pottier:polymorhpic_typed_defunctionaization}.
+Reynolds' method works on all programs. Defunctionalised code is still type safe, but type checking would require a dependently typed language. Others have proposed variants of Reynolds' method that are type safe in the simply typed lambda calculus \cite{bell:type_driven_defunctionalization}, and within a polymorphic type system \cite{pottier:polymorhpic_typed_defunctionaization}.
 
 The method is complete, removing all possible higher-order functions, and preserves space behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The control flow is complicated by the extra level of indirection and in practice the |apply| interpreter is a bottleneck for analysis.
 
-Reynolds method has been used as a tool in program calculation \cite{danvy:defunctionalization_at_work,hutton:calculating_an_exceptional_machine}, often as a mechanism for removing introduced continuations. Another use of Reynolds' method is for optimisation \cite{grin,jhc}, allowing flow control information to be recovered without the complexity of higher-order transformation.
+Reynolds' method has been used as a tool in program calculation \cite{danvy:defunctionalization_at_work,hutton:calculating_an_exceptional_machine}, often as a mechanism for removing introduced continuations. Another use of Reynolds' method is for optimisation \cite{grin,jhc}, allowing flow control information to be recovered without the complexity of higher-order transformation.
 
 \subsection{Removing Functional Values}
 
