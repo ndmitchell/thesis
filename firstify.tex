@@ -758,7 +758,7 @@ case_ x y  = {case  x' of alts_' | x' `elem` x,
                     alts_' `elem_` {c' vs_' -> y' | c' `elem` c, vs_' `elem_` v, y' `elem` y}}
 \end{code}
 
-Here |v| is the set of all variables, |f| the set of function names, and |c| the set of constructors. We use \ignore|xs_ `elem_` e| to denote that |xs_| is a sequence of any length, whose elements are drawn from |e|. In the definition of \ignore|fun x y|, |x| represents the possible expressions of the body of the function, while |y| represents the arguments. We can now define an upper bound on the set of unrestricted expressions in our Core language as the smallest solution to the equation |s_0|:
+Here |v| is the set of all variables, |f| the set of function names, and |c| the set of constructors. We use \ignore|xs_ `elem_` e| to denote that |xs_| is a sequence of any length, whose elements are drawn from |e|. In the definition of \ignore|fun x y|, the expression set |x| represents the possible bodies of the function, while |y| represents the arguments. We can now define an upper bound on the set of unrestricted expressions in our Core language as the smallest solution to the equation |s_0|:
 
 % _ = L f C a v c l
 \ignore\begin{code}
@@ -768,18 +768,22 @@ s_0  =  lam s_0 &+ fun s_0 s_0 &+ con s_0 &+ app s_0 s_0 &+ var &+
 
 \subsection{A Proposition about Residual Lambdas}
 
+\todo{Intuition? Value?}
+
 We classify the location of lambdas within the residual program, assuming the program satisfies the following two conditions:
 
 \begin{enumerate}
-\item The termination criteria does not stop further defunctionalisation (see \S\ref{secF:termination}).
-\item A primitive function is neither passed a functional argument, nor returns a functional value.
+\item The termination criteria do not curtail defunctionalisation (see \S\ref{secF:termination}).
+\item No primitive function receives a functional argument, or returns a functional result.
 \end{enumerate}
 
 Given these assumptions, a lambda or boxed lambda may only occur in the following places: (1) the body of a lambda expression; (2) an argument to a general application; (3) the body of the |main| function.
 
 \subsection{Proof of the Proposition}
 
-First we show that residual expressions belong to a proper subset of |s_0|, by defining successively smaller subsets, where \ignore|s_n `supset` s{-"_{\mathsf{n}\text{\tiny{+}}1}"-}|. We use the joint fixpoint property of the |(+||+)| operator to calculate the restrictions imposed by each stage. Secondly we describe which expressions may be the parent of residual lambda expressions, using our refined set of possible expressions.
+\todo{remove all ...'s}
+
+First we show that residual definition bodies belong to a proper subset of |s_0|, by defining successively smaller subsets, where \ignore|s_n `supset` s{-"_{\mathsf{n}\text{\tiny{+}}1}"-}|. We use the joint fixpoint property of the |(+||+)| operator to calculate the restrictions imposed by each stage. Secondly we describe which expressions may be the parent of residual lambda expressions, using our refined set of possible expressions.
 
 \paragraph{Restriction 1: Type Safety}
 We know our original program is type safe, and each of our stages preserves semantics, and therefore type safety. This means that the scrutinee of a case cannot be a functional value. Likewise, we know that all constructor expressions are saturated, so will evaluate to a data value, and cannot be the first argument of an application. Refining our bounding set to take account of this, we have:
@@ -791,7 +795,7 @@ s_1  =  lam s_1 &+ fun s_1 s_1 &+ con s &+ app (s_1 - con s_1) s_1 &+ var &+
 \end{code}
 
 \paragraph{Restriction 2: Standard Simplification Rules}
-Our simplification rules from \S\ref{secB:core_simplify} are applied until a fixed point is found, meaning that the left-hand side of any rule cannot occur in the output. In view of these restrictions we can further reduce the bounding set of residual expressions:
+Our simplification rules from \S\ref{secB:core_simplify} are applied until a fixed point is found, meaning that the left-hand side of any rule cannot occur in the output. \todo{Identify more clearly what changes} In view of these restrictions we can further reduce the bounding set of residual expressions:
 
 % _ = L f C a(v, _) v c(f a v, _) l
 \ignore\begin{code}
@@ -848,7 +852,7 @@ e_6  =  lam e_6 &+ fun l_6' (l_6' &* b_6') &+ con e_6 &+ app var e_6 &+ var &+
 \end{code}
 
 \paragraph{Residual Forms}
-Having applied all the rules, we now classify what the parent expressions of a lambda may be. A lambda may not be the root of a function body, because |lam| is not a production in |s|. If we show only those expressions which permit a lambda expression as a direct child, we are left with the following upper bound for the set of residual expressions:
+Having applied all the rules, we now classify what the parent expressions of a lambda may be. A lambda may not be the root of a function body, because |lam| cannot be generated as the root by |s|. If we show only those expressions which permit a lambda expression as a direct child, we are left with the following upper bound for the set of residual expressions:
 
 \ignore\begin{code}
 e =  lam (lam e &+ e) &+ con (lam e &+ e) &+
@@ -862,7 +866,7 @@ e =  lam b &+ fun b b' &+ con b &+ app b' b &+
      var &+ case_ b' b &+ let_ b' b
 \end{code}
 
-If the body of a function is a boxed lambda, then any named application of the function is a boxed lambda. Therefore, either the body of the |main| function is a boxed lambda, or any applied function whose body is a boxed lambda is in one of the |b| positions shown. Of the productions above, only |lam| and |app| are not boxed lambdas. A boxed lambda must either be at the root of a program, or must be contained within an expression which is not a boxed lambda. Therefore, if we exclude expressions which are themselves boxed lambdas:
+If the body of a function definition is a boxed lambda, then any named application of the function is a boxed lambda. Therefore, either the body of the |main| function is a boxed lambda, or any applied function whose body is a boxed lambda is in one of the |b| positions shown. Of the sets above, only |lam| and |app| are not boxed lambdas. A boxed lambda must either be at the root of a program, or must be contained within an expression which is not a boxed lambda. Therefore, if we exclude expressions which are themselves boxed lambdas:
 
 \ignore\begin{code}
 e = lam b &+ app b' b &+ ...
@@ -878,7 +882,7 @@ So we have shown, as required, that a lambda or boxed lambda may only occur as t
 
 \subsection{Example Residual Lambdas}
 
-The interesting residual form of lambdas is in an application, applied to a variable -- i.e. |v (\x -> x)|. Assuming all lambdas are in this form, the lambda within the application cannot be bound to the variable. This leaves three possibilities: (1) either |v| is bound to $\bot{}$; or (2) |v| is never bound to anything; or (3) |v| is bound outside the program. For example:
+The most interesting residual lambdas occur as arguments in an application of a variable -- i.e. |v (\x -> x)|. Given a lambda in this form, the lambda within the application cannot be bound to the variable. This leaves three possibilities: (1) either |v| is bound to $\bot{}$; or (2) |v| is never bound to anything; or (3) |v| is bound outside the program. For example:
 
 \begin{code}
 bottom = bottom
@@ -891,6 +895,8 @@ main_2 = case  nothing of
 
 main_3 f = f (\x -> x)
 \end{code}
+
+\todo{discussion needed}
 
 \section{Proof of Termination}
 \label{secF:termination}
