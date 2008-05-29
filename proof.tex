@@ -102,7 +102,7 @@ rec :: [Int]
 \newcommand{\theorem}[2]{\lemma{#1} \vspace{-1mm} \\ \nopagebreak #2 }
 \newcommand{\proof}[2][]{\textbf{Proof of \lemma{#2} \textsf{#1}} \\  \nopagebreak}
 
-This chapter shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
+This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
 
 \section{Notation}
 
@@ -187,7 +187,7 @@ In this section we define several theorems, which we prove in the following sect
 
 \subsection{Correctness}
 
-The goal of this chapter is to prove correctness, which can be defined as a proof of the following theorem:
+The goal of this appendix is to prove correctness, which can be defined as a proof of the following theorem:
 
 \theorem{pre/eval}
 {|satE' $ pre x ==> not $ isBottom $ eval x|}
