@@ -146,7 +146,7 @@ The |Expr| data type is based on a first-order variant of the Core language from
 
 There is no case in |eval| for |Var|, and the behaviour of |eval| with free variables is undefined. The |Call| equation will replace any free variables in the body of a function with the supplied arguments.
 
-We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs,ys)| to denote replacing the free variables |vs| in |x| with |ys|. We use |(/)| instead of |substP| in the proofs, where |substP (zip vs ys) x == x / (vs,ys)|.
+We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs,ys)| to denote replacing the free variables |vs| in |x| with |ys|. We use |(/)| instead of |substP| in the proofs, where |substP (zip vs ys) x == x /# (vs,ys)|.
 
 We also make use of a number of auxiliaries throughout the proof:
 
@@ -1000,7 +1000,7 @@ This section corresponds to a proof of the code contained in Figure \ref{figC:en
 
 \theorem{sat/merge}
 \vspace{-5mm}
-\h{#mp}\begin{code}
+\h{#mp expr}\begin{code}
 sat $ Sat (Value c xs) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
     sat $ Sat (Value c xs) [ms_1 :* ms_2]
 \end{code}
@@ -1043,9 +1043,9 @@ True
 
 We have not proved \lemma{sat/merge}, as we suspect the proof is very long. Instead we have used Lazy SmallCheck \cite{lazysmallcheck} to test the property. Lazy SmallCheck exhaustively tests properties up to some depth of input values. Here is the property we have tested, along with the invariants on values:
 
-\begin{code}
+\h{#mp}\begin{code}
 prop :: (Value, [Pattern], [Pattern]) -> Bool
-prop (v,ms1,ms2) = 
+prop (v,ms1,ms2) =
         validValue v && validPatterns ms1 && validPatterns ms2 &&
         sat (Sat v [ms :* ms]) ==> sat (Sat v [ms1 :* ms2])
     where ms = merge ms1 ms2
