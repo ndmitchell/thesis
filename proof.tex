@@ -9,6 +9,22 @@
 \newcommand{\eq}{$\equiv$ \{}
 \newcommand{\im}{$\Leftarrow$ \{}
 
+% the lemmas
+\newcommand{\lemSat}{C1}
+\newcommand{\lemSatTri}{C2}
+\newcommand{\lemBPAny}{MP1}
+\newcommand{\lemBPMerge}{MP2}
+\newcommand{\lemElem}{A1}
+\newcommand{\lemPrecondError}{A2}
+\newcommand{\lemSatE}{A3}
+\newcommand{\lemPrecond}{A4}
+\newcommand{\lemPre}{A5}
+\newcommand{\lemRed}{A6}
+\newcommand{\lemReduce}{A7}
+
+\newcommand{\define}[1]{\subsection*{Lemma #1}}
+\newcommand{\case}[1]{\paragraph{Case:} #1 \\}
+
 
 \hsdef{\begin{comment}
 k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws,c',ms_1,ms_2
@@ -192,675 +208,25 @@ sat (Sat (Value c xs)  k) = sat' $ (c <| k) /# ([0..],xs)
 
 The |sat| function tests whether a value satisfies a constraint, using the |(<||)| operator from the constraint language. The |satE| function tests whether the result of evaluating an expression satisfies a constraint. The |sat'| and |satE'| functions operate over a proposition.
 
-\section{Theorems}
-
-In this section we define several theorems, which we prove in the following sections.
-
-\subsection{Correctness}
-
-The goal of this chapter is to prove correctness, which can be defined as a proof of the following theorem:
-
-\theorem{pre/eval}
-{|satE' $ pre x ==> not $ isBottom $ eval x|}
-
-This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}. This theorem is proved in \S\ref{secP:proof}. To prove safety for a whole program, we can consider the expression |x| to be |Call "main" []|, which is safe if |precond "main" == propTrue|.
-
-\subsection{Constraint Theorems}
+\section{Constraint Lemmas}
 
 We assume the following two theorems about each constraint language:
 
-\theorem{sat/|-<|}
-{|sat' (Value c xs -< cs) ==> c `elem` cs|}
+\define{\lemSat}
 
-\theorem{sat/| ||> |}
-{|sat $ Sat (Value c xs) ((c,i) ||> k) ==> sat $ Sat (xs !! i) k|}
+\h{expr}\begin{code}
+sat' (Value c xs -< cs) ==> c `elem` cs
+\end{code}
+
+\define{\lemSatTri}
+
+\h{expr}\begin{code}
+sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
+\end{code}
 
 Both of these theorems are given in \S\ref{secC:constraint_semantics}, as properties. Note that the definition of |sat| makes use of |(<||)|, so these theorems require the additional two operators to be consistent with |(<||)|. We prove these theorems for the BP-constraint and MP-constraint systems in \S\ref{secP:bp} and \S\ref{secP:mp}. Since RE-constraints do not scale sufficiently, we do not recommend their use, and have therefore not proven them to be consistent.
 
-\subsection{Additional Theorems}
-
-We will also need the following theorems, which we prove in \S\ref{secP:proof}.
-
-\theorem{precond/error}
-{|precond "error" == propFalse|}
-
-\theorem{precond}
-{|precond f ==> reduce $ pre $ body f|}
-
-\theorem{reduce}
-{|satE' $ reduce x /# sub ==> satE' $ x / sub|}
-
-\theorem{red}
-{|satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k|}
-
-\theorem{pre}
-{|satE' (pre x / (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)|}
-
-\theorem{satE/|-<|}
-{|sat' (eval x -< cs) == satE' (x -< cs)|}
-
-\theorem{elem}
-{|(x `elem` (xs \\ [x])) == False|}
-
-\section{Proofs of Theorems}
-\label{secP:proof}
-
-We prove each theorem in turn.
-
-\proof{pre/eval}
-
-\h{expr}\begin{code}
-satE' $ pre x ==> not $ isBottom $ eval x
-\end{code}
-
-By induction. We do not need to consider |Var| as |eval| cannot be called on expressions with free variables.
-
-\proof[|Sel|]{pre/eval}
-
-The |Sel| equation of |eval| is:
-
-\begin{code}
-eval (Sel x (c,i)) | c == c' = xs !! i
-    where Value c' xs = eval x
-\end{code}
-
-We know that any \ignore|Sel x _| value must be contained within an alternative of a \ignore|Case x _| expression. If we assume that the original |Case| expression satisfied its, we obtain:
-
-\h{exprlist}\begin{code}
-satE' $ pre $ Case x as ==> satE' $ pre x
-    -- \eq inline |pre|
-satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre x
-    -- \eq inline |satE'|
-satE' (pre x) && satE' (propAnds $ map alt as) ==> satE' $ pre x
-    -- \im weaken implication
-satE' $ pre x ==> satE' $ pre x
-    -- \eq tautology
-True
-\end{code}
-
-\proof[|Make|]{pre/eval}
-
-The initial equation is:
-
-\begin{code}
-eval (Make c xs) = Value c (map eval xs)
-\end{code}
-
-This does not produce |Bottom| if all recursive calls to |eval| are on values which satisfy |pre|. We can write this as:
-
-\h{exprlist}\begin{code}
-satE' $ pre $ Make c xs  ==> all (satE' . pre) xs
-    -- \eq inline |pre|
-satE' $ propAnds $ map pre xs ==> all (satE' . pre) xs
-    -- \eq inline |satE'|
-and $ map satE' $ map pre xs  ==> all (satE' . pre) xs
-    -- \eq |map f . map g == map (f . g)|
-and $ map (satE' . pre) xs ==> all (satE' . pre) xs
-    -- \eq |and . map f == all f|
-all (satE' . pre) xs ==> all (satE' . pre) xs
-    -- \eq tautology
-True
-\end{code}
-
-\proof[|Call|]{pre/eval}
-
-The initial equation is:
-
-\begin{code}
-eval (Call f xs)  | f == "error" = Bottom
-                  | otherwise = eval $ body f / (args f, xs)
-\end{code}
-
-There are two ways to that |Bottom| may occur in this fragment. The first is the explicit |Bottom|, and the second is the recursive call to |eval|. The explicit |Bottom| is avoided under the condition:
-
-\h{exprlist}\begin{code}
-satE' $ pre $ Call f xs ==> f /= "error"
-    -- \eq inline |pre|
-satE' $ (precond f /# (args f, xs)) `propAnd` propAnds (map pre xs) ==> f /= "error"
-    -- \eq inline |satE'|
-satE' (precond f /# (args f, xs)) && all (satE' . pre) xs ==> f /= "error"
-    -- \im weaken implication
-satE' (precond f /# (args f, xs)) ==> f /= "error"
-\end{code}
-
-We can now perform case analysis on |f|, assuming it either is, or is not, equal to |"error"|.
-
-\h{exprlist}\begin{code}
-satE' (precond f /# (args f, xs)) ==> f /= "error"
-    -- \eq assume |f /= "error"|
-satE' (precond f /# (args f, xs)) ==> True
-    -- \eq implication
-True
-\end{code}
-
-\h{exprlist}\begin{code}
-satE' (precond f /# (args f, xs)) ==> f /= "error"
-    -- \eq assume |f == "error"|
-satE' (precond f /# (args f, xs)) ==> False
-    -- \eq implication
-not $ satE' (precond "error" /# (args f, xs))
-    -- \eq \lemma{precond/error}
-not $ satE' $ (propFalse /# (args f, xs))
-    -- \eq inline |(/)|
-not $ satE' propFalse
-    -- \eq inline |satE'|
-not $ False
-    -- \eq inline |not|
-True
-\end{code}
-
-This leaves us with the call to |eval|, namely:
-
-\h{exprlist}\begin{code}
-satE' $ pre $ Call f xs ==> satE' $ pre $ body f / (args f, xs)
-    -- \eq inline pre on LHS
-satE' $ (precond f /# (args f, xs)) `propAnd` propAnds (map pre xs) ==> rhs
-    -- \eq inline |satE'|
-satE' (precond f /# (args f, xs)) && all (satE' . pre) xs ==> rhs
-    -- \im \lemma{precond}
-satE' ((reduce $ pre $ body f) /# (args f, xs)) && all (satE' . pre) xs ==> rhs
-    -- \im \lemma{reduce}
-satE' (pre (body f) / (args f, xs)) && all (satE' . pre) xs ==> rhs
-    -- \im \lemma{pre/subst}
-satE' $ pre $ body f / (args f, xs) ==> satE' $ pre $ body f / (args f, xs)
-    -- \eq tautology
-True
-\end{code}
-
-\proof[|Case|]{pre/eval}
-
-The |Case| equation is:
-
-\begin{code}
-eval (Case x as) = case eval x of
-    Value c xs -> head [eval y | Alt c' vs y <- as, c == c']
-    Bottom -> Bottom
-\end{code}
-
-This equation may generate |Bottom| in two ways -- either the explicit |Bottom| may be taken, or the recursive call to |eval| may result in |Bottom|. In both cases, if we can prove the expression passed to |eval| satisfies its precondition, then we can eliminate the possibility of |Bottom|.
-
-We first prove that the explicit |Bottom| is not reached, assuming the initial expression does not violate the precondition check.
-
-\h{exprlist}\begin{code}
-satE' $ pre $ Case x as ==> satE' $ pre x
-    -- \eq inline |pre|
-satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre x
-    -- \eq inline |satE'|
-satE' (pre x) && satE' (propAnds $ map alt as) ==> satE' $ pre x
-    -- weaken implication
-satE' $ pre x ==> satE' $ pre x
-    -- \eq tautology
-True
-\end{code}
-
-We now need to ensure that the other call to |eval| meets its precondition.
-
-\h{exprlist}\begin{code}
-satE' $ pre $ Case x as ==>
-    all (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) as
-    -- \eq inline |pre|
-satE' $ pre x `propAnd` propAnds (map alt as) ==> rhs
-    -- \eq inline |satE'|
-satE' (pre x) && all (satE' . alt) as ==> rhs
-    -- \im weaken implication
-all (satE' . alt) as ==>
-    all (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) as
-    -- \im lift implies over all
-satE' $ alt a ==> (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) a
-    -- \eq instantiate |a == Alt c v ys|
-satE' $ alt $ Alt c v ys ==> (valCtor (eval x) == Just c ==> satE' $ pre y)
-    -- \eq inline |alt|
-satE' (x -< (ctors c \\ [c]) `propOr` pre y) ==> rhs
-    -- \eq inline |satE'|
-satE' (x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
-    -- \eq \lemma{satE/|-<|}
-sat' (eval x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
-    -- \eq using |valCtor (eval x) == Just c| we infer |eval x == Value c ys|
-sat' (Value c ys -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
-    -- \im \lemma{sat/|-<|}
-c `elem` (ctors c \\ [c]) || satE' (pre y) ==> satE' $ pre y
-    -- \eq \lemma{elem}
-False || satE' (pre y) ==> satE' $ pre y
-    -- \eq inline |(||||)|
-satE' $ pre y ==> satE' $ pre y
-    -- \eq tautology
-True
-\end{code}
-
-
-\proof{elem}
-
-\h{expr}\begin{code}
-(x `elem` (ys \\ [x])) == False
-\end{code}
-
-The |elem| application is only true if |ys \\ [x]| contains |x|. The expression cannot contain |x|, as if it existed in |ys| it was removed, therefore this application is always |False|.
-
-\proof{precond/error}
-
-\h{expr}\begin{code}
-precond "error" == propFalse
-\end{code}
-
-The initial computation of |precond| will return |propFalse|. All successive computations will be at least as restrictive, therefore the result must be |propFalse|.
-
-\proof{precond}
-
-\h{expr}\begin{code}
-precond f ==> reduce $ pre $ body f
-\end{code}
-
-The definition of |precond f| is a conjunction where the second conjunct is |reduce $ pre $ body f|, therefore |precond f| is at least as restrictive as the alternative.
-
-
-\proof{satE/|-<|}
-
-\h{exprlist}\begin{code}
-sat' (eval x -< cs) == satE' (x -< cs)
-    -- \eq inline |sat'| and |satE'|
-propTaut sat (eval x -< cs) == propTaut satE (x -< cs)
-    -- \eq inline |propTaut| and reduce common bits
-propMap (propBool . sat) (eval x -< cs) == propMap (propBool . satE) (x -< cs)
-\end{code}
-
-Now we can use the type signature of |-<|:
-
-\begin{code}
-(-<) :: alpha -> [CtorName] -> Prop (Sat alpha)
-\end{code}
-
-The theorems for free work \cite{wadler:theorems} shows that the first argument will end up as the first argument of the |Sat| constructor, unmodified and unexamined. The |satE| function applies |eval| to the first argument of |Sat|, therefore both these pieces of code are equivalent.
-
-
-\proof{pre}
-
-\h{exprlist}\begin{code}
-satE' (pre x / (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)
-\end{code}
-
-This proof is by case analysis on |x|. We assume that all free variables in |x| are bound in |vs|. To shorten the proofs we do not explicitly write the |all (satE' . pre) ys| term, as it is never manipulated.
-
-\proof[|Var|]{pre}
-
-\h{exprlist}\begin{code}
-satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
-    -- \eq |x == Var v|
-satE' $ pre (Var v) / (vs, ys) ==> satE' $ pre $ Var v / (vs, ys)
-    -- \eq inline |pre| on LHS
-satE' $ propTrue / (vs, ys) ==> satE' $ pre $ Var v / (vs, ys)
-    -- \eq inline |(/)| on LHS
-satE' propTrue ==> satE' $ pre $ Var v / (vs, ys)
-    -- \eq inline |satE'|
-True ==> satE' $ pre $ Var v / (vs, ys)
-    -- \eq reintroduce hidden term
-all (satE' . pre) ys ==> satE' $ pre $ Var v / (vs, ys)
-\end{code}
-
-We know that |v| will be a member of |vs|, and that the result will be |pre y|, where |y| is drawn from |ys|. Since all |ys| satisfy the precondition, then so will the particular |y| we substitute.
-
-\proof[|Sel|]{pre}
-
-\h{exprlist}\begin{code}
-satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
-    -- \eq |x == Sel x s|
-satE' $ pre (Sel x s) / (vs, ys) ==> satE' $ pre $ Sel x s / (vs, ys)
-    -- \eq inline |(/)| on RHS
-satE' $ pre (Sel x s) / (vs, ys) ==> satE' $ pre $ Sel (x / (vs,ys)) s
-    -- \eq inline |pre| on RHS
-satE' $ pre (Sel x s) / (vs, ys) ==> satE' $ propTrue
-    -- \eq inline |satE'| on RHS
-satE' $ pre (Sel x s) / (vs, ys) ==> True
-    -- \eq implication
-True
-\end{code}
-
-\proof[|Make|]{pre}
-
-\h{exprlist}\begin{code}
-satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
-    -- \eq |x == Make c xs|
-satE' $ pre (Make c xs) / (vs, ys) ==> satE' $ pre $ Make c xs / (vs, ys)
-    -- \eq inline |(/)| on RHS
-satE' $ pre (Make c xs) / (vs, ys) ==>
-    satE' $ pre $ Make c $ map (/ (vs, ys)) xs
-    -- \eq inline |pre| on both sides
-satE' $ propAnds (map pre xs) / (vs, ys) ==>
-    satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
-    -- \eq inline |(/)| on LHS
-satE' $ propAnds $ map ((/ (vs,ys)) . pre) xs ==>
-    satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
-    -- \eq inline |satE'| on both sides
-all (satE' . (/ (vs,ys)) . pre) xs ==> all (satE' . pre . (/ (vs, ys))) xs
-    -- \im \lemma{pre}
-True
-\end{code}
-
-\proof[|Call|]{pre}
-
-\h{exprlist}\begin{code}
-satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
-    -- \eq |x == Call f xs|
-satE' $ pre (Call f xs) / (vs, ys) ==> satE' $ pre $ Call f xs / (vs, ys)
-    -- \eq inline |(/)| on RHS
-satE' $ pre (Call f xs) / (vs, ys) ==> satE' $ pre $ Call f $ map (/ (vs, ys)) xs
-\end{code}
-
-Now we will work on each side individually, starting with LHS:
-
-\h{exprlist}\begin{code}
-satE' $ pre (Call f xs) / (vs, ys)
-    -- \eq inline |pre|
-satE' $ (pre' f xs `propAnd` propAnds (map pre xs)) / (vs,ys)
-    -- \eq inline |(/)|
-satE' $ (pre' f xs / (vs,ys)) `propAnd` propAnds (map (pre . (/ (vs,ys))) xs)
-    -- \eq inline |satE'|
-satE' (pre' f xs / (vs,ys)) && all (satE' . pre . (/ (vs,ys))) xs
-\end{code}
-
-And the RHS:
-
-\h{exprlist}\begin{code}
-satE' $ pre $ Call f $ map (/ (vs, ys)) xs
-    -- \eq inline |pre|
-satE' $ (pre' f (map (/ (vs, ys)) xs)) `propAnd` propAnds (map (pre . (/ (vs, ys))) xs)
-    -- \eq inline |satE'|
-satE' (pre' f (map (/ (vs, ys)) xs)) && all (satE' . pre . (/ (vs, ys))) xs
-\end{code}
-
-We can now combine these sides, eliminating the common term:
-
-\h{exprlist}\begin{code}
-satE' $ pre' f xs / (vs,ys) ==> satE' $ pre' f (map (/ (vs, ys)) xs)
-    -- \eq inline |pre'|
-satE' $ (precond f /# (args f, xs)) / (vs,ys) ==>
-    satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
-    -- \eq inline |(/)| on LHS
-satE' $ precond f /# (args f, map (/ (vs,ys)) xs) ==>
-    satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
-    -- \eq tautology
-True
-\end{code}
-
-\proof[|Case|]{pre}
-
-\h{exprlist}\begin{code}
-satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
-    -- \eq |x == Case x as|
-satE' $ pre (Case x as) / (vs, ys) ==> satE' $ pre $ Case x as / (vs, ys)
-    -- \eq inline |(/)| on RHS
-satE' $ pre (Case x as) / (vs, ys) ==>
-    satE' $ pre $ Case (x / (vs, ys)) (map (/ (vs, ys)) as)
-    -- \eq inline |pre| on both sides
-satE' $ (pre x `propAnd` propAnds (map alt as)) / (vs, ys) ==>
-    satE' $ pre (x / (vs, ys)) `propAnd` propAnds (map (alt . (/ (vs, ys))) as)
-    -- \eq inline |(/)| on LHS
-satE' $ (pre x / (vs, ys)) `propAnd` propAnds (map ((/ (vs, ys)) . alt) as)  ==>
-    satE' $ pre (x / (vs, ys)) `propAnd` propAnds (map (alt . (/ (vs, ys))) as)
-    -- \eq inline |satE'|
-satE' (pre x / (vs, ys)) && all (satE' . (/ (vs, ys)) . alt) as ==>
-    satE' (pre (x / (vs, ys))) && all (satE' . alt . (/ (vs, ys))) as
-    -- \im \lemma{pre}
-all (satE' . (/ (vs, ys)) . alt) as  ==> all (satE' . alt . (/ (vs, ys))) as
-    -- \im implication over |all|
-satE' $ alt a / (vs, ys) ==> satE' $ alt $ as / (vs, ys)
-    -- \eq instantiate |a| as a general |Alt|
-satE' $ alt (Alt c ws y) / (vs, ys) ==> satE' $ alt $ Alt c ws y / (vs, ys)
-    -- \eq inline |(/)| on RHS
-satE' $ alt (Alt c ws y) / (vs, ys) ==> satE' $ alt $ Alt c ws (y / (vs, ys))
-    -- \eq inline |alt|
-satE' $ (x -< (ctors c \\ [c]) `propOr` pre y) / (vs, ys) ==>
-    satE' $ (x / (vs,ys) -< (ctors c \\ [c])) `propOr` pre (y / (vs, ys))
-    -- \eq let |cs == ctors c \\ [c]|
-satE' $ (x -< cs `propOr` pre y) / (vs, ys) ==>
-    satE' $ (x / (vs,ys) -< cs) `propOr` pre (y / (vs, ys))
-    -- \eq inline |(/)| on LHS
-satE' $ (x / (vs,ys) -< cs) `propOr` (pre y / (vs, ys)) ==>
-    satE' $ (x / (vs,ys) -< cs) `propOr` pre (y / (vs, ys))
-    -- \eq inline |satE'| on both sides
-satE' (x / (vs,ys) -< cs) || satE' (pre y / (vs, ys)) ==>
-    satE' (x / (vs,ys) -< cs) || satE' (pre (y / (vs, ys)))
-    -- \im remove duplicate bits on each side
-satE' $ pre y / (vs, ys) ==> satE' $ pre $ y / (vs, ys)
-    -- \im \lemma{pre}
-True
-\end{code}
-
-
-\proof{reduce}
-
-\h{exprlist}\begin{code}
-satE' $ reduce x /# sub ==> satE' $ x / sub
-    -- \eq inline |reduce|
-satE' $ propMap (\(Sat x k) -> red x k) x /# sub ==> satE' $ x / sub
-    -- \eq inline |(/)| on LHS
-satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==> satE' $ x / sub
-    -- \eq inline |(/)| on RHS
-satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==>
-    satE' $ propMap (\(Sat x k) -> propLit $ Sat x k / sub) x
-    -- \eq inline |(/)| on RHS
-satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==>
-    satE' $ propMap (\(Sat x k) -> propLit $ Sat (x / sub) k) x
-    -- \eq inline |satE'|
-propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ red x k /# sub) x ==>
-    propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ propLit $ Sat (x / sub) k) x
-    -- \im lift |propMap| over |(==>)|
-satE' $ red x k /# sub ==> satE' $ propLit $ Sat (x / sub) k
-    -- \eq inline |satE'| on RHS
-satE' $ red x k /# sub ==> satE $ Sat (x / sub) k
-    -- \eq inline |satE| on RHS
-satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
-    -- \im \lemma{red}
-True
-\end{code}
-
-
-\proof{red}
-
-\h{expr}\begin{code}
-satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
-\end{code}
-
-We prove by case analysis on the expression |x|.
-
-\proof[|Var|]{red}
-
-\h{exprlist}\begin{code}
-satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
-    -- \eq |x == Var v|
-satE' $ red (Var v) k /# sub ==> sat $ Sat (eval $ Var v / sub) k
-    -- \eq inline |red|
-satE' $ propLit (Sat v k) /# sub ==> sat $ Sat (eval $ Var v / sub) k
-    -- \eq inline |(/)| on LHS
-satE' $ propLit (Sat (v /# sub) k) ==> sat $ Sat (eval $ Var v / sub) k
-    -- \eq promote |v| on LHS to |Var v| because |(/)| operates identically on both
-satE' $ propLit (Sat (Var v / sub) k) ==> sat $ Sat (eval $ Var v / sub) k
-    -- \eq inline |satE'|
-satE (Sat (Var v / sub) k) ==> sat $ Sat (eval $ Var v / sub) k
-    -- \eq inline |satE|
-sat $ Sat (eval $ Var v / sub) k ==> sat $ Sat (eval $ Var v / sub) k
-    -- \eq tautology
-True
-\end{code}
-
-\proof[|Sel|]{red}
-
-In this proof, we assume |eval (x / sub) == Value c xs|, due to being in the alternative of a |Case| expression.
-
-\h{exprlist}\begin{code}
-satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
-    -- \eq |x == Sel x (c,i)|
-satE' $ red (Sel x (c,i)) k /# sub ==> sat $ Sat (eval $ Sel x (c,i) / sub) k
-    -- \eq inline |red|
-satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (eval $ Sel x (c,i) / sub) k
-    -- \eq inline |(/)| on RHS
-satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (eval $ Sel (x / sub) (c,i)) k
-    -- \eq inline |eval| on RHS
-satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (xs !! i) k
-    -- \im \lemma{sat/| ||> |}
-satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (Value c xs) ((c,i) |> k)
-    -- \eq replace using the assumption
-satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (eval (x / sub)) ((c,i) |> k)
-    -- \im \lemma{red}
-True
-\end{code}
-
-\proof[|Make|]{red}
-
-\h{exprlist}\begin{code}
-satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
-    -- \eq |x == Make c xs|
-satE' $ red (Make c xs) k /# sub ==> sat $ Sat (eval $ Make c xs / sub) k
-    -- \eq inline |red|
-satE' $ reduce ((c <| k) /# ([0..], xs)) /# sub ==> sat $ Sat (eval $ Make c xs / sub) k
-    -- \im \lemma{reduce}
-satE' $ ((c <| k) /# ([0..], xs)) / sub ==> sat $ Sat (eval $ Make c xs / sub) k
-    -- \eq inline |(/)| on LHS
-satE' $ (c <| k) /# ([0..], map (/ sub) xs) ==> sat $ Sat (eval $ Make c xs / sub) k
-    -- \eq inline |satE'| on LHS
-sat' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==>
-    sat $ Sat (eval $ Make c xs / sub) k
-    -- \eq inline |(/)| on RHS
-sat' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==>
-    sat $ Sat (eval $ Make c (map (/ sub) xs)) k
-    -- \eq inline |eval| on RHS
-sat' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==>
-    sat $ Sat (Value c (map (eval . (/ sub)) xs)) k
-    -- \eq fold back |sat|
-sat $ Sat (Value c (map (eval . (/ sub)) xs)) k ==>
-    sat $ Sat (Value c (map (eval . (/ sub)) xs)) k
-    -- \eq tautology
-True
-\end{code}
-
-\proof[|Call|]{red}
-
-\h{exprlist}\begin{code}
-satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
-    -- \eq |x == Call f xs|
-satE' $ red (Call f xs) k /# sub ==> sat $ Sat (eval $ Call f xs / sub) k
-    -- \eq inline |red|
-satE' $ reduce (prePost f k /# (args f, xs)) /# sub ==> rhs
-    -- \im \lemma{reduce}
-satE' $ (prePost f k /# (args f, xs)) / sub ==> rhs
-    -- \eq inline |(/)| on LHS
-satE' $ prePost f k /# (args f, map (/sub) xs) ==> rhs
-    -- \im \lemma{prePost}
-satE' $ reduce (propLit $ Sat (body f) k) /# (args f, map (/sub) xs) ==> rhs
-    -- \im \lemma{reduce}
-satE' $ (propLit $ Sat (body f) k) / (args f, map (/sub) xs) ==> rhs
-    -- \eq inline |(/)| on LHS
-satE' $ (propLit $ Sat (body f / (args f, map (/sub) xs)) k) ==> rhs
-    -- \eq inline |satE'|
-satE $ Sat (body f / (args f, map (/sub) xs)) k ==> rhs
-    -- \eq inline |satE|
-sat $ Sat (eval $ body f / (args f, map (/sub) xs)) k ==>
-    sat $ Sat (eval $ Call f xs / sub) k
-    -- \eq inline |(/)| on RHS
-sat $ Sat (eval $ body f / (args f, map (/sub) xs)) k ==>
-    sat $ Sat (eval $ Call f (map (/ sub) xs)) k
-\end{code}
-
-We now assume that either |f| is equal to error, or not.
-
-\h{exprlist}\begin{code}
-sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
-    sat $ Sat (eval $ Call f (map (/ sub) xs)) k
-    -- \eq assume |f == "error"|
-sat $ Sat (eval $ body "error" / (args f, map (/ sub) xs)) k ==>
-    sat $ Sat (eval $ Call "error" (map (/ sub) xs)) k
-    -- \eq inline |eval| on RHS
-sat $ Sat (eval $ body "error" / (args f, map (/ sub) xs)) k ==>
-    sat $ Sat Bottom k
-    -- \eq inline |sat|
-sat $ Sat (eval $ Call "error" [Var "x"] / (["x"], map (/sub) xs)) k ==> False
-    -- \eq implies
-True
-\end{code}
-
-\h{exprlist}\begin{code}
-sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
-    sat $ Sat (eval $ Call f (map (/ sub) xs)) k
-    -- \eq inline |eval| on RHS, assuming |f /= "error"|
-sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
-    sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k
-    -- \eq tautology
-True
-\end{code}
-
-\proof[|Case|]{red}
-
-\h{exprlist}\begin{code}
-satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
-    -- \eq |x == Case x as|
-satE' $ red (Case x as) k /# sub ==> sat $ Sat (eval $ Case x as / sub) k
-    -- \eq inline |red|
-satE' $ propAnds (map alt as) /# sub ==> sat $ Sat (eval $ Case x as / sub) k
-    -- \eq inline |(/)| on LHS
-satE' $ propAnds $ map ((/# sub) . alt) as ==> sat $ Sat (eval $ Case x as / sub) k
-    -- \eq inline |satE'|
-all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case x as / sub) k
-    -- \eq inline |(/)| on RHS
-all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
-\end{code}
-
-First assume that |eval (x / sub) == Bottom|, then that |eval (x / sub) == Value c xs|.
-
-\h{exprlist}\begin{code}
-all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
-    -- \eq inline |eval|, assuming |eval (x / sub) == Bottom|
-all (satE' . (/# sub) . alt) as ==> sat $ Sat Bottom k
-    -- \eq inline |sat|
-all (satE' . (/# sub) . alt) as ==> True
-    -- \eq implies
-True
-\end{code}
-
-\h{exprlist}\begin{code}
-all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
-    -- \eq inline |eval|, assuming |eval (x / sub) == Value c xs|
-lhs ==> sat $ Sat (head [eval y | Alt c' vs y <- as / sub, c == c']) k
-    -- \eq expand RHS, removing list comprehension
-all (satE' . (/# sub) . alt) as ==>
-    all (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (as / sub)
-    -- \im lift implication over |all|
-satE' $ alt a /# sub ==>
-    (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (a / sub)
-    -- \eq instantiate |a == Alt c' vs y|
-satE' $ alt a /# sub ==>
-    (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (Alt c' vs y / sub)
-    -- \eq inline |(/)| on RHS
-satE' $ alt a /# sub ==>
-    (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (Alt c' vs $ y / sub)
-    -- \eq inline lambda on RHS
-satE' $ alt (Alt c' vs y) /# sub ==>
-    (c == c' ==> sat $ Sat (eval $ y / sub) k)
-    -- \eq use knowledge from RHS in LHS
-satE' $ alt (Alt c vs y) /# sub ==> sat $ Sat (eval $ y / sub) k
-    -- \eq inline |alt| on LHS
-satE' $ (reduce (x -< (ctors c \\ [c])) `propOr` red y k) /# sub ==> rhs
-    -- \eq inline |(/)| on LHS
-satE' $ (reduce (x -< (ctors c \\ [c])) /# sub) `propOr` (red y k /# sub) ==> rhs
-    -- \eq inline |satE'| on LHS
-satE' (reduce (x -< (ctors c \\ [c])) /# sub) || satE' (red y k /# sub) ==> rhs
-    -- \im \lemma{reduce}
-satE' ((x -< (ctors c \\ [c])) / sub) || satE' (red y k /# sub) ==> rhs
-    -- \eq inline |(/)| on LHS
-satE' ((x / sub) -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> rhs
-    -- \eq \lemma{satE/|-<|}
-sat' (eval (x / sub) -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> rhs
-    -- \eq substitute |eval (x / sub) == Value c xs|
-sat' (Value c xs -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> rhs
-    -- \im \lemma{sat/|-<|}
-c `elem` (ctors c \\ [c]) || satE' (red y k /# sub) ==> rhs
-    -- \eq \lemma{elem}
-False || satE' (red y k /# sub) ==> rhs
-    -- \eq inline |(||||)|
-satE' $ red y k /# sub ==> sat $ Sat (eval $ y / sub) k
-    -- \im \lemma{red}
-True
-\end{code}
-
-\section{Correctness of BP-constraints}
+\subsection{BP-Constraint Lemmas}
 \label{secP:bp}
 
 Since BP-constraints are presented piecemeal throughout \S\ref{secC:manipulate}, we recap them here:
@@ -879,7 +245,7 @@ c <| Any         =  propTrue
 c <| Con c_2 xs  =  propBool (c_2 == c) `propAnd` propAnds (map propLit (zipWith Sat [0..] xs))
 \end{code}
 
-\proof{sat/|-<|}
+\define{\lemSat\ (BP)}
 
 \h{exprlist}\begin{code}
 sat' (Value c xs -< cs) ==> c `elem` cs
@@ -913,11 +279,13 @@ c `elem` cs ==> c `elem` cs
 True
 \end{code}
 
-\proof{sat/| ||> |}
+\define{\lemSatTri\ (BP)}
 
-By case analysis on |k|, first |Any| then |Con c' ys|.
+\h{expr}\begin{code}
+sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
+\end{code}
 
-\proof[|Any|]{sat/| ||> |}
+\case{|k == Any|}
 
 \h{exprlist}\begin{code}
 sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
@@ -927,7 +295,7 @@ sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
 \end{code}
 
-Now by analysis on |xs !! i|, being either |Value c' ys| or |Bottom|.
+\case{|k == Any|, |xs !! i == Bottom|}
 
 \h{exprlist}\begin{code}
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
@@ -938,6 +306,8 @@ sat $ Sat (Value c xs) ((c,i) |> Any) ==> True
     -- \eq implication
 True
 \end{code}
+
+\case{|k == Any|, |xs !! i == Value c' ys|}
 
 \h{exprlist}\begin{code}
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
@@ -955,7 +325,7 @@ sat $ Sat (Value c xs) ((c,i) |> Any) ==> True
 True
 \end{code}
 
-\proof[|Con|]{sat/| ||> |}
+\case{|k == Con c' ys|}
 
 \h{exprlist}\begin{code}
 sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
@@ -999,6 +369,9 @@ sat $ Sat (xs !! i) (Con c' ys) ==> sat $ Sat (xs !! i) (Con c' ys)
     -- \eq tautology
 True
 \end{code}
+
+
+\subsection{MP-Constraint Lemmas}
 
 \section{Correctness of MP-constraints}
 \label{secP:mp}
@@ -1463,4 +836,697 @@ sat $ Sat (Value c' ys) [ms_1 :* ms_2] ==> sat $ Sat (Value c' ys) [ms_1 :* ms_2
     -- \eq tautology
 True
 \end{code}
+
+
+\section{Auxiliary Lemmas}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Theorems}
+
+In this section we define several theorems, which we prove in the following sections.
+
+
+
+\subsection{Additional Theorems}
+
+We will also need the following theorems, which we prove in \S\ref{secP:proof}.
+
+\theorem{precond/error}
+{|precond "error" == propFalse|}
+
+\theorem{precond}
+{|precond f ==> reduce $ pre $ body f|}
+
+\theorem{reduce}
+{|satE' $ reduce x /# sub ==> satE' $ x / sub|}
+
+\theorem{red}
+{|satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k|}
+
+\theorem{pre}
+{|satE' (pre x / (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)|}
+
+\theorem{satE/|-<|}
+{|sat' (eval x -< cs) == satE' (x -< cs)|}
+
+\theorem{elem}
+{|(x `elem` (xs \\ [x])) == False|}
+
+\section{Proofs of Theorems}
+\label{secP:proof}
+
+We prove each theorem in turn.
+
+\lemma{\lemElem}
+
+\h{expr}\begin{code}
+(x `elem` (ys \\ [x])) == False
+\end{code}
+
+The |elem| application is only true if |ys \\ [x]| contains |x|. The expression cannot contain |x|, as if it existed in |ys| it was removed, therefore this application is always |False|.
+
+\proof{precond/error}
+
+\h{expr}\begin{code}
+precond "error" == propFalse
+\end{code}
+
+The initial computation of |precond| will return |propFalse|. All successive computations will be at least as restrictive, therefore the result must be |propFalse|.
+
+\proof{precond}
+
+\h{expr}\begin{code}
+precond f ==> reduce $ pre $ body f
+\end{code}
+
+The definition of |precond f| is a conjunction where the second conjunct is |reduce $ pre $ body f|, therefore |precond f| is at least as restrictive as the alternative.
+
+
+\proof{satE/|-<|}
+
+\h{exprlist}\begin{code}
+sat' (eval x -< cs) == satE' (x -< cs)
+    -- \eq inline |sat'| and |satE'|
+propTaut sat (eval x -< cs) == propTaut satE (x -< cs)
+    -- \eq inline |propTaut| and reduce common bits
+propMap (propBool . sat) (eval x -< cs) == propMap (propBool . satE) (x -< cs)
+\end{code}
+
+Now we can use the type signature of |-<|:
+
+\begin{code}
+(-<) :: alpha -> [CtorName] -> Prop (Sat alpha)
+\end{code}
+
+The theorems for free work \cite{wadler:theorems} shows that the first argument will end up as the first argument of the |Sat| constructor, unmodified and unexamined. The |satE| function applies |eval| to the first argument of |Sat|, therefore both these pieces of code are equivalent.
+
+
+\proof{pre}
+
+\h{exprlist}\begin{code}
+satE' (pre x / (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ x / (vs, ys)
+\end{code}
+
+This proof is by case analysis on |x|. We assume that all free variables in |x| are bound in |vs|. To shorten the proofs we do not explicitly write the |all (satE' . pre) ys| term, as it is never manipulated.
+
+\proof[|Var|]{pre}
+
+\h{exprlist}\begin{code}
+satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
+    -- \eq |x == Var v|
+satE' $ pre (Var v) / (vs, ys) ==> satE' $ pre $ Var v / (vs, ys)
+    -- \eq inline |pre| on LHS
+satE' $ propTrue / (vs, ys) ==> satE' $ pre $ Var v / (vs, ys)
+    -- \eq inline |(/)| on LHS
+satE' propTrue ==> satE' $ pre $ Var v / (vs, ys)
+    -- \eq inline |satE'|
+True ==> satE' $ pre $ Var v / (vs, ys)
+    -- \eq reintroduce hidden term
+all (satE' . pre) ys ==> satE' $ pre $ Var v / (vs, ys)
+\end{code}
+
+We know that |v| will be a member of |vs|, and that the result will be |pre y|, where |y| is drawn from |ys|. Since all |ys| satisfy the precondition, then so will the particular |y| we substitute.
+
+\proof[|Sel|]{pre}
+
+\h{exprlist}\begin{code}
+satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
+    -- \eq |x == Sel x s|
+satE' $ pre (Sel x s) / (vs, ys) ==> satE' $ pre $ Sel x s / (vs, ys)
+    -- \eq inline |(/)| on RHS
+satE' $ pre (Sel x s) / (vs, ys) ==> satE' $ pre $ Sel (x / (vs,ys)) s
+    -- \eq inline |pre| on RHS
+satE' $ pre (Sel x s) / (vs, ys) ==> satE' $ propTrue
+    -- \eq inline |satE'| on RHS
+satE' $ pre (Sel x s) / (vs, ys) ==> True
+    -- \eq implication
+True
+\end{code}
+
+\proof[|Make|]{pre}
+
+\h{exprlist}\begin{code}
+satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
+    -- \eq |x == Make c xs|
+satE' $ pre (Make c xs) / (vs, ys) ==> satE' $ pre $ Make c xs / (vs, ys)
+    -- \eq inline |(/)| on RHS
+satE' $ pre (Make c xs) / (vs, ys) ==>
+    satE' $ pre $ Make c $ map (/ (vs, ys)) xs
+    -- \eq inline |pre| on both sides
+satE' $ propAnds (map pre xs) / (vs, ys) ==>
+    satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
+    -- \eq inline |(/)| on LHS
+satE' $ propAnds $ map ((/ (vs,ys)) . pre) xs ==>
+    satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
+    -- \eq inline |satE'| on both sides
+all (satE' . (/ (vs,ys)) . pre) xs ==> all (satE' . pre . (/ (vs, ys))) xs
+    -- \im \lemma{pre}
+True
+\end{code}
+
+\proof[|Call|]{pre}
+
+\h{exprlist}\begin{code}
+satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
+    -- \eq |x == Call f xs|
+satE' $ pre (Call f xs) / (vs, ys) ==> satE' $ pre $ Call f xs / (vs, ys)
+    -- \eq inline |(/)| on RHS
+satE' $ pre (Call f xs) / (vs, ys) ==> satE' $ pre $ Call f $ map (/ (vs, ys)) xs
+\end{code}
+
+Now we will work on each side individually, starting with LHS:
+
+\h{exprlist}\begin{code}
+satE' $ pre (Call f xs) / (vs, ys)
+    -- \eq inline |pre|
+satE' $ (pre' f xs `propAnd` propAnds (map pre xs)) / (vs,ys)
+    -- \eq inline |(/)|
+satE' $ (pre' f xs / (vs,ys)) `propAnd` propAnds (map (pre . (/ (vs,ys))) xs)
+    -- \eq inline |satE'|
+satE' (pre' f xs / (vs,ys)) && all (satE' . pre . (/ (vs,ys))) xs
+\end{code}
+
+And the RHS:
+
+\h{exprlist}\begin{code}
+satE' $ pre $ Call f $ map (/ (vs, ys)) xs
+    -- \eq inline |pre|
+satE' $ (pre' f (map (/ (vs, ys)) xs)) `propAnd` propAnds (map (pre . (/ (vs, ys))) xs)
+    -- \eq inline |satE'|
+satE' (pre' f (map (/ (vs, ys)) xs)) && all (satE' . pre . (/ (vs, ys))) xs
+\end{code}
+
+We can now combine these sides, eliminating the common term:
+
+\h{exprlist}\begin{code}
+satE' $ pre' f xs / (vs,ys) ==> satE' $ pre' f (map (/ (vs, ys)) xs)
+    -- \eq inline |pre'|
+satE' $ (precond f /# (args f, xs)) / (vs,ys) ==>
+    satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
+    -- \eq inline |(/)| on LHS
+satE' $ precond f /# (args f, map (/ (vs,ys)) xs) ==>
+    satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
+    -- \eq tautology
+True
+\end{code}
+
+\proof[|Case|]{pre}
+
+\h{exprlist}\begin{code}
+satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
+    -- \eq |x == Case x as|
+satE' $ pre (Case x as) / (vs, ys) ==> satE' $ pre $ Case x as / (vs, ys)
+    -- \eq inline |(/)| on RHS
+satE' $ pre (Case x as) / (vs, ys) ==>
+    satE' $ pre $ Case (x / (vs, ys)) (map (/ (vs, ys)) as)
+    -- \eq inline |pre| on both sides
+satE' $ (pre x `propAnd` propAnds (map alt as)) / (vs, ys) ==>
+    satE' $ pre (x / (vs, ys)) `propAnd` propAnds (map (alt . (/ (vs, ys))) as)
+    -- \eq inline |(/)| on LHS
+satE' $ (pre x / (vs, ys)) `propAnd` propAnds (map ((/ (vs, ys)) . alt) as)  ==>
+    satE' $ pre (x / (vs, ys)) `propAnd` propAnds (map (alt . (/ (vs, ys))) as)
+    -- \eq inline |satE'|
+satE' (pre x / (vs, ys)) && all (satE' . (/ (vs, ys)) . alt) as ==>
+    satE' (pre (x / (vs, ys))) && all (satE' . alt . (/ (vs, ys))) as
+    -- \im \lemma{pre}
+all (satE' . (/ (vs, ys)) . alt) as  ==> all (satE' . alt . (/ (vs, ys))) as
+    -- \im implication over |all|
+satE' $ alt a / (vs, ys) ==> satE' $ alt $ as / (vs, ys)
+    -- \eq instantiate |a| as a general |Alt|
+satE' $ alt (Alt c ws y) / (vs, ys) ==> satE' $ alt $ Alt c ws y / (vs, ys)
+    -- \eq inline |(/)| on RHS
+satE' $ alt (Alt c ws y) / (vs, ys) ==> satE' $ alt $ Alt c ws (y / (vs, ys))
+    -- \eq inline |alt|
+satE' $ (x -< (ctors c \\ [c]) `propOr` pre y) / (vs, ys) ==>
+    satE' $ (x / (vs,ys) -< (ctors c \\ [c])) `propOr` pre (y / (vs, ys))
+    -- \eq let |cs == ctors c \\ [c]|
+satE' $ (x -< cs `propOr` pre y) / (vs, ys) ==>
+    satE' $ (x / (vs,ys) -< cs) `propOr` pre (y / (vs, ys))
+    -- \eq inline |(/)| on LHS
+satE' $ (x / (vs,ys) -< cs) `propOr` (pre y / (vs, ys)) ==>
+    satE' $ (x / (vs,ys) -< cs) `propOr` pre (y / (vs, ys))
+    -- \eq inline |satE'| on both sides
+satE' (x / (vs,ys) -< cs) || satE' (pre y / (vs, ys)) ==>
+    satE' (x / (vs,ys) -< cs) || satE' (pre (y / (vs, ys)))
+    -- \im remove duplicate bits on each side
+satE' $ pre y / (vs, ys) ==> satE' $ pre $ y / (vs, ys)
+    -- \im \lemma{pre}
+True
+\end{code}
+
+
+\proof{reduce}
+
+\h{exprlist}\begin{code}
+satE' $ reduce x /# sub ==> satE' $ x / sub
+    -- \eq inline |reduce|
+satE' $ propMap (\(Sat x k) -> red x k) x /# sub ==> satE' $ x / sub
+    -- \eq inline |(/)| on LHS
+satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==> satE' $ x / sub
+    -- \eq inline |(/)| on RHS
+satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==>
+    satE' $ propMap (\(Sat x k) -> propLit $ Sat x k / sub) x
+    -- \eq inline |(/)| on RHS
+satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==>
+    satE' $ propMap (\(Sat x k) -> propLit $ Sat (x / sub) k) x
+    -- \eq inline |satE'|
+propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ red x k /# sub) x ==>
+    propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ propLit $ Sat (x / sub) k) x
+    -- \im lift |propMap| over |(==>)|
+satE' $ red x k /# sub ==> satE' $ propLit $ Sat (x / sub) k
+    -- \eq inline |satE'| on RHS
+satE' $ red x k /# sub ==> satE $ Sat (x / sub) k
+    -- \eq inline |satE| on RHS
+satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
+    -- \im \lemma{red}
+True
+\end{code}
+
+
+\proof{red}
+
+\h{expr}\begin{code}
+satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
+\end{code}
+
+We prove by case analysis on the expression |x|.
+
+\proof[|Var|]{red}
+
+\h{exprlist}\begin{code}
+satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
+    -- \eq |x == Var v|
+satE' $ red (Var v) k /# sub ==> sat $ Sat (eval $ Var v / sub) k
+    -- \eq inline |red|
+satE' $ propLit (Sat v k) /# sub ==> sat $ Sat (eval $ Var v / sub) k
+    -- \eq inline |(/)| on LHS
+satE' $ propLit (Sat (v /# sub) k) ==> sat $ Sat (eval $ Var v / sub) k
+    -- \eq promote |v| on LHS to |Var v| because |(/)| operates identically on both
+satE' $ propLit (Sat (Var v / sub) k) ==> sat $ Sat (eval $ Var v / sub) k
+    -- \eq inline |satE'|
+satE (Sat (Var v / sub) k) ==> sat $ Sat (eval $ Var v / sub) k
+    -- \eq inline |satE|
+sat $ Sat (eval $ Var v / sub) k ==> sat $ Sat (eval $ Var v / sub) k
+    -- \eq tautology
+True
+\end{code}
+
+\proof[|Sel|]{red}
+
+In this proof, we assume |eval (x / sub) == Value c xs|, due to being in the alternative of a |Case| expression.
+
+\h{exprlist}\begin{code}
+satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
+    -- \eq |x == Sel x (c,i)|
+satE' $ red (Sel x (c,i)) k /# sub ==> sat $ Sat (eval $ Sel x (c,i) / sub) k
+    -- \eq inline |red|
+satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (eval $ Sel x (c,i) / sub) k
+    -- \eq inline |(/)| on RHS
+satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (eval $ Sel (x / sub) (c,i)) k
+    -- \eq inline |eval| on RHS
+satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (xs !! i) k
+    -- \im \lemma{sat/| ||> |}
+satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (Value c xs) ((c,i) |> k)
+    -- \eq replace using the assumption
+satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (eval (x / sub)) ((c,i) |> k)
+    -- \im \lemma{red}
+True
+\end{code}
+
+\proof[|Make|]{red}
+
+\h{exprlist}\begin{code}
+satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
+    -- \eq |x == Make c xs|
+satE' $ red (Make c xs) k /# sub ==> sat $ Sat (eval $ Make c xs / sub) k
+    -- \eq inline |red|
+satE' $ reduce ((c <| k) /# ([0..], xs)) /# sub ==> sat $ Sat (eval $ Make c xs / sub) k
+    -- \im \lemma{reduce}
+satE' $ ((c <| k) /# ([0..], xs)) / sub ==> sat $ Sat (eval $ Make c xs / sub) k
+    -- \eq inline |(/)| on LHS
+satE' $ (c <| k) /# ([0..], map (/ sub) xs) ==> sat $ Sat (eval $ Make c xs / sub) k
+    -- \eq inline |satE'| on LHS
+sat' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==>
+    sat $ Sat (eval $ Make c xs / sub) k
+    -- \eq inline |(/)| on RHS
+sat' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==>
+    sat $ Sat (eval $ Make c (map (/ sub) xs)) k
+    -- \eq inline |eval| on RHS
+sat' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==>
+    sat $ Sat (Value c (map (eval . (/ sub)) xs)) k
+    -- \eq fold back |sat|
+sat $ Sat (Value c (map (eval . (/ sub)) xs)) k ==>
+    sat $ Sat (Value c (map (eval . (/ sub)) xs)) k
+    -- \eq tautology
+True
+\end{code}
+
+\proof[|Call|]{red}
+
+\h{exprlist}\begin{code}
+satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
+    -- \eq |x == Call f xs|
+satE' $ red (Call f xs) k /# sub ==> sat $ Sat (eval $ Call f xs / sub) k
+    -- \eq inline |red|
+satE' $ reduce (prePost f k /# (args f, xs)) /# sub ==> rhs
+    -- \im \lemma{reduce}
+satE' $ (prePost f k /# (args f, xs)) / sub ==> rhs
+    -- \eq inline |(/)| on LHS
+satE' $ prePost f k /# (args f, map (/sub) xs) ==> rhs
+    -- \im \lemma{prePost}
+satE' $ reduce (propLit $ Sat (body f) k) /# (args f, map (/sub) xs) ==> rhs
+    -- \im \lemma{reduce}
+satE' $ (propLit $ Sat (body f) k) / (args f, map (/sub) xs) ==> rhs
+    -- \eq inline |(/)| on LHS
+satE' $ (propLit $ Sat (body f / (args f, map (/sub) xs)) k) ==> rhs
+    -- \eq inline |satE'|
+satE $ Sat (body f / (args f, map (/sub) xs)) k ==> rhs
+    -- \eq inline |satE|
+sat $ Sat (eval $ body f / (args f, map (/sub) xs)) k ==>
+    sat $ Sat (eval $ Call f xs / sub) k
+    -- \eq inline |(/)| on RHS
+sat $ Sat (eval $ body f / (args f, map (/sub) xs)) k ==>
+    sat $ Sat (eval $ Call f (map (/ sub) xs)) k
+\end{code}
+
+We now assume that either |f| is equal to error, or not.
+
+\h{exprlist}\begin{code}
+sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
+    sat $ Sat (eval $ Call f (map (/ sub) xs)) k
+    -- \eq assume |f == "error"|
+sat $ Sat (eval $ body "error" / (args f, map (/ sub) xs)) k ==>
+    sat $ Sat (eval $ Call "error" (map (/ sub) xs)) k
+    -- \eq inline |eval| on RHS
+sat $ Sat (eval $ body "error" / (args f, map (/ sub) xs)) k ==>
+    sat $ Sat Bottom k
+    -- \eq inline |sat|
+sat $ Sat (eval $ Call "error" [Var "x"] / (["x"], map (/sub) xs)) k ==> False
+    -- \eq implies
+True
+\end{code}
+
+\h{exprlist}\begin{code}
+sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
+    sat $ Sat (eval $ Call f (map (/ sub) xs)) k
+    -- \eq inline |eval| on RHS, assuming |f /= "error"|
+sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
+    sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k
+    -- \eq tautology
+True
+\end{code}
+
+\proof[|Case|]{red}
+
+\h{exprlist}\begin{code}
+satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
+    -- \eq |x == Case x as|
+satE' $ red (Case x as) k /# sub ==> sat $ Sat (eval $ Case x as / sub) k
+    -- \eq inline |red|
+satE' $ propAnds (map alt as) /# sub ==> sat $ Sat (eval $ Case x as / sub) k
+    -- \eq inline |(/)| on LHS
+satE' $ propAnds $ map ((/# sub) . alt) as ==> sat $ Sat (eval $ Case x as / sub) k
+    -- \eq inline |satE'|
+all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case x as / sub) k
+    -- \eq inline |(/)| on RHS
+all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
+\end{code}
+
+First assume that |eval (x / sub) == Bottom|, then that |eval (x / sub) == Value c xs|.
+
+\h{exprlist}\begin{code}
+all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
+    -- \eq inline |eval|, assuming |eval (x / sub) == Bottom|
+all (satE' . (/# sub) . alt) as ==> sat $ Sat Bottom k
+    -- \eq inline |sat|
+all (satE' . (/# sub) . alt) as ==> True
+    -- \eq implies
+True
+\end{code}
+
+\h{exprlist}\begin{code}
+all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
+    -- \eq inline |eval|, assuming |eval (x / sub) == Value c xs|
+lhs ==> sat $ Sat (head [eval y | Alt c' vs y <- as / sub, c == c']) k
+    -- \eq expand RHS, removing list comprehension
+all (satE' . (/# sub) . alt) as ==>
+    all (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (as / sub)
+    -- \im lift implication over |all|
+satE' $ alt a /# sub ==>
+    (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (a / sub)
+    -- \eq instantiate |a == Alt c' vs y|
+satE' $ alt a /# sub ==>
+    (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (Alt c' vs y / sub)
+    -- \eq inline |(/)| on RHS
+satE' $ alt a /# sub ==>
+    (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (Alt c' vs $ y / sub)
+    -- \eq inline lambda on RHS
+satE' $ alt (Alt c' vs y) /# sub ==>
+    (c == c' ==> sat $ Sat (eval $ y / sub) k)
+    -- \eq use knowledge from RHS in LHS
+satE' $ alt (Alt c vs y) /# sub ==> sat $ Sat (eval $ y / sub) k
+    -- \eq inline |alt| on LHS
+satE' $ (reduce (x -< (ctors c \\ [c])) `propOr` red y k) /# sub ==> rhs
+    -- \eq inline |(/)| on LHS
+satE' $ (reduce (x -< (ctors c \\ [c])) /# sub) `propOr` (red y k /# sub) ==> rhs
+    -- \eq inline |satE'| on LHS
+satE' (reduce (x -< (ctors c \\ [c])) /# sub) || satE' (red y k /# sub) ==> rhs
+    -- \im \lemma{reduce}
+satE' ((x -< (ctors c \\ [c])) / sub) || satE' (red y k /# sub) ==> rhs
+    -- \eq inline |(/)| on LHS
+satE' ((x / sub) -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> rhs
+    -- \eq \lemma{satE/|-<|}
+sat' (eval (x / sub) -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> rhs
+    -- \eq substitute |eval (x / sub) == Value c xs|
+sat' (Value c xs -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> rhs
+    -- \im \lemma{sat/|-<|}
+c `elem` (ctors c \\ [c]) || satE' (red y k /# sub) ==> rhs
+    -- \eq \lemma{elem}
+False || satE' (red y k /# sub) ==> rhs
+    -- \eq inline |(||||)|
+satE' $ red y k /# sub ==> sat $ Sat (eval $ y / sub) k
+    -- \im \lemma{red}
+True
+\end{code}
+
+
+
+
+
+\section{Correctness Proof}
+
+The goal of this chapter is to prove correctness, which can be defined as a proof of the following theorem:
+
+\theorem{pre/eval}
+{|satE' $ pre x ==> not $ isBottom $ eval x|}
+
+This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}. This theorem is proved in \S\ref{secP:proof}. To prove safety for a whole program, we can consider the expression |x| to be |Call "main" []|, which is safe if |precond "main" == propTrue|.
+
+\proof{pre/eval}
+
+\h{expr}\begin{code}
+satE' $ pre x ==> not $ isBottom $ eval x
+\end{code}
+
+By induction. We do not need to consider |Var| as |eval| cannot be called on expressions with free variables.
+
+\proof[|Sel|]{pre/eval}
+
+The |Sel| equation of |eval| is:
+
+\begin{code}
+eval (Sel x (c,i)) | c == c' = xs !! i
+    where Value c' xs = eval x
+\end{code}
+
+We know that any \ignore|Sel x _| value must be contained within an alternative of a \ignore|Case x _| expression. If we assume that the original |Case| expression satisfied its, we obtain:
+
+\h{exprlist}\begin{code}
+satE' $ pre $ Case x as ==> satE' $ pre x
+    -- \eq inline |pre|
+satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre x
+    -- \eq inline |satE'|
+satE' (pre x) && satE' (propAnds $ map alt as) ==> satE' $ pre x
+    -- \im weaken implication
+satE' $ pre x ==> satE' $ pre x
+    -- \eq tautology
+True
+\end{code}
+
+\proof[|Make|]{pre/eval}
+
+The initial equation is:
+
+\begin{code}
+eval (Make c xs) = Value c (map eval xs)
+\end{code}
+
+This does not produce |Bottom| if all recursive calls to |eval| are on values which satisfy |pre|. We can write this as:
+
+\h{exprlist}\begin{code}
+satE' $ pre $ Make c xs  ==> all (satE' . pre) xs
+    -- \eq inline |pre|
+satE' $ propAnds $ map pre xs ==> all (satE' . pre) xs
+    -- \eq inline |satE'|
+and $ map satE' $ map pre xs  ==> all (satE' . pre) xs
+    -- \eq |map f . map g == map (f . g)|
+and $ map (satE' . pre) xs ==> all (satE' . pre) xs
+    -- \eq |and . map f == all f|
+all (satE' . pre) xs ==> all (satE' . pre) xs
+    -- \eq tautology
+True
+\end{code}
+
+\proof[|Call|]{pre/eval}
+
+The initial equation is:
+
+\begin{code}
+eval (Call f xs)  | f == "error" = Bottom
+                  | otherwise = eval $ body f / (args f, xs)
+\end{code}
+
+There are two ways to that |Bottom| may occur in this fragment. The first is the explicit |Bottom|, and the second is the recursive call to |eval|. The explicit |Bottom| is avoided under the condition:
+
+\h{exprlist}\begin{code}
+satE' $ pre $ Call f xs ==> f /= "error"
+    -- \eq inline |pre|
+satE' $ (precond f /# (args f, xs)) `propAnd` propAnds (map pre xs) ==> f /= "error"
+    -- \eq inline |satE'|
+satE' (precond f /# (args f, xs)) && all (satE' . pre) xs ==> f /= "error"
+    -- \im weaken implication
+satE' (precond f /# (args f, xs)) ==> f /= "error"
+\end{code}
+
+We can now perform case analysis on |f|, assuming it either is, or is not, equal to |"error"|.
+
+\h{exprlist}\begin{code}
+satE' (precond f /# (args f, xs)) ==> f /= "error"
+    -- \eq assume |f /= "error"|
+satE' (precond f /# (args f, xs)) ==> True
+    -- \eq implication
+True
+\end{code}
+
+\h{exprlist}\begin{code}
+satE' (precond f /# (args f, xs)) ==> f /= "error"
+    -- \eq assume |f == "error"|
+satE' (precond f /# (args f, xs)) ==> False
+    -- \eq implication
+not $ satE' (precond "error" /# (args f, xs))
+    -- \eq \lemma{precond/error}
+not $ satE' $ (propFalse /# (args f, xs))
+    -- \eq inline |(/)|
+not $ satE' propFalse
+    -- \eq inline |satE'|
+not $ False
+    -- \eq inline |not|
+True
+\end{code}
+
+This leaves us with the call to |eval|, namely:
+
+\h{exprlist}\begin{code}
+satE' $ pre $ Call f xs ==> satE' $ pre $ body f / (args f, xs)
+    -- \eq inline pre on LHS
+satE' $ (precond f /# (args f, xs)) `propAnd` propAnds (map pre xs) ==> rhs
+    -- \eq inline |satE'|
+satE' (precond f /# (args f, xs)) && all (satE' . pre) xs ==> rhs
+    -- \im \lemma{precond}
+satE' ((reduce $ pre $ body f) /# (args f, xs)) && all (satE' . pre) xs ==> rhs
+    -- \im \lemma{reduce}
+satE' (pre (body f) / (args f, xs)) && all (satE' . pre) xs ==> rhs
+    -- \im \lemma{pre/subst}
+satE' $ pre $ body f / (args f, xs) ==> satE' $ pre $ body f / (args f, xs)
+    -- \eq tautology
+True
+\end{code}
+
+\proof[|Case|]{pre/eval}
+
+The |Case| equation is:
+
+\begin{code}
+eval (Case x as) = case eval x of
+    Value c xs -> head [eval y | Alt c' vs y <- as, c == c']
+    Bottom -> Bottom
+\end{code}
+
+This equation may generate |Bottom| in two ways -- either the explicit |Bottom| may be taken, or the recursive call to |eval| may result in |Bottom|. In both cases, if we can prove the expression passed to |eval| satisfies its precondition, then we can eliminate the possibility of |Bottom|.
+
+We first prove that the explicit |Bottom| is not reached, assuming the initial expression does not violate the precondition check.
+
+\h{exprlist}\begin{code}
+satE' $ pre $ Case x as ==> satE' $ pre x
+    -- \eq inline |pre|
+satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre x
+    -- \eq inline |satE'|
+satE' (pre x) && satE' (propAnds $ map alt as) ==> satE' $ pre x
+    -- weaken implication
+satE' $ pre x ==> satE' $ pre x
+    -- \eq tautology
+True
+\end{code}
+
+We now need to ensure that the other call to |eval| meets its precondition.
+
+\h{exprlist}\begin{code}
+satE' $ pre $ Case x as ==>
+    all (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) as
+    -- \eq inline |pre|
+satE' $ pre x `propAnd` propAnds (map alt as) ==> rhs
+    -- \eq inline |satE'|
+satE' (pre x) && all (satE' . alt) as ==> rhs
+    -- \im weaken implication
+all (satE' . alt) as ==>
+    all (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) as
+    -- \im lift implies over all
+satE' $ alt a ==> (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) a
+    -- \eq instantiate |a == Alt c v ys|
+satE' $ alt $ Alt c v ys ==> (valCtor (eval x) == Just c ==> satE' $ pre y)
+    -- \eq inline |alt|
+satE' (x -< (ctors c \\ [c]) `propOr` pre y) ==> rhs
+    -- \eq inline |satE'|
+satE' (x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
+    -- \eq \lemma{satE/|-<|}
+sat' (eval x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
+    -- \eq using |valCtor (eval x) == Just c| we infer |eval x == Value c ys|
+sat' (Value c ys -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
+    -- \im \lemma{sat/|-<|}
+c `elem` (ctors c \\ [c]) || satE' (pre y) ==> satE' $ pre y
+    -- \eq \lemma{elem}
+False || satE' (pre y) ==> satE' $ pre y
+    -- \eq inline |(||||)|
+satE' $ pre y ==> satE' $ pre y
+    -- \eq tautology
+True
+\end{code}
+
+\section{Summary}
+
+To write
 
