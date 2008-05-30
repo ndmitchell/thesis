@@ -3,6 +3,11 @@
 
 %format /# = "/"
 
+%subst comment a = "\hspace{-5mm}\mbox{\textit{" a "\}}}"
+\newcommand{\eq}{$\equiv$ \{}
+\newcommand{\im}{$\Leftarrow$ \{}
+
+
 \hsdef{\begin{comment}
 k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws,c',ms_1,ms_2
 vs,xs,y,as,ys,cs,rhs,lhs,g,f_lhd,f_rhd,ks
@@ -95,6 +100,7 @@ rec :: [Int]
 \end{comment}
 
 
+
 \chapter{Proof of Pattern-Match Analysis}
 \label{chp:proof}
 
@@ -102,7 +108,7 @@ rec :: [Int]
 \newcommand{\theorem}[2]{\lemma{#1} \vspace{-1mm} \\ \nopagebreak #2 }
 \newcommand{\proof}[2][]{\textbf{Proof of \lemma{#2} \textsf{#1}} \\  \nopagebreak}
 
-This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
+This chapter shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
 
 \section{Notation}
 
@@ -187,7 +193,7 @@ In this section we define several theorems, which we prove in the following sect
 
 \subsection{Correctness}
 
-The goal of this appendix is to prove correctness, which can be defined as a proof of the following theorem:
+The goal of this chapter is to prove correctness, which can be defined as a proof of the following theorem:
 
 \theorem{pre/eval}
 {|satE' $ pre x ==> not $ isBottom $ eval x|}
@@ -257,13 +263,13 @@ We know that any \ignore|Sel x _| value must be contained within an alternative 
 
 \h{exprlist}\begin{code}
 satE' $ pre $ Case x as ==> satE' $ pre x
-    -- inline |pre|
+    -- \eq inline |pre|
 satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre x
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE' (pre x) && satE' (propAnds $ map alt as) ==> satE' $ pre x
-    -- weaken implication
+    -- \im weaken implication
 satE' $ pre x ==> satE' $ pre x
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -279,9 +285,9 @@ This does not produce |Bottom| if all recursive calls to |eval| are on values wh
 
 \h{exprlist}\begin{code}
 satE' $ pre $ Make c xs  ==> all (satE' . pre) xs
-    -- inline |pre|
+    -- \eq inline |pre|
 satE' $ propAnds $ map pre xs ==> all (satE' . pre) xs
-    -- inline |satE'|
+    -- \eq inline |satE'|
 and $ map satE' $ map pre xs  ==> all (satE' . pre) xs
     -- |map f . map g == map (f . g)|
 and $ map (satE' . pre) xs ==> all (satE' . pre) xs
