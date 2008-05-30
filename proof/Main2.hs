@@ -125,7 +125,7 @@ instance Refine Val where
 instance Refine Pattern where
     cons = cons0 (Pattern Ctor []) \/
            cons1 (\a -> Pattern CtorN [a]) \/
-           cons0 (Pattern CtorNR []) \/
+           cons0 (Pattern CtorR []) \/
            cons1 (\a -> Pattern CtorNR [a])
     decons (Pattern CtorN [a]) = decons1 (\a -> Pattern CtorN [a]) a
     decons (Pattern CtorNR [a]) = decons1 (\a -> Pattern CtorNR [a]) a
@@ -134,8 +134,7 @@ instance Refine Pattern where
 -- Property
 
 prop :: (Value, [Pattern], [Pattern]) -> Bool
-prop (v,ms1,ms2) = validValue v && validPatterns ms1 && validPatterns ms2 &&
-                   sat (Sat v [ms :* ms]) ==> sat (Sat v [ms1 :* ms2])
+prop (v,ms1,ms2) = sat (Sat v [ms :* ms]) ==> sat (Sat v [ms1 :* ms2])
     where
         ms = merge ms1 ms2
 
