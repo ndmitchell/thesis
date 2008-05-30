@@ -103,16 +103,19 @@ rec :: [Int]
 
 
 
-\chapter{Proof of Pattern-Match Analysis}
+\chapter{Soundness of Pattern-Match Analysis}
 \label{chp:proof}
 
 \newcommand{\lemma}[1]{(\textit{#1})}
 \newcommand{\theorem}[2]{\lemma{#1} \vspace{-1mm} \\ \nopagebreak #2 }
 \newcommand{\proof}[2][]{\textbf{Proof of \lemma{#2} \textsf{#1}} \\  \nopagebreak}
 
-This chapter shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
+This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. We define an evaluator for expressions in \S\ref{secP:evaluator}.
 
-\section{Notation}
+
+The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
+
+\section{Proof-Style Notation}
 
 The proof is based on equational reasoning, making use of induction, application of theorems, case analysis and inlining of function definitions. The proof has not been automatically checked. While performing the reasoning steps, we ignore issues such as strictness. All the properties are boolean valued expressions, typically implications.
 
