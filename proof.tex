@@ -293,7 +293,7 @@ and $ map satE' $ map pre xs  ==> all (satE' . pre) xs
 and $ map (satE' . pre) xs ==> all (satE' . pre) xs
     -- |and . map f == all f|
 all (satE' . pre) xs ==> all (satE' . pre) xs
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -310,9 +310,9 @@ There are two ways to that |Bottom| may occur in this fragment. The first is the
 
 \h{exprlist}\begin{code}
 satE' $ pre $ Call f xs ==> f /= "error"
-    -- inline |pre|
+    -- \eq inline |pre|
 satE' $ (precond f /# (args f, xs)) `propAnd` propAnds (map pre xs) ==> f /= "error"
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE' (precond f /# (args f, xs)) && all (satE' . pre) xs ==> f /= "error"
     -- weaken implication
 satE' (precond f /# (args f, xs)) ==> f /= "error"
@@ -334,13 +334,13 @@ satE' (precond f /# (args f, xs)) ==> f /= "error"
 satE' (precond f /# (args f, xs)) ==> False
     -- implication
 not $ satE' (precond "error" /# (args f, xs))
-    -- \lemma{precond/error}
+    -- \eq \lemma{precond/error}
 not $ satE' $ (propFalse /# (args f, xs))
-    -- inline |(/)|
+    -- \eq inline |(/)|
 not $ satE' propFalse
-    -- inline |satE'|
+    -- \eq inline |satE'|
 not $ False
-    -- inline |not|
+    -- \eq inline |not|
 True
 \end{code}
 
@@ -348,17 +348,17 @@ This leaves us with the call to |eval|, namely:
 
 \h{exprlist}\begin{code}
 satE' $ pre $ Call f xs ==> satE' $ pre $ body f / (args f, xs)
-    -- inline pre on LHS
+    -- \eq inline pre on LHS
 satE' $ (precond f /# (args f, xs)) `propAnd` propAnds (map pre xs) ==> rhs
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE' (precond f /# (args f, xs)) && all (satE' . pre) xs ==> rhs
-    -- \lemma{precond}
+    -- \im \lemma{precond}
 satE' ((reduce $ pre $ body f) /# (args f, xs)) && all (satE' . pre) xs ==> rhs
-    -- \lemma{reduce}
+    -- \im \lemma{reduce}
 satE' (pre (body f) / (args f, xs)) && all (satE' . pre) xs ==> rhs
-    -- \lemma{pre/subst}
+    -- \im \lemma{pre/subst}
 satE' $ pre $ body f / (args f, xs) ==> satE' $ pre $ body f / (args f, xs)
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -378,13 +378,13 @@ We first prove that the explicit |Bottom| is not reached, assuming the initial e
 
 \h{exprlist}\begin{code}
 satE' $ pre $ Case x as ==> satE' $ pre x
-    -- inline |pre|
+    -- \eq inline |pre|
 satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre x
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE' (pre x) && satE' (propAnds $ map alt as) ==> satE' $ pre x
     -- weaken implication
 satE' $ pre x ==> satE' $ pre x
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -393,9 +393,9 @@ We now need to ensure that the other call to |eval| meets its precondition.
 \h{exprlist}\begin{code}
 satE' $ pre $ Case x as ==>
     all (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) as
-    -- inline |pre|
+    -- \eq inline |pre|
 satE' $ pre x `propAnd` propAnds (map alt as) ==> rhs
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE' (pre x) && all (satE' . alt) as ==> rhs
     -- weaken implication
 all (satE' . alt) as ==>
@@ -404,22 +404,22 @@ all (satE' . alt) as ==>
 satE' $ alt a ==> (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) a
     -- instantiate |a == Alt c v ys|
 satE' $ alt $ Alt c v ys ==> (valCtor (eval x) == Just c ==> satE' $ pre y)
-    -- inline |alt|
+    -- \eq inline |alt|
 satE' (x -< (ctors c \\ [c]) `propOr` pre y) ==> rhs
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE' (x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
-    -- \lemma{satE/|-<|}
+    -- \eq \lemma{satE/|-<|}
 sat' (eval x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
     -- using |valCtor (eval x) == Just c|
     -- we infer |eval x == Value c ys|
 sat' (Value c ys -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
-    -- \lemma{sat/|-<|}
+    -- \im \lemma{sat/|-<|}
 c `elem` (ctors c \\ [c]) || satE' (pre y) ==> satE' $ pre y
-    -- \lemma{elem}
+    -- \eq \lemma{elem}
 False || satE' (pre y) ==> satE' $ pre y
-    -- inline |(||||)|
+    -- \eq inline |(||||)|
 satE' $ pre y ==> satE' $ pre y
-    -- equals
+    -- \eq tautology
 True
 \end{code}
 
@@ -453,9 +453,9 @@ The definition of |precond f| is a conjunction where the second conjunct is |red
 
 \h{exprlist}\begin{code}
 sat' (eval x -< cs) == satE' (x -< cs)
-    -- inline |sat'| and |satE'|
+    -- \eq inline |sat'| and |satE'|
 propTaut sat (eval x -< cs) == propTaut satE (x -< cs)
-    -- inline |propTaut| and reduce common bits
+    -- \eq inline |propTaut| and reduce common bits
 propMap (propBool . sat) (eval x -< cs) == propMap (propBool . satE) (x -< cs)
 \end{code}
 
@@ -482,11 +482,11 @@ This proof is by case analysis on |x|. We assume that all free variables in |x| 
 satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
     -- |x == Var v|
 satE' $ pre (Var v) / (vs, ys) ==> satE' $ pre $ Var v / (vs, ys)
-    -- inline |pre| on LHS
+    -- \eq inline |pre| on LHS
 satE' $ propTrue / (vs, ys) ==> satE' $ pre $ Var v / (vs, ys)
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' propTrue ==> satE' $ pre $ Var v / (vs, ys)
-    -- inline |satE'|
+    -- \eq inline |satE'|
 True ==> satE' $ pre $ Var v / (vs, ys)
     -- reintroduce hidden term
 all (satE' . pre) ys ==> satE' $ pre $ Var v / (vs, ys)
@@ -500,11 +500,11 @@ We know that |v| will be a member of |vs|, and that the result will be |pre y|, 
 satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
     -- |x == Sel x s|
 satE' $ pre (Sel x s) / (vs, ys) ==> satE' $ pre $ Sel x s / (vs, ys)
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 satE' $ pre (Sel x s) / (vs, ys) ==> satE' $ pre $ Sel (x / (vs,ys)) s
-    -- inline |pre| on RHS
+    -- \eq inline |pre| on RHS
 satE' $ pre (Sel x s) / (vs, ys) ==> satE' $ propTrue
-    -- inline |satE'| on RHS
+    -- \eq inline |satE'| on RHS
 satE' $ pre (Sel x s) / (vs, ys) ==> True
     -- implication
 True
@@ -516,18 +516,18 @@ True
 satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
     -- |x == Make c xs|
 satE' $ pre (Make c xs) / (vs, ys) ==> satE' $ pre $ Make c xs / (vs, ys)
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 satE' $ pre (Make c xs) / (vs, ys) ==>
     satE' $ pre $ Make c $ map (/ (vs, ys)) xs
-    -- inline |pre| on both sides
+    -- \eq inline |pre| on both sides
 satE' $ propAnds (map pre xs) / (vs, ys) ==>
     satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' $ propAnds $ map ((/ (vs,ys)) . pre) xs ==>
     satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
-    -- inline |satE'| on both sides
+    -- \eq inline |satE'| on both sides
 all (satE' . (/ (vs,ys)) . pre) xs ==> all (satE' . pre . (/ (vs, ys))) xs
-    -- \lemma{pre}
+    -- \im \lemma{pre}
 True
 \end{code}
 
@@ -537,7 +537,7 @@ True
 satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
     -- |x == Call f xs|
 satE' $ pre (Call f xs) / (vs, ys) ==> satE' $ pre $ Call f xs / (vs, ys)
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 satE' $ pre (Call f xs) / (vs, ys) ==> satE' $ pre $ Call f $ map (/ (vs, ys)) xs
 \end{code}
 
@@ -545,11 +545,11 @@ Now we will work on each side individually, starting with LHS:
 
 \h{exprlist}\begin{code}
 satE' $ pre (Call f xs) / (vs, ys)
-    -- inline |pre|
+    -- \eq inline |pre|
 satE' $ (pre' f xs `propAnd` propAnds (map pre xs)) / (vs,ys)
-    -- inline |(/)|
+    -- \eq inline |(/)|
 satE' $ (pre' f xs / (vs,ys)) `propAnd` propAnds (map (pre . (/ (vs,ys))) xs)
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE' (pre' f xs / (vs,ys)) && all (satE' . pre . (/ (vs,ys))) xs
 \end{code}
 
@@ -557,9 +557,9 @@ And the RHS:
 
 \h{exprlist}\begin{code}
 satE' $ pre $ Call f $ map (/ (vs, ys)) xs
-    -- inline |pre|
+    -- \eq inline |pre|
 satE' $ (pre' f (map (/ (vs, ys)) xs)) `propAnd` propAnds (map (pre . (/ (vs, ys))) xs)
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE' (pre' f (map (/ (vs, ys)) xs)) && all (satE' . pre . (/ (vs, ys))) xs
 \end{code}
 
@@ -567,14 +567,14 @@ We can now combine these sides, eliminating the common term:
 
 \h{exprlist}\begin{code}
 satE' $ pre' f xs / (vs,ys) ==> satE' $ pre' f (map (/ (vs, ys)) xs)
-    -- inline |pre'|
+    -- \eq inline |pre'|
 satE' $ (precond f /# (args f, xs)) / (vs,ys) ==>
     satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
     -- using the knowledge that |precond f| only has free variables in |args f|
     -- we can inline |(/)| on the LHS
 satE' $ precond f /# (args f, map (/ (vs,ys)) xs) ==>
     satE' $ precond f /# (args f, map (/ (vs, ys)) xs)
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -584,41 +584,41 @@ True
 satE' $ pre x / (vs, ys) ==> satE' $ pre $ x / (vs, ys)
     -- |x == Case x as|
 satE' $ pre (Case x as) / (vs, ys) ==> satE' $ pre $ Case x as / (vs, ys)
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 satE' $ pre (Case x as) / (vs, ys) ==>
     satE' $ pre $ Case (x / (vs, ys)) (map (/ (vs, ys)) as)
-    -- inline |pre| on both sides
+    -- \eq inline |pre| on both sides
 satE' $ (pre x `propAnd` propAnds (map alt as)) / (vs, ys) ==>
     satE' $ pre (x / (vs, ys)) `propAnd` propAnds (map (alt . (/ (vs, ys))) as)
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' $ (pre x / (vs, ys)) `propAnd` propAnds (map ((/ (vs, ys)) . alt) as)  ==>
     satE' $ pre (x / (vs, ys)) `propAnd` propAnds (map (alt . (/ (vs, ys))) as)
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE' (pre x / (vs, ys)) && all (satE' . (/ (vs, ys)) . alt) as ==>
     satE' (pre (x / (vs, ys))) && all (satE' . alt . (/ (vs, ys))) as
-    -- \lemma{pre}
+    -- \im \lemma{pre}
 all (satE' . (/ (vs, ys)) . alt) as  ==> all (satE' . alt . (/ (vs, ys))) as
     -- implication over |all|
 satE' $ alt a / (vs, ys) ==> satE' $ alt $ as / (vs, ys)
     -- instantiate |a| as a general |Alt|
 satE' $ alt (Alt c ws y) / (vs, ys) ==> satE' $ alt $ Alt c ws y / (vs, ys)
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 satE' $ alt (Alt c ws y) / (vs, ys) ==> satE' $ alt $ Alt c ws (y / (vs, ys))
-    -- inline |alt|
+    -- \eq inline |alt|
 satE' $ (x -< (ctors c \\ [c]) `propOr` pre y) / (vs, ys) ==>
     satE' $ (x / (vs,ys) -< (ctors c \\ [c])) `propOr` pre (y / (vs, ys))
     -- let |cs == ctors c \\ [c]|
 satE' $ (x -< cs `propOr` pre y) / (vs, ys) ==>
     satE' $ (x / (vs,ys) -< cs) `propOr` pre (y / (vs, ys))
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' $ (x / (vs,ys) -< cs) `propOr` (pre y / (vs, ys)) ==>
     satE' $ (x / (vs,ys) -< cs) `propOr` pre (y / (vs, ys))
-    -- inline |satE'| on both sides
+    -- \eq inline |satE'| on both sides
 satE' (x / (vs,ys) -< cs) || satE' (pre y / (vs, ys)) ==>
     satE' (x / (vs,ys) -< cs) || satE' (pre (y / (vs, ys)))
     -- remove duplicate bits on each side
 satE' $ pre y / (vs, ys) ==> satE' $ pre $ y / (vs, ys)
-    -- \lemma{pre}
+    -- \im \lemma{pre}
 True
 \end{code}
 
@@ -627,26 +627,26 @@ True
 
 \h{exprlist}\begin{code}
 satE' $ reduce x /# sub ==> satE' $ x / sub
-    -- inline |reduce|
+    -- \eq inline |reduce|
 satE' $ propMap (\(Sat x k) -> red x k) x /# sub ==> satE' $ x / sub
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==> satE' $ x / sub
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==>
     satE' $ propMap (\(Sat x k) -> propLit $ Sat x k / sub) x
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 satE' $ propMap (\(Sat x k) -> red x k /# sub) x ==>
     satE' $ propMap (\(Sat x k) -> propLit $ Sat (x / sub) k) x
-    -- inline |satE'|
+    -- \eq inline |satE'|
 propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ red x k /# sub) x ==>
     propIsTrue $ propMap (\(Sat x k) -> propBool $ satE' $ propLit $ Sat (x / sub) k) x
     -- lift |propMap| over |(==>)|
 satE' $ red x k /# sub ==> satE' $ propLit $ Sat (x / sub) k
-    -- inline |satE'| on RHS
+    -- \eq inline |satE'| on RHS
 satE' $ red x k /# sub ==> satE $ Sat (x / sub) k
-    -- inline |satE| on RHS
+    -- \eq inline |satE| on RHS
 satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
-    -- \lemma{red}
+    -- \im \lemma{red}
 True
 \end{code}
 
@@ -665,18 +665,18 @@ We prove by case analysis on the expression |x|.
 satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
     -- |x == Var v|
 satE' $ red (Var v) k /# sub ==> sat $ Sat (eval $ Var v / sub) k
-    -- inline |red|
+    -- \eq inline |red|
 satE' $ propLit (Sat v k) /# sub ==> sat $ Sat (eval $ Var v / sub) k
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' $ propLit (Sat (v /# sub) k) ==> sat $ Sat (eval $ Var v / sub) k
     -- promote |v| on LHS to |Var v|
     -- because |(/)| operates identically on both
 satE' $ propLit (Sat (Var v / sub) k) ==> sat $ Sat (eval $ Var v / sub) k
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE (Sat (Var v / sub) k) ==> sat $ Sat (eval $ Var v / sub) k
-    -- inline |satE|
+    -- \eq inline |satE|
 sat $ Sat (eval $ Var v / sub) k ==> sat $ Sat (eval $ Var v / sub) k
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -688,17 +688,17 @@ In this proof, we assume |eval (x / sub) == Value c xs|, due to being in the alt
 satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
     -- |x == Sel x (c,i)|
 satE' $ red (Sel x (c,i)) k /# sub ==> sat $ Sat (eval $ Sel x (c,i) / sub) k
-    -- inline |red|
+    -- \eq inline |red|
 satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (eval $ Sel x (c,i) / sub) k
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (eval $ Sel (x / sub) (c,i)) k
-    -- inline |eval| on RHS
+    -- \eq inline |eval| on RHS
 satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (xs !! i) k
-    -- \lemma{sat/| ||> |}
+    -- \im \lemma{sat/| ||> |}
 satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (Value c xs) ((c,i) |> k)
     -- replace using the assumption
 satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (eval (x / sub)) ((c,i) |> k)
-    -- \lemma{red}
+    -- \im \lemma{red}
 True
 \end{code}
 
@@ -708,25 +708,25 @@ True
 satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
     -- |x == Make c xs|
 satE' $ red (Make c xs) k /# sub ==> sat $ Sat (eval $ Make c xs / sub) k
-    -- inline |red|
+    -- \eq inline |red|
 satE' $ reduce ((c <| k) /# ([0..], xs)) /# sub ==> sat $ Sat (eval $ Make c xs / sub) k
-    -- \lemma{reduce}
+    -- \im \lemma{reduce}
 satE' $ ((c <| k) /# ([0..], xs)) / sub ==> sat $ Sat (eval $ Make c xs / sub) k
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' $ (c <| k) /# ([0..], map (/ sub) xs) ==> sat $ Sat (eval $ Make c xs / sub) k
-    -- inline |satE'| on LHS
+    -- \eq inline |satE'| on LHS
 sat' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==>
     sat $ Sat (eval $ Make c xs / sub) k
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 sat' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==>
     sat $ Sat (eval $ Make c (map (/ sub) xs)) k
-    -- inline |eval| on RHS
+    -- \eq inline |eval| on RHS
 sat' $ (c <| k) /# ([0..], map (eval . (/ sub)) xs) ==>
     sat $ Sat (Value c (map (eval . (/ sub)) xs)) k
     -- fold back |sat|
 sat $ Sat (Value c (map (eval . (/ sub)) xs)) k ==>
     sat $ Sat (Value c (map (eval . (/ sub)) xs)) k
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -736,24 +736,24 @@ True
 satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
     -- |x == Call f xs|
 satE' $ red (Call f xs) k /# sub ==> sat $ Sat (eval $ Call f xs / sub) k
-    -- inline |red|
+    -- \eq inline |red|
 satE' $ reduce (prePost f k /# (args f, xs)) /# sub ==> rhs
-    -- \lemma{reduce}
+    -- \im \lemma{reduce}
 satE' $ (prePost f k /# (args f, xs)) / sub ==> rhs
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' $ prePost f k /# (args f, map (/sub) xs) ==> rhs
-    -- \lemma{prePost}
+    -- \im \lemma{prePost}
 satE' $ reduce (propLit $ Sat (body f) k) /# (args f, map (/sub) xs) ==> rhs
-    -- \lemma{reduce}
+    -- \im \lemma{reduce}
 satE' $ (propLit $ Sat (body f) k) / (args f, map (/sub) xs) ==> rhs
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' $ (propLit $ Sat (body f / (args f, map (/sub) xs)) k) ==> rhs
-    -- inline |satE'|
+    -- \eq inline |satE'|
 satE $ Sat (body f / (args f, map (/sub) xs)) k ==> rhs
-    -- inline |satE|
+    -- \eq inline |satE|
 sat $ Sat (eval $ body f / (args f, map (/sub) xs)) k ==>
     sat $ Sat (eval $ Call f xs / sub) k
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 sat $ Sat (eval $ body f / (args f, map (/sub) xs)) k ==>
     sat $ Sat (eval $ Call f (map (/ sub) xs)) k
 \end{code}
@@ -766,10 +766,10 @@ sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
     -- assume |f == "error"|
 sat $ Sat (eval $ body "error" / (args f, map (/ sub) xs)) k ==>
     sat $ Sat (eval $ Call "error" (map (/ sub) xs)) k
-    -- inline |eval| on RHS
+    -- \eq inline |eval| on RHS
 sat $ Sat (eval $ body "error" / (args f, map (/ sub) xs)) k ==>
     sat $ Sat Bottom k
-    -- inline |sat|
+    -- \eq inline |sat|
 sat $ Sat (eval $ Call "error" [Var "x"] / (["x"], map (/sub) xs)) k ==> False
     -- implies
 True
@@ -778,10 +778,10 @@ True
 \h{exprlist}\begin{code}
 sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
     sat $ Sat (eval $ Call f (map (/ sub) xs)) k
-    -- inline |eval| on RHS, assuming |f /= "error"|
+    -- \eq inline |eval| on RHS, assuming |f /= "error"|
 sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k ==>
     sat $ Sat (eval $ body f / (args f, map (/ sub) xs)) k
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -791,13 +791,13 @@ True
 satE' $ red x k /# sub ==> sat $ Sat (eval $ x / sub) k
     -- |x == Case x as|
 satE' $ red (Case x as) k /# sub ==> sat $ Sat (eval $ Case x as / sub) k
-    -- inline |red|
+    -- \eq inline |red|
 satE' $ propAnds (map alt as) /# sub ==> sat $ Sat (eval $ Case x as / sub) k
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' $ propAnds $ map ((/# sub) . alt) as ==> sat $ Sat (eval $ Case x as / sub) k
-    -- inline |satE'|
+    -- \eq inline |satE'|
 all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case x as / sub) k
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
 \end{code}
 
@@ -805,9 +805,9 @@ First assume that |eval (x / sub) == Bottom|, then that |eval (x / sub) == Value
 
 \h{exprlist}\begin{code}
 all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
-    -- inline |eval|, assuming |eval (x / sub) == Bottom|
+    -- \eq inline |eval|, assuming |eval (x / sub) == Bottom|
 all (satE' . (/# sub) . alt) as ==> sat $ Sat Bottom k
-    -- inline |sat|
+    -- \eq inline |sat|
 all (satE' . (/# sub) . alt) as ==> True
     -- implies
 True
@@ -815,7 +815,7 @@ True
 
 \h{exprlist}\begin{code}
 all (satE' . (/# sub) . alt) as ==> sat $ Sat (eval $ Case (x / sub) (as / sub)) k
-    -- inline |eval|, assuming |eval (x / sub) == Value c xs|
+    -- \eq inline |eval|, assuming |eval (x / sub) == Value c xs|
 lhs ==> sat $ Sat (head [eval y | Alt c' vs y <- as / sub, c == c']) k
     -- expand RHS, removing list comprehension
 all (satE' . (/# sub) . alt) as ==>
@@ -826,35 +826,35 @@ satE' $ alt a /# sub ==>
     -- instantiate |a == Alt c' vs y|
 satE' $ alt a /# sub ==>
     (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (Alt c' vs y / sub)
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 satE' $ alt a /# sub ==>
     (\(Alt c' vs y) -> c == c' ==> sat $ Sat (eval y) k) (Alt c' vs $ y / sub)
-    -- inline lambda on RHS
+    -- \eq inline lambda on RHS
 satE' $ alt (Alt c' vs y) /# sub ==>
     (c == c' ==> sat $ Sat (eval $ y / sub) k)
     -- use knowledge from RHS in LHS
 satE' $ alt (Alt c vs y) /# sub ==> sat $ Sat (eval $ y / sub) k
-    -- inline |alt| on LHS
+    -- \eq inline |alt| on LHS
 satE' $ (reduce (x -< (ctors c \\ [c])) `propOr` red y k) /# sub ==> rhs
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' $ (reduce (x -< (ctors c \\ [c])) /# sub) `propOr` (red y k /# sub) ==> rhs
-    -- inline |satE'| on LHS
+    -- \eq inline |satE'| on LHS
 satE' (reduce (x -< (ctors c \\ [c])) /# sub) || satE' (red y k /# sub) ==> rhs
-    -- \lemma{reduce}
+    -- \im \lemma{reduce}
 satE' ((x -< (ctors c \\ [c])) / sub) || satE' (red y k /# sub) ==> rhs
-    -- inline |(/)| on LHS
+    -- \eq inline |(/)| on LHS
 satE' ((x / sub) -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> rhs
-    -- \lemma{satE/|-<|}
+    -- \eq \lemma{satE/|-<|}
 sat' (eval (x / sub) -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> rhs
     -- substitute |eval (x / sub) == Value c xs|
 sat' (Value c xs -< (ctors c \\ [c])) || satE' (red y k /# sub) ==> rhs
-    -- \lemma{sat/|-<|}
+    -- \im \lemma{sat/|-<|}
 c `elem` (ctors c \\ [c]) || satE' (red y k /# sub) ==> rhs
-    -- \lemma{elem}
+    -- \eq \lemma{elem}
 False || satE' (red y k /# sub) ==> rhs
-    -- inline |(||||)|
+    -- \eq inline |(||||)|
 satE' $ red y k /# sub ==> sat $ Sat (eval $ y / sub) k
-    -- \lemma{red}
+    -- \im \lemma{red}
 True
 \end{code}
 
@@ -881,24 +881,24 @@ c <| Con c_2 xs  =  propBool (c_2 == c) `propAnd` propAnds (map propLit (zipWith
 
 \h{exprlist}\begin{code}
 sat' (Value c xs -< cs) ==> c `elem` cs
-    -- inline |(-<)|
+    -- \eq inline |(-<)|
 sat' $ propOrs [propLit (Value c xs `Sat` anys c') | c' <- cs] ==> c `elem` cs
-    -- inline |sat'|
+    -- \eq inline |sat'|
 any (\c' -> sat $ Value c xs `Sat` anys c') cs ==> c `elem` cs
-    -- inline |sat|
+    -- \eq inline |sat|
 any (\c' -> sat' $ (c <| anys c') /# ([0..],xs)) cs ==> c `elem` cs
-    -- inline |anys|
+    -- \eq inline |anys|
 any (\c' -> sat' $ (c <| Con c' (replicate (arity c') Any)) /#
     ([0..],xs)) cs ==> c `elem` cs
-    -- inline | <|| |
+    -- \eq inline | <|| |
 any (\c' -> sat' $ (propBool (c' == c) `propAnd`
     propAnds (map propLit (zipWith Sat [0..] (replicate (arity c') Any))))
     /# ([0..],xs)) cs ==> c `elem` cs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 any (\c' -> sat' $ (propBool (c' == c) `propAnd`
     propAnds (map propLit (zipWith Sat [0..] (replicate (arity c') Any)
     /# ([0..],xs))))) cs ==> c `elem` cs
-    -- inline |sat'|
+    -- \eq inline |sat'|
 any (\c' -> (c' == c) && all sat (zipWith Sat [0..] (replicate (arity c') Any)
     /# ([0..],xs))) cs ==> c `elem` cs
     -- weaken implication
@@ -907,7 +907,7 @@ any (\c' -> c' == c) cs ==> c `elem` cs
 any (== c) cs ==> c `elem` cs
     -- definition of |elem|
 c `elem` cs ==> c `elem` cs
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -921,7 +921,7 @@ By case analysis on |k|, first |Any| then |Con c' ys|.
 sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
     -- |k == Any|
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
-    -- inline |sat| on RHS
+    -- \eq inline |sat| on RHS
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
 \end{code}
 
@@ -931,7 +931,7 @@ Now by analysis on |xs !! i|, being either |Value c' ys| or |Bottom|.
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
     -- |xs !! i == Bottom|
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat $ Sat Bottom Any
-    -- inline |sat| on RHS
+    -- \eq inline |sat| on RHS
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> True
     -- implication
 True
@@ -941,13 +941,13 @@ True
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat $ Sat (xs !! i) Any
     -- |xs !! i == Value c' ys|
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat $ Sat (Value c' ys) Any
-    -- inline |sat| on RHS
+    -- \eq inline |sat| on RHS
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat' $ (c' <| Any) /# ([0..],ys)
-    -- inline | <|| |
+    -- \eq inline | <|| |
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat' $ propTrue /# ([0..],ys)
-    -- inline |(/)| on RHS
+    -- \eq inline |(/)| on RHS
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> sat' propTrue
-    -- inline |sat'| on RHS
+    -- \eq inline |sat'| on RHS
 sat $ Sat (Value c xs) ((c,i) |> Any) ==> True
     -- implication
 True
@@ -959,40 +959,40 @@ True
 sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
     -- |k == Con c' ys|
 sat $ Sat (Value c xs) ((c,i) |> Con c' ys) ==> sat $ Sat (xs !! i) (Con c' ys)
-    -- inline |sat| on LHS
+    -- \eq inline |sat| on LHS
 sat' $ (c <| ((c,i) |> Con c' ys)) /# ([0..],xs) ==> rhs
-    -- inline | ||> |
+    -- \eq inline | ||> |
 sat' $ (c <| (Con c [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]]))
     /# ([0..],xs) ==> rhs
-    -- inline | <|| |
+    -- \eq inline | <|| |
 sat' $ (propBool (c == c) `propAnd` propAnds (map propLit (zipWith Sat [0..]
     [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]])))
     /# ([0..],xs) ==> rhs
-    -- inline |c == c|
+    -- \eq inline |c == c|
 sat' $ (propTrue `propAnd` propAnds (map propLit (zipWith Sat [0..]
     [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]])))
     /# ([0..],xs) ==> rhs
-    -- inline |propAnd|
+    -- \eq inline |propAnd|
 sat' $ (propAnds (map propLit (zipWith Sat [0..]
     [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]])))
     /# ([0..],xs) ==> rhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 sat' $ propAnds $ map propLit $ zipWith Sat [0..]
     [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]] /# ([0..],xs) ==> rhs
-    -- inline |sat'|
+    -- \eq inline |sat'|
 all sat $ zipWith Sat [0..]
     [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]] /# ([0..],xs) ==> rhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 all sat $ zipWith Sat xs
     [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]] ==> rhs
     -- weaken LHS
 sat $ zipWith Sat xs
     [if i == j then (Con c' ys) else Any | j <- [0..arity c - 1]] !! i ==> rhs
-    -- inline |(!!)|
+    -- \eq inline |(!!)|
 sat $ Sat (xs !! i) (Con c' ys) ==> rhs
     -- restore RHS
 sat $ Sat (xs !! i) (Con c' ys) ==> sat $ Sat (xs !! i) (Con c' ys)
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -1015,15 +1015,15 @@ sat $ Sat (Value c xs) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
 
 \h{#mp exprlist}\begin{code}
 sat (Sat (Value c xs) ks) == any (\k -> sat $ Sat (Value c xs) [k]) ks
-    -- inline |sat|
+    -- \eq inline |sat|
 sat' ((c <| ks) /# ([0..],xs)) == rhs
-    -- inline | <|| |
+    -- \eq inline | <|| |
 sat' (propOrs (map f ks) /# ([0..],xs)) == rhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 sat' (propOrs (map f ks /# ([0..],xs))) == rhs
-    -- inline |sat'|
+    -- \eq inline |sat'|
 any sat' (map f ks /# ([0..],xs)) == rhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 any sat' (map ((/# ([0..],xs)) . f) ks) == rhs
     -- combine |any| and |map|
 any (sat' . (/# ([0..],xs)) . f) ks == rhs
@@ -1033,15 +1033,15 @@ any (\k -> sat' $ f k /# ([0..],xs)) ks == rhs
 any (\k -> sat' $ f k /# ([0..],xs)) ks == any (\k -> sat $ Sat (Value c xs) [k]) ks
     -- unwrap common parts
 sat' (f k /# ([0..],xs)) == sat (Sat (Value c xs) [k])
-    -- inline |sat|
+    -- \eq inline |sat|
 lhs == sat' ((c <| [k]) /# ([0..],xs))
-    -- inline | <|| |
+    -- \eq inline | <|| |
 lhs == sat' (propOrs (map f [k]) /# ([0..],xs))
-    -- inline |map|
+    -- \eq inline |map|
 lhs == sat' (propOrs [f k] /# ([0..],xs))
-    -- inline |propOrs|
+    -- \eq inline |propOrs|
 sat' (f k /# ([0..],xs)) == sat' (f k /# ([0..],xs))
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -1089,7 +1089,7 @@ We do not believe it is feasible to test this property at any greater depth. Tes
 
 \h{#mp exprlist}\begin{code}
 sat' (Value c xs -< cs) ==> c `elem` cs
-    -- inline |(-<)|
+    -- \eq inline |(-<)|
 sat' $ propLit $ Sat (Value c xs)
     [map complete cs :* map complete (ctors (head cs)) | not (null cs)] ==> c `elem` cs
 \end{code}
@@ -1102,23 +1102,23 @@ sat' $ propLit $ Sat (Value c xs)
     -- |cs == []|
 sat' $ propLit $ Sat (Value c xs)
     [map complete [] :* map complete (ctors (head [])) | not (null [])] ==> c `elem` []
-    -- inline |null|
+    -- \eq inline |null|
 sat' $ propLit $ Sat (Value c xs)
     [map complete [] :* map complete (ctors (head [])) | not True] ==> c `elem` []
-    -- inline |not|
+    -- \eq inline |not|
 sat' $ propLit $ Sat (Value c xs)
     [map complete [] :* map complete (ctors (head [])) | False] ==> c `elem` []
     -- reduce list comprehension
 sat' $ propLit $ Sat (Value c xs) [] ==> c `elem` []
-    -- inline |elem|
+    -- \eq inline |elem|
 sat' $ propLit $ Sat (Value c xs) [] ==> False
-    -- inline |sat'|
+    -- \eq inline |sat'|
 sat $ Sat (Value c xs) [] ==> False
-    -- \lemma{sat/any}
+    -- \im \lemma{sat/any}
 any (\k -> sat $ Sat (Value c xs) [k]) [] ==> False
-    -- inline |any|
+    -- \eq inline |any|
 False ==> False
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
@@ -1128,34 +1128,34 @@ sat' $ propLit $ Sat (Value c xs)
     -- |null cs == False|
 sat' $ propLit $ Sat (Value c xs)
     [map complete cs :* map complete (ctors (head cs)) | not False] ==> c `elem` cs
-    -- inline |not|
+    -- \eq inline |not|
 sat' $ propLit $ Sat (Value c xs)
     [map complete cs :* map complete (ctors (head cs)) | True] ==> c `elem` cs
     -- simplify list comprehension
 sat' $ propLit $ Sat (Value c xs)
     [map complete cs :* map complete (ctors (head cs))] ==> c `elem` cs
-    -- inline |sat'|
+    -- \eq inline |sat'|
 sat $ Sat (Value c xs)
     [map complete cs :* map complete (ctors (head cs))] ==> c `elem` cs
-    -- inline |sat|
+    -- \eq inline |sat|
 sat' $ (c <| [map complete cs :* map complete (ctors (head cs))])
     /# ([0..],xs) ==> c `elem` cs
-    -- inline | <|| |
+    -- \eq inline | <|| |
 sat' $ (propOrs $ map f [map complete cs :* map complete (ctors (head cs))])
     /# ([0..],xs) ==> c `elem` cs
-    -- inline |map|
+    -- \eq inline |map|
 sat' $ (propOrs [f $ map complete cs :* map complete (ctors (head cs))])
     /# ([0..],xs) ==> c `elem` cs
-    -- inline |propOr|
+    -- \eq inline |propOr|
 sat' $ (f $ map complete cs :* map complete (ctors (head cs)))
     /# ([0..],xs) ==> c `elem` cs
-    -- inline |f|
+    -- \eq inline |f|
 sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <- map complete cs, c_1 == c]
     /# ([0..],xs) ==> c `elem` cs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 sat' $ propOrs [propAnds $ map propLit $ g vs_1 /# ([0..],xs) |
     Pattern c_1 vs_1 <- map complete cs, c_1 == c] ==> c `elem` cs
-    -- inline |sat'|
+    -- \eq inline |sat'|
 or [sat' $ propAnds $ map propLit $ g vs_1 /# ([0..],xs) |
     Pattern c_1 vs_1 <- map complete cs, c_1 == c] ==> c `elem` cs
     -- move the guard
@@ -1173,12 +1173,12 @@ any ((\(Pattern c_1 vs_1) -> c_1 == c &&
     -- lift implication over |any|
 (\(Pattern c_1 vs_1) -> c_1 == c &&
     sat' (propAnds $ map propLit $ g vs_1 /# ([0..],xs))) (complete c') ==> c' == c
-    -- inline |complete|
+    -- \eq inline |complete|
 c' == c && sat' (propAnds $ map propLit $ g (map (const Any) (nonRecs c'))
     /# ([0..],xs)) ==> c' == c
     -- weaken implication
 c' == c ==> c' == c
-    -- equals
+    -- \eq tautology
 True
 \end{code}
 
@@ -1186,11 +1186,11 @@ True
 
 \h{#mp exprlist}\begin{code}
 sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
-    -- inline | ||> |
+    -- \eq inline | ||> |
 sat $ Sat (Value c xs) (map f k) ==> sat $ Sat (xs !! i) k
-    -- inline |sat|
+    -- \eq inline |sat|
 sat' $ (c <| map f_rhd k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
-    -- inline | <|| |
+    -- \eq inline | <|| |
 sat' $ propOrs (map f_lhd (map f_rhd k)) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
     -- |map f . map g = map (f . g)|
 sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
@@ -1204,13 +1204,13 @@ We now proceed by induction over |k|. We assume |k| may take the values |[]|, |A
 sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
     -- |k == []|
 sat' $ propOrs (map (f_lhd . f_rhd) []) /# ([0..],xs) ==> sat $ Sat (xs !! i) []
-    -- inline |map|
+    -- \eq inline |map|
 sat' $ propOrs [] /# ([0..],xs) ==> sat $ Sat (xs !! i) []
-    -- inline |propOrs|
+    -- \eq inline |propOrs|
 sat' $ propFalse /# ([0..],xs) ==> sat $ Sat (xs !! i) []
-    -- inline |(/)|
+    -- \eq inline |(/)|
 sat' propFalse ==> sat $ Sat (xs !! i) []
-    -- inline |sat'|
+    -- \eq inline |sat'|
 False ==> sat $ Sat (xs !! i) []
     -- implication
 True
@@ -1232,7 +1232,7 @@ Now, by case analysis on |xs !! i|, first assuming |xs !! i == Bottom|, then |Va
 sat $ Sat (xs !! i) (Any:ks)
     -- |xs !! i == Bottom|
 sat $ Sat Bottom (Any:ks)
-    -- inline |sat|
+    -- \eq inline |sat|
 True
 \end{code}
 
@@ -1240,17 +1240,17 @@ True
 sat $ Sat (xs !! i) (Any:ks)
     -- |xs !! i == Value c xs|
 sat $ Sat (Value c xs) (Any:ks)
-    -- inline |sat|
+    -- \eq inline |sat|
 sat' $ (c <| (Any:ks)) /# ([0..],xs)
-    -- inline | <|| |
+    -- \eq inline | <|| |
 sat' $ propOrs (map f (Any:ks)) /# ([0..],xs)
-    -- inline |map f|
+    -- \eq inline |map f|
 sat' $ propOrs (propTrue : map f ks) /# ([0..],xs)
-    -- inline |propOrs|
+    -- \eq inline |propOrs|
 sat' $ propTrue /# ([0..],xs)
-    -- inline |(/)|
+    -- \eq inline |(/)|
 sat' propTrue
-    -- inline |sat'|
+    -- \eq inline |sat'|
 True
 \end{code}
 
@@ -1261,15 +1261,15 @@ sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
     -- |k == (ms_1 :* ms_2):ks|
 sat' $ propOrs (map (f_lhd . f_rhd) ((ms_1 :* ms_2):ks)) /# ([0..],xs) ==>
     sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
-    -- inline |map|
+    -- \eq inline |map|
 sat' $ propOrs ((f_lhd $ f_rhd $ ms_1 :* ms_2) : map (f_lhd . f_rhd) ks) /# ([0..],xs) ==> rhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 sat' $ propOrs (((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) :
     (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==> rhs
-    -- inline |propOrs|
+    -- \eq inline |propOrs|
 sat' $ ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) `propOr`
     propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs)) ==> rhs
-    -- inline |sat'|
+    -- \eq inline |sat'|
 sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
     sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==> rhs
     -- reinstate RHS
@@ -1288,7 +1288,7 @@ sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
 sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
     -- |xs !! i = Bottom|
 sat $ Sat Bottom ((ms_1 :* ms_2):ks)
-    -- inline |sat|
+    -- \eq inline |sat|
 True
 \end{code}
 
@@ -1298,12 +1298,12 @@ sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
     sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
     -- |xs !! i = Value c' ys|
 lhs ==> sat $ Sat (Value c' ys) ((ms_1 :* ms_2):ks)
-    -- \lemma{sat/any}
+    -- \im \lemma{sat/any}
 lhs ==> any (\k -> sat $ Sat (Value c' ys) [k]) ((ms_1 :* ms_2):ks)
-    -- inline |any|
+    -- \eq inline |any|
 lhs ==> sat (Sat (Value c' ys) [ms_1 :* ms_2]) ||
     any (\k -> sat $ Sat (Value c' xs) [k]) ks
-    -- \lemma{sat/any}
+    -- \im \lemma{sat/any}
 lhs ==> sat (Sat (Value c' ys) [ms_1 :* ms_2]) || sat (Sat (Value c' ys) ks)
     -- reinstate LHS
 sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
@@ -1325,10 +1325,10 @@ We can now perform case analysis, assuming either |isRec (c,i) == False|, or the
 
 \h{#mp exprlist}\begin{code}
 sat' $ (f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs) ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
-    -- inline |f_rhd|, assuming |isRec (c,i) == False|
+    -- \eq inline |f_rhd|, assuming |isRec (c,i) == False|
 sat' $ (f_lhd $ [Pattern c [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]] :*
     map complete (ctors c)) /# ([0..],xs) ==> lhs
-    -- inline |f_lhd|
+    -- \eq inline |f_lhd|
 sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <-
     [Pattern c [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]],
      c_1 == c] /# ([0..],xs) ==> lhs
@@ -1336,28 +1336,28 @@ sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <-
 sat' $ propOrs [propAnds $ map propLit $ g
     [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]]
     /# ([0..],xs) ==> lhs
-    -- inline |propOrs|
+    -- \eq inline |propOrs|
 sat' $ (propAnds $ map propLit $ g
     [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c])
     /# ([0..],xs) ==> lhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 sat' $ propAnds $ map propLit $ g
     [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]
     /# ([0..],xs) ==> lhs
-    -- inline |sat'|
+    -- \eq inline |sat'|
 all sat $ g [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]
     /# ([0..],xs) ==> lhs
-    -- inline |g|
+    -- \eq inline |g|
 all sat $ (zipWith Sat non (map (:[])
     [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]) ++
     map (`Sat` [map complete (ctors c) :* map complete (ctors c)]) rec)
     /# ([0..],xs) ==> lhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 all sat $ zipWith Sat (non /# ([0..],xs))
     (map (:[]) [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]) ++
     map (`Sat` [map complete (ctors c) :* map complete (ctors c)])
     (rec /# ([0..],xs)) ==> lhs
-    -- inline |all|
+    -- \eq inline |all|
 all sat (zipWith Sat (non /# ([0..],xs))
     (map (:[]) [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c])) &&
     all sat (map (`Sat` [map complete (ctors c) :* map complete (ctors c)])
@@ -1365,7 +1365,7 @@ all sat (zipWith Sat (non /# ([0..],xs))
     -- weaken implication
 all sat $ zipWith Sat (non /# ([0..],xs))
     (map (:[]) [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]) ==> lhs
-    -- inline |map|
+    -- \eq inline |map|
 all sat $ zipWith Sat (non /# ([0..],xs))
     [if i == j then [ms_1 :* ms_2] else [Any] | j <- nonRecs c] ==> lhs
     -- |non == nonRecs c|, by definition of |nonRecs|
@@ -1374,7 +1374,7 @@ all sat $ zipWith Sat (non /# ([0..],xs))
     -- rewrite list comprehension
 all sat $ zipWith Sat (non /# ([0..],xs))
     (map (\j -> if i == j then [ms_1 :* ms_2] else [Any]) non) ==> lhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 all sat $ zipWith Sat (map (/# ([0..],xs)) non)
     (map (\j -> if i == j then [ms_1 :* ms_2] else [Any]) non) ==> lhs
     -- |zipWith f (map g xs) (map h xs) == map (\x -> f (g x) (h x)) xs|
@@ -1383,49 +1383,49 @@ all sat $ map (\j -> Sat (j /# ([0..],xs))
     -- weaken implication, using |i `elem` non| because of false |isRec| test
 all sat $ map (\j -> Sat (j /# ([0..],xs))
     (if i == j then [ms_1 :* ms_2] else [Any])) [i] ==> lhs
-    -- inline |map|
+    -- \eq inline |map|
 all sat $ [Sat (i /# ([0..],xs)) (if i == i then [ms_1 :* ms_2] else [Any])] ==> lhs
-    -- inline |all|
+    -- \eq inline |all|
 sat $ Sat (i /# ([0..],xs)) (if i == i then [ms_1 :* ms_2] else [Any]) ==> lhs
     -- |(i == i) == True|
 sat $ Sat (i /# ([0..],xs)) [ms_1 :* ms_2] ==> lhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 sat $ Sat (xs !! i) [ms_1 :* ms_2] ==> lhs
     -- reinstate LHS
 sat $ Sat (xs !! i) [ms_1 :* ms_2] ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
-    -- equals
+    -- \eq tautology
 True
 \end{code}
 
 
 \h{#mp exprlist}\begin{code}
 sat' $ (f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs) ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
-    -- inline |f_rhd|, assuming |isRec (c,i)|
+    -- \eq inline |f_rhd|, assuming |isRec (c,i)|
 sat' $ (f_lhd $ [complete c] :* merge ms_1 ms_2) /# ([0..],xs) ==> lhs
-    -- inline |f_lhd|
+    -- \eq inline |f_lhd|
 sat' $ propOrs [propAnds $ map propLit $ g vs_1 |
     Pattern c_1 vs_1 <- [complete c], c_1 == c] /# ([0..],xs) ==> lhs
-    -- inline |complete c|
+    -- \eq inline |complete c|
 sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <-
     [Pattern c (map (const Any) (nonRecs c))], c_1 == c] /# ([0..],xs) ==> lhs
     -- simplify list comprehension
 sat' $ propOrs [propAnds $ map propLit $ g $ map (const Any) (nonRecs c)]
     /# ([0..],xs) ==> lhs
-    -- inline |propOrs|
+    -- \eq inline |propOrs|
 sat' $ propAnds (map propLit $ g $ map (const Any) (nonRecs c))
     /# ([0..],xs) ==> lhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 sat' $ propAnds $ map propLit $ (g $ map (const Any) (nonRecs c))
     /# ([0..],xs) ==> lhs
-    -- inline |sat'|
+    -- \eq inline |sat'|
 all sat $ (g $ map (const Any) (nonRecs c)) /# ([0..],xs) ==> lhs
-    -- inline |g|
+    -- \eq inline |g|
 all sat $ (zipWith Sat non (map (:[]) vs) ++
     map (`Sat` [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec) /# ([0..],xs) ==> lhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 all sat $ zipWith Sat non (map (:[]) vs) /# ([0..],xs) ++
     map (`Sat` [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec /# ([0..],xs) ==> lhs
-    -- inline |all|
+    -- \eq inline |all|
 all sat (zipWith Sat non (map (:[]) vs) /# ([0..],xs)) &&
     all sat (map (`Sat` [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec
     /# ([0..],xs)) ==> lhs
@@ -1435,7 +1435,7 @@ all sat $ map (`Sat` [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec
     -- eta expand
 all sat $ map (\j -> Sat j [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec
     /# ([0..],xs) ==> lhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 all sat $ map (\j -> Sat (j /# ([0..],xs))
     [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec ==> lhs
     -- combine |all| and |map|
@@ -1444,9 +1444,9 @@ all (\j -> sat $ Sat (j /# ([0..],xs))
     -- weaken implication, as |i `elem` rec|, because of |isRec| test
 all (\j -> sat $ Sat (j /# ([0..],xs))
     [merge ms_1 ms_2 :* merge ms_1 ms_2]) [i] ==> lhs
-    -- inline |all|
+    -- \eq inline |all|
 sat $ Sat (i /# ([0..],xs)) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==> lhs
-    -- inline |(/)|
+    -- \eq inline |(/)|
 sat $ Sat (xs !! i) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==> rhs
     -- reinstate RHS
 sat $ Sat (xs !! i) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
@@ -1454,9 +1454,9 @@ sat $ Sat (xs !! i) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
     -- |xs !! i == Value c' ys|
 sat $ Sat (Value c' ys) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
     sat $ Sat (Value c' ys) [ms_1 :* ms_2]
-    -- \lemma{sat/merge}
+    -- \im \lemma{sat/merge}
 sat $ Sat (Value c' ys) [ms_1 :* ms_2] ==> sat $ Sat (Value c' ys) [ms_1 :* ms_2]
-    -- equal
+    -- \eq tautology
 True
 \end{code}
 
