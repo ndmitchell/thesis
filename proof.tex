@@ -12,8 +12,8 @@
 % the lemmas
 \newcommand{\lemSat}{C1}
 \newcommand{\lemSatTri}{C2}
-\newcommand{\lemBPAny}{MP1}
-\newcommand{\lemBPMerge}{MP2}
+\newcommand{\lemMPAny}{MP1}
+\newcommand{\lemMPMerge}{MP2}
 \newcommand{\lemElem}{A1}
 \newcommand{\lemSatE}{A2}
 \newcommand{\lemPrecondError}{A3}
@@ -388,7 +388,7 @@ True
 
 This section corresponds to a proof of the code contained in Figure \ref{figC:enumeration}. To perform some of these proofs, we will rely on two auxiliary lemmas about MP-constraints.
 
-\define{\lemBPAny}
+\define{\lemMPAny}
 
 \h{#mp exprlist}\begin{code}
 sat (Sat (Value c xs) ks) == any (\k -> sat $ Sat (Value c xs) [k]) ks
@@ -422,7 +422,7 @@ sat' (f k /# ([0..],xs)) == sat' (f k /# ([0..],xs))
 True
 \end{code}
 
-\define{\lemBPMerge}
+\define{\lemMPMerge}
 
 \h{#mp expr}\begin{code}
 sat $ Sat (Value c xs) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
@@ -494,7 +494,7 @@ sat' $ propLit $ Sat (Value c xs) [] ==> c `elem` []
 sat' $ propLit $ Sat (Value c xs) [] ==> False
     -- \eq inline |sat'|
 sat $ Sat (Value c xs) [] ==> False
-    -- \im \lemma{\lemBPAny}
+    -- \eq \lemma{\lemMPAny}
 any (\k -> sat $ Sat (Value c xs) [k]) [] ==> False
     -- \eq inline |any|
 False ==> False
@@ -684,12 +684,12 @@ sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
     sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
     -- \eq |xs !! i = Value c' ys|
 lhs ==> sat $ Sat (Value c' ys) ((ms_1 :* ms_2):ks)
-    -- \im \lemma{\lemBPAny}
+    -- \eq \lemma{\lemMPAny}
 lhs ==> any (\k -> sat $ Sat (Value c' ys) [k]) ((ms_1 :* ms_2):ks)
     -- \eq inline |any|
 lhs ==> sat (Sat (Value c' ys) [ms_1 :* ms_2]) ||
     any (\k -> sat $ Sat (Value c' xs) [k]) ks
-    -- \im \lemma{\lemBPAny}
+    -- \eq \lemma{\lemMPAny}
 lhs ==> sat (Sat (Value c' ys) [ms_1 :* ms_2]) || sat (Sat (Value c' ys) ks)
     -- \eq reinstate LHS
 sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
@@ -843,7 +843,7 @@ sat $ Sat (xs !! i) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
     -- \eq |xs !! i == Value c' ys|
 sat $ Sat (Value c' ys) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
     sat $ Sat (Value c' ys) [ms_1 :* ms_2]
-    -- \im \lemma{\lemBPMerge}
+    -- \im \lemma{\lemMPMerge}
 sat $ Sat (Value c' ys) [ms_1 :* ms_2] ==> sat $ Sat (Value c' ys) [ms_1 :* ms_2]
     -- \eq tautology
 True
@@ -1482,12 +1482,4 @@ True
 \section{Summary}
 \label{secP:summary}
 
-To write
-
- The proof has not been automatically checked. While performing the reasoning steps,
-
-
-The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
-
-
-
+We have outlined an argument that the Catch analysis method presented in Chapter \ref{chp:catch} is sound. In doing so, we have characterised the properties that a constraint system must obey, and have shown these properties for BP-constraints and MP-constraints. The majority of the proof uses equational reasoning, apart from Lemma \lemMPMerge\ which has been tested. The proof has undergone limited checking for simple type-correctness, but has not been fully machine-checked. We think it would be an interesting experiment to fully check the presented proof.
