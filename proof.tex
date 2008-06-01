@@ -29,7 +29,7 @@
 
 
 \hsdef{\begin{comment}
-k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws,c',ms_1,ms_2
+k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws,c',ms_1,ms_2,e
 vs,xs,y,as,ys,cs,rhs,lhs,g,f_lhd,f_rhd,ks
 \end{comment}}
 \begin{comment}
@@ -966,33 +966,23 @@ satE' $ pre e / (vs, ys) ==> satE' $ pre $ e / (vs, ys)
 satE' $ pre (Call f xs) / (vs, ys) ==> satE' $ pre $ Call f xs / (vs, ys)
     -- \eq inline |(/)| on RHS
 satE' $ pre (Call f xs) / (vs, ys) ==> satE' $ pre $ Call f $ map (/ (vs, ys)) xs
-\end{code}
-
-Now we will work on each side individually, starting with LHS:
-
-\h{exprlist}\begin{code}
-satE' $ pre (Call f xs) / (vs, ys)
     -- \eq inline |pre|
-satE' $ (pre' f xs `propAnd` propAnds (map pre xs)) / (vs,ys)
+satE' $ (pre' f xs `propAnd` propAnds (map pre xs)) / (vs,ys) ==> rhs
     -- \eq inline |(/)|
-satE' $ (pre' f xs / (vs,ys)) `propAnd` propAnds (map (pre . (/ (vs,ys))) xs)
+satE' $ (pre' f xs / (vs,ys)) `propAnd` propAnds (map (pre . (/ (vs,ys))) xs) ==> rhs
     -- \eq inline |satE'|
-satE' (pre' f xs / (vs,ys)) && all (satE' . pre . (/ (vs,ys))) xs
-\end{code}
-
-And the RHS:
-
-\h{exprlist}\begin{code}
-satE' $ pre $ Call f $ map (/ (vs, ys)) xs
+satE' (pre' f xs / (vs,ys)) && all (satE' . pre . (/ (vs,ys))) xs ==> rhs
+    -- \eq switch to RHS
+lhs ==> satE' $ pre $ Call f $ map (/ (vs, ys)) xs
     -- \eq inline |pre|
-satE' $ (pre' f (map (/ (vs, ys)) xs)) `propAnd` propAnds (map (pre . (/ (vs, ys))) xs)
+lhs ==> satE' $ (pre' f (map (/ (vs, ys)) xs)) `propAnd`
+    propAnds (map (pre . (/ (vs, ys))) xs)
     -- \eq inline |satE'|
-satE' (pre' f (map (/ (vs, ys)) xs)) && all (satE' . pre . (/ (vs, ys))) xs
-\end{code}
-
-We can now combine these sides, eliminating the common term:
-
-\h{exprlist}\begin{code}
+lhs ==> satE' (pre' f (map (/ (vs, ys)) xs)) && all (satE' . pre . (/ (vs, ys))) xs
+    -- \eq reinstate LHS
+satE' (pre' f xs / (vs,ys)) && all (satE' . pre . (/ (vs,ys))) xs ==>
+    satE' (pre' f (map (/ (vs, ys)) xs)) && all (satE' . pre . (/ (vs, ys))) xs
+    -- \im eliminate common term
 satE' $ pre' f xs / (vs,ys) ==> satE' $ pre' f (map (/ (vs, ys)) xs)
     -- \eq inline |pre'|
 satE' $ (precond f /# (args f, xs)) / (vs,ys) ==>
