@@ -136,6 +136,7 @@ This appendix shows that the algorithms and constraint languages presented in Ch
 The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
 
 \section{Proof-Style Notation}
+\label{secP:style}
 
 The proof is based on equational reasoning, making use of induction, application of theorems, case analysis and inlining of function definitions. The proof has not been automatically checked. While performing the reasoning steps, we ignore issues such as strictness. All the properties are boolean valued expressions, typically implications.
 
@@ -147,9 +148,9 @@ In order to reduce the size of some of the intermediate expressions, we have rep
 
 
 \section{Evaluator}
+\label{secP:evaluator}
 
-We start with an evaluator for a Core expression language.
-
+\begin{figure}
 \h{#*}\begin{code}
 data Value  =  Value CtorName [Value]
             |  Bottom
@@ -172,15 +173,17 @@ eval (Case x as    )  =  case eval x of
     Value c xs -> head [eval y | Alt c' vs y <- as, c == c']
     Bottom -> Bottom
 \end{code}
+\caption{Evaluator for expressions.}
+\label{figP:eval}
+\end{figure}
 
-The |Expr| data type is based on a first-order variant of the Core language from \S\ref{secB:core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluates to the constructor mentioned in the selector.
+We start with an evaluator for a Core expression language in Figure \ref{figP:eval}. The |Expr| data type is based on a first-order variant of the Core language from \S\ref{secB:core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluates to the constructor mentioned in the selector.
 
 There is no case in |eval| for |Var|, and the behaviour of |eval| with free variables is undefined. The |Call| equation will replace any free variables in the body of a function with the supplied arguments.
 
 We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs,ys)| to denote replacing the free variables |vs| in |x| with |ys|. We use |(/)| instead of |substP| in the proofs, where |substP (zip vs ys) x == x /# (vs,ys)|.
 
-We also make use of a number of auxiliaries throughout the proof:
-
+\begin{figure}
 \h{#*}\begin{code}
 isBottom :: Value -> Bool
 isBottom Bottom = True
@@ -209,10 +212,14 @@ sat :: Sat Value -> Bool
 sat (Sat Bottom        k) = True
 sat (Sat (Value c xs)  k) = sat' $ (c <| k) /# ([0..],xs)
 \end{code}
+\caption{Auxiliary functions.}
+\label{figP:auxiliary}
+\end{figure}
 
-The |sat| function tests whether a value satisfies a constraint, using the |(<||)| operator from the constraint language. The |satE| function tests whether the result of evaluating an expression satisfies a constraint. The |sat'| and |satE'| functions operate over a proposition.
+We also make use of a number of auxiliaries presented in Figure \ref{figP:auxiliary}. The |sat| function tests whether a value satisfies a constraint, using the |(<||)| operator from the constraint language. The |satE| function tests whether the result of evaluating an expression satisfies a constraint. The |sat'| and |satE'| functions operate over a proposition.
 
 \section{Constraint Lemmas}
+\label{secP:constraint}
 
 We assume the following two theorems about each constraint language:
 
@@ -233,8 +240,7 @@ Both of these theorems are given in \S\ref{secC:constraint_semantics}, as proper
 \subsection{BP-Constraint Lemmas}
 \label{secP:bp}
 
-Since BP-constraints are presented piecemeal throughout \S\ref{secC:manipulate}, we recap them here:
-
+\begin{figure}
 \begin{code}
 data Constraint  =  Any
                  |  Con CtorName [Constraint]
@@ -248,6 +254,11 @@ a -< xs = propOrs [propLit (a `Sat` anys x) | x <- xs]
 c <| Any         =  propTrue
 c <| Con c_2 xs  =  propBool (c_2 == c) `propAnd` propAnds (map propLit (zipWith Sat [0..] xs))
 \end{code}
+\caption{BP-Constraint operations.}
+\label{figP:bp}
+\end{figure}
+
+Since BP-constraints are presented piecemeal throughout \S\ref{secC:manipulate}, we present all the relevant definitions in Figure \ref{figP:bp}.
 
 \define{\lemSat\ (BP)}
 
