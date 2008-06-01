@@ -101,16 +101,19 @@ instance Eq Expr
 alt :: Alt -> Prop (Sat a)
 pre' :: String -> [Expr] -> Prop (Sat Expr)
 sub :: ([VarName],[Expr])
+\end{code}
 
+\begin{code}
 -- for BP
 anys :: String -> Constraint
+instance Eq Constraint
 \end{code}
 
 \h{#mp}\begin{code}
 -- for MP
 type Constraint = [Val]
-data Val = [Pattern] :* [Pattern] | Any
-data Pattern = Pattern CtorName [Val]
+data Val = [Pattern] :* [Pattern] | Any deriving Eq
+data Pattern = Pattern CtorName [Val] deriving Eq
 complete :: CtorName -> Pattern
 nonRecs :: CtorName -> [Int]
 merge :: [Pattern] -> [Pattern] -> [Pattern]
