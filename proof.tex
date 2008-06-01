@@ -894,8 +894,11 @@ The definition of |precond f| is a conjunction where the second conjunct is |red
 
 \define{\lemPrePost}
 
-\todo{Lemma prePost}
+\h{expr}\begin{code}
+prePost f k ==> reduce (propLit $ body f `Sat` k)
+\end{code}
 
+The definition of |prePost f k| is a conjunction where the second conjunct is |reduce (propLit $ body f `Sat` k)|, therefore |prePost f k| is at least as restrictive as the alternative.
 
 
 \define{\lemPre}
