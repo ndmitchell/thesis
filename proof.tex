@@ -24,8 +24,10 @@
 \newcommand{\lemReduce}{A8}
 
 \newcommand{\define}[1]{\subsection*{Lemma #1}}
+\newcommand{\definep}{\subsection*{Proof P1}}
 \newcommand{\case}[1]{\paragraph{Case:} #1 \smallskip}
 \newcommand{\lemma}[1]{Lemma #1}
+\newcommand{\lemmap}{Proof P1}
 
 
 \hsdef{\begin{comment}
@@ -127,19 +129,14 @@ rec :: [Int]
 \chapter{Soundness of Pattern-Match Analysis}
 \label{chp:proof}
 
-\todo{Colin's changes}
-\todo{Free variable naming}
-
-This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. We define an evaluator for expressions in \S\ref{secP:evaluator}.
+This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. \S\ref{secP:style} describes the style of proof and \S\ref{secP:evaluator} defines an evaluator for expressions. \S\ref{secP:constraint} gives two lemmas that constraint languages must satisfy, and show they hold for BP-constraints and MP-constraints. \S\ref{secP:general_lemmas} gives useful lemmas, and \S\ref{secP:proof} gives the proof of soundness, before \S\ref{secP:summary} discusses the results.
 
 
-The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
-
-\section{Proof-Style Notation}
+\section{Proof-Style and Notation}
 \label{secP:style}
 
-The proof is based on equational reasoning, making use of induction, application of theorems, case analysis and inlining of function definitions. The proof has not been automatically checked. While performing the reasoning steps, we ignore issues such as strictness. All the properties are boolean valued expressions, typically implications.
-
+Proofs in this appendix are detailed outlines based on equational reasoning. They make use of induction, application of equational laws, case analysis and inlining of function definitions. The proofs are structured as a series of rewrites, either preserving equality (marked with $\equiv$), or implying the previous statement (marked with $\Leftarrow$). Some expressions may refer to locally bound definitions, which we do not show until necessary. We ignore issues such as strictness. All the properties are boolean valued expressions, typically implications.
+ 
 In order to reduce the size of some of the intermediate expressions, we have replaced one side of an implication with either |lhs| or |rhs|, designating either the left-hand side or right-hand side. We also make heavy use of the function composition and function application operators, namely |(.)| and |($)|. These can be read with the translations:
 
 \ignore\begin{code}
@@ -177,7 +174,7 @@ eval (Case x as    )  =  case eval x of
 \label{figP:eval}
 \end{figure}
 
-We start with an evaluator for a Core expression language in Figure \ref{figP:eval}. The |Expr| data type is based on a first-order variant of the Core language from \S\ref{secB:core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluates to the constructor mentioned in the selector.
+We start with an evaluator for a Core expression language defined in Figure \ref{figP:eval}. The |Expr| data type is based on a first-order variant of the Core language from \S\ref{secB:core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluates to the constructor mentioned in the selector.
 
 There is no case in |eval| for |Var|, and the behaviour of |eval| with free variables is undefined. The |Call| equation will replace any free variables in the body of a function with the supplied arguments.
 
@@ -216,12 +213,12 @@ sat (Sat (Value c xs)  k) = sat' $ (c <| k) /# ([0..],xs)
 \label{figP:auxiliary}
 \end{figure}
 
-We also make use of a number of auxiliaries presented in Figure \ref{figP:auxiliary}. The |sat| function tests whether a value satisfies a constraint, using the |(<||)| operator from the constraint language. The |satE| function tests whether the result of evaluating an expression satisfies a constraint. The |sat'| and |satE'| functions operate over a proposition.
+We also make use of a number of auxiliaries defined in Figure \ref{figP:auxiliary}. The |sat| function tests whether a value satisfies a constraint, using the |(<||)| operator from the constraint language. The |satE| function tests whether the result of evaluating an expression satisfies a constraint. The |sat'| and |satE'| functions operate over a proposition.
 
 \section{Constraint Lemmas}
 \label{secP:constraint}
 
-We assume the following two theorems about each constraint language:
+We shall need the following two lemmas about each constraint language:
 
 \define{\lemSat}
 
@@ -235,7 +232,7 @@ sat' (Value c xs -< cs) ==> c `elem` cs
 sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
 \end{code}
 
-Both of these theorems are given in \S\ref{secC:constraint_semantics}, as properties. Note that the definition of |sat| makes use of |(<||)|, so these theorems require the additional two operators to be consistent with |(<||)|. We prove these theorems for the BP-constraint and MP-constraint systems in \S\ref{secP:bp} and \S\ref{secP:mp}. Since RE-constraints do not scale sufficiently, we do not recommend their use, and have therefore not proven them to be consistent.
+Both of the lemmas are given in \S\ref{secC:constraint_semantics}, as properties. Note that the definition of |sat| makes use of |(<||)|, so these lemmas require the additional two operators to be consistent with |(<||)|. We prove them for the BP-constraint and MP-constraint systems in \S\ref{secP:bp} and \S\ref{secP:mp}. Since RE-constraints do not scale sufficiently, we do not recommend their use, and have not attempted to prove these lemmas for them.
 
 \subsection{BP-Constraint Lemmas}
 \label{secP:bp}
@@ -389,9 +386,9 @@ True
 \subsection{MP-Constraint Lemmas}
 \label{secP:mp}
 
-This section corresponds to a proof of the code contained in Figure \ref{figC:enumeration}. To perform some of these proofs, we will rely on the following theorems about MP-constraints:
+This section corresponds to a proof of the code contained in Figure \ref{figC:enumeration}. To perform some of these proofs, we will rely on two auxiliary lemmas about MP-constraints.
 
-\define{\lemSat}
+\define{\lemBPAny}
 
 \h{#mp exprlist}\begin{code}
 sat (Sat (Value c xs) ks) == any (\k -> sat $ Sat (Value c xs) [k]) ks
@@ -453,21 +450,19 @@ validPattern (Pattern c xs) = fields c == length xs && all validVal xs
 fields c = length [isRec (c,i) | i <- [0..arity c - 1]]
 \end{code}
 
-We check that values and patterns are well-formed using |validValue| and |validPatterns|. These functions both check that the arity of constructors are correct, and that patterns have an appropriate number of non-recursive fields.
+We check that values and patterns are well-formed using |validValue| and |validPatterns|. These functions both check that the arity of constructors are correct, and that patterns have an appropriate number of non-recursive fields. We have defined depth so that the length-constrained list structure present in both values and patterns \textit{does not} count towards the depth of a structure. For example, the following is a |Value| structure of depth 3:
 
-Running this property with an increasing depth gives:
+\h{expr}\begin{code}
+Value "(,)"
+    [Value ":"
+        [Value "True" []
+        ,Value "[]" []
+    ]
+    ,Value "Nothing" []
+]
+\end{code}
 
-\begin{verbatim}
-Passed 1 tests at depth 0
-Passed 20 tests at depth 1
-Passed 262 tests at depth 2
-Passed 9132 tests at depth 3
-Passed 750376 tests at depth 4
-Passed 75517778 tests at depth 5
-proof: interrupted
-\end{verbatim}
-
-We do not believe it is feasible to test this property at any greater depth. Testing at depth 5 gives us reasonable confidence that the property is indeed true.
+Testing all values and patterns up to depth 4 (446,105,404 tests) no counter-example is found. We do not believe it is feasible to test this property at a greater depth, but depth 4 gives us reasonable confidence that the property is indeed true.
 
 
 \define{\lemSat\ (MP)}
@@ -507,7 +502,7 @@ False ==> False
 True
 \end{code}
 
-\case{xs /= []}
+\case{|cs /= []|}
 
 \h{#mp exprlist}\begin{code}
 sat' $ propLit $ Sat (Value c xs)
@@ -623,20 +618,20 @@ sat $ Sat Bottom (Any:ks)
 True
 \end{code}
 
-\case{|k == Any:ks|, |xs !! i == Value c xs|}
+\case{|k == Any:ks|, |xs !! i == Value c' ys|}
 
 \h{#mp exprlist}\begin{code}
 sat $ Sat (xs !! i) (Any:ks)
-    -- \eq |xs !! i == Value c xs|
-sat $ Sat (Value c xs) (Any:ks)
+    -- \eq |xs !! i == Value c' ys|
+sat $ Sat (Value c ys) (Any:ks)
     -- \eq inline |sat|
-sat' $ (c <| (Any:ks)) /# ([0..],xs)
+sat' $ (c' <| (Any:ks)) /# ([0..],ys)
     -- \eq inline | <|| |
-sat' $ propOrs (map f (Any:ks)) /# ([0..],xs)
+sat' $ propOrs (map f (Any:ks)) /# ([0..],ys)
     -- \eq inline |map f|
-sat' $ propOrs (propTrue : map f ks) /# ([0..],xs)
+sat' $ propOrs (propTrue : map f ks) /# ([0..],ys)
     -- \eq inline |propOrs|
-sat' $ propTrue /# ([0..],xs)
+sat' $ propTrue /# ([0..],ys)
     -- \eq inline |(/)|
 sat' propTrue
     -- \eq inline |sat'|
@@ -856,6 +851,9 @@ True
 
 
 \section{Auxiliary Lemmas}
+\label{secP:general_lemmas}
+
+To prove the main result we shall need the following lemmas.
 
 \define{\lemElem}
 
@@ -1297,14 +1295,17 @@ True
 
 
 \section{Correctness Proof}
+\label{secP:proof}
 
-The goal of this chapter is to prove correctness, which can be defined as a proof of the following theorem:
+\definep{}
+
+The goal of this chapter is to prove:
 
 \h{expr}\begin{code}
 satE' $ pre e ==> not $ isBottom $ eval e
 \end{code}
 
-This corresponds to a proof of Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}. This theorem is proved in \S\ref{secP:proof}. To prove safety for a whole program, we can consider the expression |x| to be |Call "main" []|, which is safe if |precond "main" == propTrue|.
+This corresponds to a proof of soundness for the definitions in Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
 
 \case{|e == Var v|}
 
@@ -1312,14 +1313,14 @@ We do not need to consider |Var| as |eval| cannot be called on expressions with 
 
 \case{|e == Sel x (c,i)|}
 
-The |Sel| equation of |eval| is:
+By definition:
 
 \begin{code}
 eval (Sel x (c,i)) | c == c' = xs !! i
     where Value c' xs = eval x
 \end{code}
 
-We know that any \ignore|Sel x _| value must be contained within an alternative of a \ignore|Case x _| expression. If we assume that the original |Case| expression satisfied its, we obtain:
+We know that any \ignore|Sel x _| value must be contained within an alternative of a \ignore|Case x _| expression. If we assume that the original |Case| expression matched this alternative, we obtain:
 
 \h{exprlist}\begin{code}
 satE' $ pre $ Case x as ==> satE' $ pre x
@@ -1335,16 +1336,16 @@ True
 
 \case{|e == Make c xs|}
 
-The initial equation is:
-
-\begin{code}
-eval (Make c xs) = Value c (map eval xs)
-\end{code}
-
-This does not produce |Bottom| if all recursive calls to |eval| are on values which satisfy |pre|. We can write this as:
-
 \h{exprlist}\begin{code}
-satE' $ pre $ Make c xs  ==> all (satE' . pre) xs
+satE' $ pre e ==> not $ isBottom $ eval e
+    -- \eq |e == Make c xs|
+satE' $ pre $ Make c xs ==> not $ isBottom $ eval $ Make c xs
+    -- \eq inline |eval|
+satE' $ pre $ Make c xs ==> not $ isBottom $ Value c $ map eval xs
+    -- \eq inline |isBottom|
+satE' $ pre $ Make c xs ==> all (not . isBottom . eval) xs
+    -- \im \lemmap
+satE' $ pre $ Make c xs ==> all (satE' . pre) xs
     -- \eq inline |pre|
 satE' $ propAnds $ map pre xs ==> all (satE' . pre) xs
     -- \eq inline |satE'|
@@ -1359,45 +1360,35 @@ True
 
 \case{|e == Call f xs|}
 
-The initial equation is:
-
-\begin{code}
-eval (Call f xs)  | f == "error" = Bottom
-                  | otherwise = eval $ body f / (args f, xs)
-\end{code}
-
-There are two ways to that |Bottom| may occur in this fragment. The first is the explicit |Bottom|, and the second is the recursive call to |eval|. The explicit |Bottom| is avoided under the condition:
-
 \h{exprlist}\begin{code}
-satE' $ pre $ Call f xs ==> f /= "error"
-    -- \eq inline |pre|
-satE' $ (precond f /# (args f, xs)) `propAnd` propAnds (map pre xs) ==> f /= "error"
-    -- \eq inline |satE'|
-satE' (precond f /# (args f, xs)) && all (satE' . pre) xs ==> f /= "error"
-    -- \im weaken implication
-satE' (precond f /# (args f, xs)) ==> f /= "error"
-\end{code}
-
-\case{|e == Call f xs|, |f /= "error"|}
-
-\h{exprlist}\begin{code}
-satE' (precond f /# (args f, xs)) ==> f /= "error"
-    -- \eq assume |f /= "error"|
-satE' (precond f /# (args f, xs)) ==> True
-    -- \eq implication
-True
+satE' $ pre e ==> not $ isBottom $ eval e
+    -- \eq |e == Call f xs|
+satE' $ pre $ Call f xs ==> not $ isBottom $ eval $ Call f xs
 \end{code}
 
 \case{|e == Call f xs|, |f == "error"|}
 
 \h{exprlist}\begin{code}
-satE' (precond f /# (args f, xs)) ==> f /= "error"
-    -- \eq assume |f == "error"|
-satE' (precond f /# (args f, xs)) ==> False
+satE' $ pre $ Call f xs ==> not $ isBottom $ eval $ Call f xs
+    -- \eq |f == "error"|
+satE' $ pre $ Call "error" xs ==> not $ isBottom $ eval $ Call "error" xs
+    -- \eq inline |eval|
+satE' $ pre $ Call "error" xs ==> not $ isBottom Bottom
+    -- \eq inline |isBottom|
+satE' $ pre $ Call "error" xs ==> not True
+    -- \eq inline |not|
+satE' $ pre $ Call "error" xs ==> False
     -- \eq implication
-not $ satE' (precond "error" /# (args f, xs))
+satE' $ pre $ Call "error" xs
+    -- \eq inline |pre|
+satE' $ (precond "error" /# (args "error", xs))
+    -- \eq inline |satE'|
+satE' (precond "error" /# (args "error", xs)) && all (satE' . pre) xs
+    -- \im weaken implication
+satE' (precond "error" /# (args "error", xs))
+not $ satE' (precond "error" /# (args "error", xs))
     -- \eq \lemma{\lemPrecondError}
-not $ satE' $ (propFalse /# (args f, xs))
+not $ satE' $ (propFalse /# (args "error", xs))
     -- \eq inline |(/)|
 not $ satE' propFalse
     -- \eq inline |satE'|
@@ -1406,9 +1397,13 @@ not $ False
 True
 \end{code}
 
-This leaves us with the call to |eval|, namely:
+\case{|e == Call f xs|, |f /= "error"|}
 
 \h{exprlist}\begin{code}
+satE' $ pre $ Call f xs ==> not $ isBottom $ eval $ Call f xs
+    -- \eq inline |eval|, assuming |f /= "error"|
+satE' $ pre $ Call f xs ==> not $ isBottom $ eval $ body f / (args f, xs)
+    -- \im \lemmap
 satE' $ pre $ Call f xs ==> satE' $ pre $ body f / (args f, xs)
     -- \eq inline pre on LHS
 satE' $ (precond f /# (args f, xs)) `propAnd` propAnds (map pre xs) ==> rhs
@@ -1426,7 +1421,7 @@ True
 
 \case{|e == Case x as|}
 
-The |Case| equation is:
+By definition:
 
 \begin{code}
 eval (Case x as) = case eval x of
@@ -1444,7 +1439,7 @@ satE' $ pre $ Case x as ==> satE' $ pre x
 satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre x
     -- \eq inline |satE'|
 satE' (pre x) && satE' (propAnds $ map alt as) ==> satE' $ pre x
-    -- weaken implication
+    -- \im weaken implication
 satE' $ pre x ==> satE' $ pre x
     -- \eq tautology
 True
@@ -1485,6 +1480,14 @@ True
 \end{code}
 
 \section{Summary}
+\label{secP:summary}
 
 To write
+
+ The proof has not been automatically checked. While performing the reasoning steps,
+
+
+The proof is structured as an evaluator for expressions in our Core language, along with a series of theorems about the relationship between the evaluator, the algorithms and the constraint languages.
+
+
 
