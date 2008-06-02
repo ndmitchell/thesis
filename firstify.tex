@@ -1156,8 +1156,6 @@ We measured program size by taking the number of nodes in the abstract syntax tr
 \section{Related Work}
 \label{secF:related}
 
-\todo{cite ML function value remover}
-
 \subsection{Reynolds style defunctionalisation}
 
 Reynolds style defunctionalisation \cite{reynolds:defunc} is the seminal method for generating a first-order equivalent of a higher-order program.
@@ -1185,9 +1183,9 @@ map f (x:xs) = apply f x : map f xs
 
 Reynolds' method works on all programs. Defunctionalised code is still type safe, but type checking would require a dependently typed language. Others have proposed variants of Reynolds' method that are type safe in the simply typed lambda calculus \cite{bell:type_driven_defunctionalization}, and within a polymorphic type system \cite{pottier:polymorhpic_typed_defunctionaization}.
 
-The method is complete, removing all possible higher-order functions, and preserves space behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The control flow is complicated by the extra level of indirection and in practice the |apply| interpreter is a bottleneck for analysis.
+The method is complete, removing all possible higher-order functions, and preserves space behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The control flow is complicated by the extra level of indirection and in practice the |apply| interpreter is a bottleneck for analysis. Various analysis methods have been proposed to reduce the size of the |apply| function, by statically determining a safe subset of the possible functional values at a call site \cite{cejtin:closure_conversion,grin}.
 
-Reynolds' method has been used as a tool in program calculation \cite{danvy:defunctionalization_at_work,hutton:calculating_an_exceptional_machine}, often as a mechanism for removing introduced continuations. Another use of Reynolds' method is for optimisation \cite{grin,jhc}, allowing flow control information to be recovered without the complexity of higher-order transformation.
+Reynolds' method has been used as a tool in program calculation \cite{danvy:defunctionalization_at_work,hutton:calculating_an_exceptional_machine}, often as a mechanism for removing introduced continuations. Another use of Reynolds' method is for optimisation \cite{jhc}, allowing flow control information to be recovered without the complexity of higher-order transformation.
 
 \subsection{Removing Functional Values}
 
