@@ -9,7 +9,7 @@ rec,ctor
 IO
 \end{comment}}
 \begin{comment}
-\h{#*}\begin{code}
+\h{.*}\begin{code}
 import Prelude hiding (map, (||))
 import Data.Array
 import Data.Maybe
@@ -43,7 +43,7 @@ ellipses :: a
 
 instance Eq a => Eq (Prop a)
 \end{code}
-\h{#mp}\begin{code}
+\h{.mp}\begin{code}
 instance Eq Val
 \end{code}
 \end{comment}
@@ -194,7 +194,7 @@ This section describes the method used to calculate preconditions for functions.
 \label{secC:catch_core}
 
 \begin{figure}
-\h{#*}\begin{code}
+\h{.*}\begin{code}
 type Selector  =  (CtorName, Int)
 
 var    :: VarName   -> Maybe (Expr, Selector)
@@ -211,7 +211,7 @@ Figure \ref{figC:catch_core_operations} gives the signatures for two helper func
 \begin{example}
 Given the definition:
 
-\h{#*}\begin{code}
+\h{.*}\begin{code}
 map f xs = case  xs of
                  []    -> []
                  y:ys  -> f y : map f ys
@@ -247,7 +247,7 @@ The final issue of abstraction relates to primitive functions in the |IO| monad,
 \label{secC:constraints}
 
 \begin{figure}
-\h{#*}\begin{code}
+\h{.*}\begin{code}
 data Prop alpha
 
 propAnd, propOr           :: Prop alpha -> Prop alpha -> Prop alpha
@@ -266,7 +266,7 @@ We write |Sat x c| to assert that the value of expression |x| must be a member o
 Several underlying constraint models are possible. To keep the introduction of the algorithms simple we first use \textit{basic pattern constraints} (\S\ref{secC:basic}), which are unsuitable for reasons given in \S\ref{secC:bounded}. We then describe \textit{regular expression constraints} in \S\ref{secC:regexp} -- a variant of the constraints used in earlier versions of Catch. Finally we present \textit{multi-pattern constraints} in \S\ref{secC:multipattern} -- used in the current Catch tool to enable scaling to much larger problems.
 
 \begin{figure}
-\h{#*}\begin{code}
+\h{.*}\begin{code}
 data Sat alpha = Sat alpha Constraint
 
 (-<)  :: alpha -> [CtorName] -> Prop (Sat alpha)
@@ -535,7 +535,7 @@ When designing a constraint system, the main decision is which distinctions betw
 \label{secC:regexp}
 
 \begin{figure}
-\h{#re}\begin{code}
+\h{.re}\begin{code}
 data Constraint  = RegExp :- [CtorName]
 type RegExp      = [RegItem]
 data RegItem     = Atom Selector | Star [Selector]
@@ -575,7 +575,7 @@ differentiate p (Star    r:rs)  | p `elem` r  = Just (Star r:rs)
 \label{figC:regexp}
 \end{figure}
 
-An implementation of regular expression based constraints (RE-constraints) is given in Figure \ref{figC:regexp}. In a constraint of the form \h{#re}|(r :- cs)|, |r| is a regular expression and |cs| is a set of constructors. Such a constraint is satisfied by a data structure |d| if every well-defined application to |d| of a sequence of selectors described by |r| reaches a constructor in the set |cs|. If no such sequence of selectors has a well-defined result then the constraint is vacuously true.
+An implementation of regular expression based constraints (RE-constraints) is given in Figure \ref{figC:regexp}. In a constraint of the form \h{.re}|(r :- cs)|, |r| is a regular expression and |cs| is a set of constructors. Such a constraint is satisfied by a data structure |d| if every well-defined application to |d| of a sequence of selectors described by |r| reaches a constructor in the set |cs|. If no such sequence of selectors has a well-defined result then the constraint is vacuously true.
 
 Concerning the helper functions needed to define | ||>| and |<||| in Figure \ref{figC:regexp}, the |differentiate| function is from \citet{conway:regexp}; |integrate| is its inverse; |ewp| is the empty word property.
 
@@ -643,7 +643,7 @@ The |2^rec| term corresponds to the number of possible constraints under |Star|.
 
 Catch computes over propositional formulae with constraints as atomic propositions. Among other operators on propositions, they are compared for equality to obtain a fixed point. All the fixed-point algorithms given in this chapter stop once equal constraints are found. We use Binary Decision Diagrams (BDD) \cite{lee:bdd} to make these equality tests fast. Since the complexity of performing an operation is often proportional to the number of atomic constraints in a proposition, we apply simplification rules to reduce this number. For example, the three  simplest of the nineteen rules are:
 
-\para{Exhaustion:} In the constraint \h{#re}|x `Sat` (r :- [":","[]"])| the condition lists all the possible constructors. Because of static typing, |x| must be one of these constructors. Any such constraint simplifies to True.
+\para{Exhaustion:} In the constraint \h{.re}|x `Sat` (r :- [":","[]"])| the condition lists all the possible constructors. Because of static typing, |x| must be one of these constructors. Any such constraint simplifies to True.
 
 \para{And merging:} The conjunction \ignore|e `Sat` (r :- c_1) `propAnd` e `Sat` (r :- c_2)| can be replaced by \ignore|e `Sat` (r :- (c_1 `intersect` c_2))|.
 
@@ -654,7 +654,7 @@ Catch computes over propositional formulae with constraints as atomic propositio
 \label{secC:multipattern}
 
 \begin{figure}
-\h{#mp}\begin{code}
+\h{.mp}\begin{code}
 type Constraint  =  [Val]
 data Val         =  [Pattern] :* [Pattern] |  Any
 data Pattern     =  Pattern CtorName [Val]
@@ -706,9 +706,9 @@ merge  ms_1 ms_2 = [Pattern c_1 (zipWith mergeVal vs_1 vs_2) |
 
 Although RE-constraints are capable of solving many examples, they suffer from a problem of scale. As programs become more complex the size of the propositions grows quickly, slowing Catch unacceptably. Multipattern constraints (MP-constraints, defined in Figure \ref{figC:enumeration}) are an alternative which scales better.
 
-MP-constraints are similar to BP-constraints, but can constrain an infinite number of items. A value |v| satisfies a constraint \h{#mp}|p_1 :* p_2| if |v| itself satisfies the pattern |p_1| and \textit{all its recursive components at any depth} satisfy |p_2|. We call |p_1| the root pattern, and |p_2| the recursive pattern. Each of |p_1| and |p_2| is given as a set of matches similar to BP-constraints, but each |Pattern| only specifies the values for the non-recursive selectors, all recursive selectors are handled by |p_2|. A constraint is a disjunctive list of |:*| patterns.
+MP-constraints are similar to BP-constraints, but can constrain an infinite number of items. A value |v| satisfies a constraint \h{.mp}|p_1 :* p_2| if |v| itself satisfies the pattern |p_1| and \textit{all its recursive components at any depth} satisfy |p_2|. We call |p_1| the root pattern, and |p_2| the recursive pattern. Each of |p_1| and |p_2| is given as a set of matches similar to BP-constraints, but each |Pattern| only specifies the values for the non-recursive selectors, all recursive selectors are handled by |p_2|. A constraint is a disjunctive list of |:*| patterns.
 
-The intuition behind the definition of |(c,i) ||> ps| is that if the selector |(c,i)| is recursive, given a pattern \h{#mp}|alpha :* beta|, the new root pattern requires the value to be |c|-constructed, and the recursive patterns become \h{#mp}|merge alpha beta| -- i.e. all recursive values must satisfy both the root and recursive patterns of the original pattern. If the selector is non-recursive, then each new pattern contains the old pattern within it, as the appropriate non-recursive field. So, for example:
+The intuition behind the definition of |(c,i) ||> ps| is that if the selector |(c,i)| is recursive, given a pattern \h{.mp}|alpha :* beta|, the new root pattern requires the value to be |c|-constructed, and the recursive patterns become \h{.mp}|merge alpha beta| -- i.e. all recursive values must satisfy both the root and recursive patterns of the original pattern. If the selector is non-recursive, then each new pattern contains the old pattern within it, as the appropriate non-recursive field. So, for example:
 
 \ignore\begin{code}
 hd  |> (alpha :* beta) = {(:) (alpha :* beta)  } :* {[], (:) Any}
@@ -742,7 +742,7 @@ MP-constraints also have simplification rules.  For example, the two simplest of
 
 \para{|Val|-list simplification:} Given a |Val|-list, if the value |Any| is in this list, the list is equal to |[Any]|. If a value occurs more than once in the list, one copy can be removed.
 
-\para{|Val| simplification:} If both |p_1| and |p_2| cover all constructors and all their components have |Any| as their constraint, the constraint \h{#mp}|p_1 :* p_2| can be replaced with |Any|.
+\para{|Val| simplification:} If both |p_1| and |p_2| cover all constructors and all their components have |Any| as their constraint, the constraint \h{.mp}|p_1 :* p_2| can be replaced with |Any|.
 
 
 \subsubsection{Finitely Many MP-Constraints per Type}
@@ -773,7 +773,7 @@ A big advantage of MP-constraints is that if two constraints on the same express
 \noindent This ability to combine constraints on equal expressions can be exploited further by translating the program to be analysed. After applying |reduce|, all constraints will be in terms of the arguments to a function. So if all functions took exactly one argument then \textit{all} the constraints associated with a function could be collapsed into one. We therefore \textit{uncurry} all functions.
 
 \begin{example}
-\h{#*}\begin{code}
+\h{.*}\begin{code}
 (||) x y = case  x of
                  True   -> True
                  False  -> y
