@@ -766,8 +766,6 @@ s_0  =  lam s_0 &+ fun s_0 s_0 &+ con s_0 &+ app s_0 s_0 &+ var &+
 
 \subsection{A Proposition about Residual Lambdas}
 
-\todo{Intuition? Value?}
-
 We classify the location of lambdas within the residual program, assuming the program satisfies the following two conditions:
 
 \begin{enumerate}
@@ -775,11 +773,9 @@ We classify the location of lambdas within the residual program, assuming the pr
 \item No primitive function receives a functional argument, or returns a functional result.
 \end{enumerate}
 
-Given these assumptions, a lambda or boxed lambda may only occur in the following places: (1) the body of a lambda expression; (2) an argument to a general application; (3) the body of the |main| function.
+Given these assumptions, a lambda or boxed lambda may only occur in the following places: (1) the body of a lambda expression; (2) an argument to a general application; (3) the body of the |main| function. In \S\ref{secF:example_residual} we give examples of these residual forms. Since there is no simple rule to remove lambda expressions from the residual locations, it suggests the algorithm has no obvious deficiencies.
 
 \subsection{Proof of the Proposition}
-
-\todo{remove all ...'s}
 
 First we show that residual definition bodies belong to a proper subset of |s_0|, by defining successively smaller subsets, where \ignore|s_n `supset` s{-"_{\mathsf{n}\text{\tiny{+}}1}"-}|. We use the joint fixpoint property of the |(+||+)| operator to calculate the restrictions imposed by each stage. Secondly we describe which expressions may be the parent of residual lambda expressions, using our refined set of possible expressions.
 
@@ -793,7 +789,7 @@ s_1  =  lam s_1 &+ fun s_1 s_1 &+ con s &+ app (s_1 - con s_1) s_1 &+ var &+
 \end{code}
 
 \paragraph{Restriction 2: Standard Simplification Rules}
-Our simplification rules from \S\ref{secB:core_simplify} are applied until a fixed point is found, meaning that the left-hand side of any rule cannot occur in the output. \todo{Identify more clearly what changes} In view of these restrictions we can further reduce the bounding set of residual expressions:
+Our simplification rules from \S\ref{secB:core_simplify} are applied until a fixed point is found, meaning that the left-hand side of any rule cannot occur in the output. For example, the left-hand side of the (case-con) rule is \ignore|case_ (con s) s|, so this pattern cannot occur within |s_2|. In view of these rules we can further reduce the bounding set of residual expressions:
 
 % _ = L f C a(v, _) v c(f a v, _) l
 \ignore\begin{code}
@@ -850,7 +846,7 @@ e_6  =  lam e_6 &+ fun l_6' (l_6' &* b_6') &+ con e_6 &+ app var e_6 &+ var &+
 \end{code}
 
 \paragraph{Residual Forms}
-Having applied all the rules, we now classify what the parent expressions of a lambda may be. A lambda may not be the root of a function body, because |lam| cannot be generated as the root by |s|. If we show only those expressions which permit a lambda expression as a direct child, we are left with the following upper bound for the set of residual expressions:
+Having applied all the rules, we now classify what the parent expressions of a lambda may be. A lambda may not be the root of a function body, because |lam| cannot be generated as the root by |s|. If we focus only on those expressions which permit a lambda expression as a direct child, hiding the other expressions with |...|, we are left with the following upper bound for the set of residual expressions:
 
 \ignore\begin{code}
 e =  lam (lam e &+ e) &+ con (lam e &+ e) &+
@@ -879,6 +875,7 @@ e   = lam (b &+ lam e &+ e) &+ app var (b &+ lam e &+ e) &+ ...
 So we have shown, as required, that a lambda or boxed lambda may only occur as the body of a lambda, applied to a variable in a general application, or as the root of the |main| function.
 
 \subsection{Example Residual Lambdas}
+\label{secF:example_residual}
 
 The most interesting residual lambdas occur as arguments in an application of a variable -- i.e. |v (\x -> x)|. Given a lambda in this form, the lambda within the application cannot be bound to the variable. This leaves three possibilities: (1) either |v| is bound to $\bot{}$; or (2) |v| is never bound to anything; or (3) |v| is bound outside the program. For example:
 
@@ -894,7 +891,7 @@ main_2 = case  nothing of
 main_3 f = f (\x -> x)
 \end{code}
 
-\todo{discussion needed}
+The residual lambda in |main_1| is a result of the |bottom| function non-terminating, while the lambda in |main_2| is caused by dead code. In both cases the lambda expression will not actually be reached, the no functional value will actually be created at runtime. The final |main_3| example passes a lambda expression to a functional argument to the root function, which could be eliminated by restricting the root function to not accept functional arguments.
 
 \section{Proof of Termination}
 \label{secF:termination}
