@@ -554,7 +554,7 @@ or [c_1 == c && sat' (propAnds $ map propLit $ g vs_1 /# ([0..],xs)) |
     -- \eq remove the list comprehension
 any (\(Pattern c_1 vs_1) -> c_1 == c &&
     sat' (propAnds $ map propLit $ g vs_1 /# ([0..],xs))) (map complete cs) ==> c `elem` cs
-    -- \eq |any f (map g xs) = any (f . g) xs|
+    -- \eq |any f (map g xs) === any (f . g) xs|
 any ((\(Pattern c_1 vs_1) -> c_1 == c &&
     sat' (propAnds $ map propLit $ g vs_1 /# ([0..],xs))) . complete) cs ==> c `elem` cs
     -- \eq |c `elem` cs === any (== c) cs|
@@ -582,7 +582,7 @@ sat $ Sat (Value c xs) (map f k) ==> sat $ Sat (xs !! i) k
 sat' $ (c <| map f_rhd k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
     -- \eq inline | <|| |
 sat' $ propOrs (map f_lhd (map f_rhd k)) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
-    -- \eq |map f . map g = map (f . g)|
+    -- \eq |map f . map g === map (f . g)|
 sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
 \end{code}
 
@@ -690,7 +690,7 @@ True
 sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
     sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==>
     sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
-    -- \eq |xs !! i = Value c' ys|
+    -- \eq |xs !! i === Value c' ys|
 lhs ==> sat $ Sat (Value c' ys) ((ms_1 :* ms_2):ks)
     -- \eq \lemma{\lemMPAny}
 lhs ==> any (\k -> sat $ Sat (Value c' ys) [k]) ((ms_1 :* ms_2):ks)
