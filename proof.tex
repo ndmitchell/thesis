@@ -129,14 +129,14 @@ rec :: [Int]
 \chapter{Soundness of Pattern-Match Analysis}
 \label{chp:proof}
 
-This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. \S\ref{secP:style} describes the style of proof and \S\ref{secP:evaluator} defines an evaluator for expressions. \S\ref{secP:constraint} gives two lemmas that constraint languages must satisfy, and show they hold for BP-constraints and MP-constraints. \S\ref{secP:general_lemmas} gives useful lemmas, and \S\ref{secP:proof} gives the proof of soundness, before \S\ref{secP:summary} discusses the results.
+This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. \S\ref{secP:style} describes the style of proof and \S\ref{secP:evaluator} defines an evaluator for expressions. \S\ref{secP:constraint} gives two lemmas that constraint languages must satisfy, and shows they hold for BP-constraints and MP-constraints. \S\ref{secP:general_lemmas} gives useful lemmas, \S\ref{secP:proof} gives the proof of soundness and \S\ref{secP:summary} discusses the results.
 
 
 \section{Proof-Style and Notation}
 \label{secP:style}
 
 Proofs in this appendix are detailed outlines based on equational reasoning. They make use of induction, application of equational laws, case analysis and inlining of function definitions. The proofs are structured as a series of rewrites, either preserving equality (marked with $\equiv$), or implying the previous statement (marked with $\Leftarrow$). Some expressions may refer to locally bound definitions, which we do not show until necessary. We ignore issues such as strictness. All the properties are boolean valued expressions, typically implications.
- 
+
 In order to reduce the size of some of the intermediate expressions, we have replaced one side of an implication with either |lhs| or |rhs|, designating either the left-hand side or right-hand side. We also make heavy use of the function composition and function application operators, namely |(.)| and |($)|. These can be read with the translations:
 
 \ignore\begin{code}
