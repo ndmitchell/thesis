@@ -2,6 +2,7 @@
 %include catch.fmt
 
 %format /# = "/"
+%format === = =
 %format lhs = "\mathrm{LHS}"
 %format rhs = "\mathrm{RHS}"
 
@@ -24,10 +25,9 @@
 \newcommand{\lemReduce}{A8}
 
 \newcommand{\define}[1]{\subsection*{Lemma #1}}
-\newcommand{\definep}{\subsection*{Proof P1}}
 \newcommand{\case}[1]{\paragraph{Case:} #1 \smallskip}
 \newcommand{\lemma}[1]{Lemma #1}
-\newcommand{\lemmap}{Proof P1}
+\newcommand{\lemmap}{Soundness Theorem}
 
 
 \hsdef{\begin{comment}
@@ -124,12 +124,14 @@ rec :: [Int]
 \end{code}
 \end{comment}
 
+\todo{equiv to eq}
+\todo{semi-colons between operations}
 
 
 \chapter{Soundness of Pattern-Match Analysis}
 \label{chp:proof}
 
-This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. \S\ref{secP:style} describes the style of proof and \S\ref{secP:evaluator} defines an evaluator for expressions. \S\ref{secP:constraint} gives two lemmas that constraint languages must satisfy, and shows they hold for BP-constraints and MP-constraints. \S\ref{secP:general_lemmas} gives useful lemmas, \S\ref{secP:proof} gives the proof of soundness and \S\ref{secP:summary} discusses the results.
+This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. \S\ref{secP:style} describes the style of proof and \S\ref{secP:evaluator} defines an evaluator for expressions. \S\ref{secP:constraint} gives two lemmas that constraint languages must satisfy, and shows they hold for BP-constraints and MP-constraints. \S\ref{secP:general_lemmas} gives eight lemmas, mainly about the constraint operations. \S\ref{secP:proof} gives the proof of soundness and \S\ref{secP:summary} discusses the results.
 
 
 \section{Proof-Style and Notation}
@@ -232,7 +234,7 @@ sat' (Value c xs -< cs) ==> c `elem` cs
 sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
 \end{code}
 
-Both of the lemmas are given in \S\ref{secC:constraint_semantics}, as properties. Note that the definition of |sat| makes use of |(<||)|, so these lemmas require the additional two operators to be consistent with |(<||)|. We prove them for the BP-constraint and MP-constraint systems in \S\ref{secP:bp} and \S\ref{secP:mp}. Since RE-constraints do not scale sufficiently, we do not recommend their use, and have not attempted to prove these lemmas for them.
+Both lemmas are given in \S\ref{secC:constraint_semantics}, as properties. Note that the definition of |sat| makes use of |(<||)|, so these lemmas require the additional two operators to be consistent with |(<||)|. We prove them for the BP-constraint and MP-constraint systems in \S\ref{secP:bp} and \S\ref{secP:mp}. Since RE-constraints do not scale sufficiently, we do not recommend their use, and have not attempted to prove these lemmas for them.
 
 \subsection{BP-Constraint Lemmas}
 \label{secP:bp}
@@ -386,9 +388,15 @@ True
 \subsection{MP-Constraint Lemmas}
 \label{secP:mp}
 
-This section corresponds to a proof of the code contained in Figure \ref{figC:enumeration}. To perform some of these proofs, we will rely on two auxiliary lemmas about MP-constraints.
+The proofs in this section appeal to definitions in Figure \ref{figC:enumeration}. To perform some of these proofs, we will rely on two auxiliary lemmas about MP-constraints.
 
 \define{\lemMPAny}
+
+\h{#mp expr}\begin{code}
+sat (Sat (Value c xs) ks) == any (\k -> sat $ Sat (Value c xs) [k]) ks
+\end{code}
+
+We argue as follows:
 
 \h{#mp exprlist}\begin{code}
 sat (Sat (Value c xs) ks) == any (\k -> sat $ Sat (Value c xs) [k]) ks
@@ -429,7 +437,7 @@ sat $ Sat (Value c xs) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
     sat $ Sat (Value c xs) [ms_1 :* ms_2]
 \end{code}
 
-We have not proved this lemma, as we suspect the proof is very long. Instead we have used Lazy SmallCheck \cite{lazysmallcheck} to test the property. Lazy SmallCheck exhaustively tests properties up to some depth of input values. Here is the property we have tested, along with the invariants on values:
+We have \textit{not} proved this lemma, as we suspect the proof is very long. Instead we have used Lazy SmallCheck \cite{lazysmallcheck} to test the property. Lazy SmallCheck exhaustively tests properties up to some depth of input values. Here is the property we have tested, along with the invariants on values:
 
 \h{#mp}\begin{code}
 prop :: (Value, [Pattern], [Pattern]) -> Bool
@@ -864,6 +872,12 @@ The |elem| application is only true if |ys \\ [x]| contains |x|. The expression 
 
 \h{exprlist}\begin{code}
 sat' (eval x -< cs) == satE' (x -< cs)
+\end{code}
+
+We argue as follows:
+
+\h{exprlist}\begin{code}
+sat' (eval x -< cs) == satE' (x -< cs)
     -- \eq inline |sat'| and |satE'|
 propTaut sat (eval x -< cs) == propTaut satE (x -< cs)
     -- \eq inline |propTaut| and reduce common bits
@@ -876,7 +890,7 @@ Now we can use the type signature of |-<|:
 (-<) :: alpha -> [CtorName] -> Prop (Sat alpha)
 \end{code}
 
-The theorems for free work \cite{wadler:theorems} shows that the first argument will end up as the first argument of the |Sat| constructor, unmodified and unexamined. The |satE| function applies |eval| to the first argument of |Sat|, therefore both these pieces of code are equivalent.
+The theorems for free work \cite{wadler:theorems} shows that the first argument will end up as the first argument of the |Sat| constructor, unmodified and unexamined. The |satE| function applies |eval| to the first argument of |Sat|, therefore the equivalence holds.
 
 
 \define{\lemPrecondError}
@@ -912,7 +926,7 @@ The definition of |prePost f k| is a conjunction where the second conjunct is |r
 satE' (pre e / (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ e / (vs, ys)
 \end{code}
 
-This proof is by case analysis on |x|. We assume that all free variables in |e| are bound in |vs|. To shorten the proofs we do not explicitly write the |all (satE' . pre) ys| term, as it is never manipulated.
+We assume that all free variables in |e| are bound in |vs|. To shorten the proofs we do not explicitly write the |all (satE' . pre) ys| term, as it is never manipulated.
 
 \case{|e == Var v|}
 
@@ -1056,8 +1070,6 @@ True
 satE' $ red e k /# sub ==> sat $ Sat (eval $ e / sub) k
 \end{code}
 
-We prove by case analysis on the expression |e|.
-
 \case{|e == Var v|}
 
 \h{exprlist}\begin{code}
@@ -1080,7 +1092,7 @@ True
 
 \case{|e == Sel x (c,i)|}
 
-In this proof, we assume |eval (x / sub) == Value c xs|, due to being in the alternative of a |Case| expression.
+Here we may assume |eval (x / sub) === Value c xs|.
 
 \h{exprlist}\begin{code}
 satE' $ red e k /# sub ==> sat $ Sat (eval $ e / sub) k
@@ -1290,18 +1302,18 @@ True
 
 
 
-\section{Correctness Proof}
+\section{The Soundness Theorem}
 \label{secP:proof}
 
-\definep{}
-
-The goal of this chapter is to prove:
+\subsection{Theorem}
 
 \h{expr}\begin{code}
 satE' $ pre e ==> not $ isBottom $ eval e
 \end{code}
 
-This corresponds to a proof of soundness for the definitions in Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop}.
+That is, the analysis defined in Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop} is sound
+
+\subsection{Proof}
 
 \case{|e == Var v|}
 
@@ -1521,4 +1533,4 @@ True
 \section{Summary}
 \label{secP:summary}
 
-We have outlined an argument that the Catch analysis method presented in Chapter \ref{chp:catch} is sound. In doing so, we have characterised the properties that a constraint system must obey, and have shown these properties for BP-constraints and MP-constraints. The majority of the proof uses equational reasoning, apart from Lemma \lemMPMerge\ which has been tested. The proof has undergone limited checking for simple type-correctness, but has not been fully machine-checked. We think it would be an interesting experiment to fully check the presented proof.
+We have outlined an argument that the Catch analysis method presented in Chapter \ref{chp:catch} is sound. In doing so, we have characterised the properties that a constraint system must obey, and have shown these properties for BP-constraints and MP-constraints. The majority of the proof uses equational reasoning, apart from Lemma \lemMPMerge\ which has been tested for all small values. The proof has undergone limited checking for simple type-correctness, but has not been fully machine-checked.
