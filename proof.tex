@@ -456,13 +456,11 @@ We check that values and patterns are well-formed using |validValue| and |validP
 Value "(,)"
     [Value ":"
         [Value "True" []
-        ,Value "[]" []
-    ]
-    ,Value "Nothing" []
-]
+        ,Value "[]" []]
+    ,Value "Nothing" []]
 \end{code}
 
-Testing all values and patterns up to depth 4 (446,105,404 tests) no counter-example is found. We do not believe it is feasible to test this property at a greater depth, but depth 4 gives us reasonable confidence that the property is indeed true.
+Testing all values and patterns up to depth 4 (446,105,404 tests) no counter-example is found. These tests represent 692,363,920,494,602 possible inputs. We do not believe it is feasible to test this property at a greater depth, but depth 4 gives us reasonable confidence that the property is indeed true.
 
 
 \define{\lemSat\ (MP)}
@@ -706,8 +704,6 @@ sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
 sat' $ (f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs) ==>
     sat $ Sat (xs !! i) [ms_1 :* ms_2]
 \end{code}
-
-We can now perform case analysis, assuming either |isRec (c,i) == False|, or the reverse.
 
 \case{\h{#mp}|k == (ms_1 :* ms_2):ks|, |xs !! i == Value c' ys|, |isRec (c,i) == False|}
 
@@ -1313,8 +1309,6 @@ We do not need to consider |Var| as |eval| cannot be called on expressions with 
 
 \case{|e == Sel x (c,i)|}
 
-\todo{simplify here}
-
 By definition:
 
 \begin{code}
@@ -1322,9 +1316,23 @@ eval (Sel x (c,i)) | c == c' = xs !! i
     where Value c' xs = eval x
 \end{code}
 
-We know that any \ignore|Sel x _| value must be contained within an alternative of a \ignore|Case x _| expression. If we assume that the original |Case| expression matched this alternative, we obtain:
+We know that any \ignore|Sel x _| value must be contained within an alternative of a \ignore|Case x _| expression. We may assume that the original |Case| expression satisfied its precondition.
 
 \h{exprlist}\begin{code}
+satE' $ pre e ==> not $ isBottom $ eval e
+    -- \eq |e == Sel x (c,i)|
+satE' $ pre $ Sel x (c,i) ==> not $ isBottom $ eval $ Sel x (c,i)
+    -- \eq inline |eval|
+satE' $ pre $ Sel x (c,i) ==> not $ isBottom $ xs !! i
+    -- \im strengthen implication
+satE' $ pre $ Sel x (c,i) ==> all (not . isBottom) xs
+    -- \eq by definition of |isBottom|
+satE' $ pre $ Sel x (c,i) ==> not $ isBottom $ Value c' xs
+    -- \eq |Value c' xs == eval x|
+satE' $ pre $ Sel x (c,i) ==> not $ isBottom $ eval x
+    -- \im \lemmap
+satE' $ pre $ Sel x (c,i) ==> satE' $ pre x
+    -- \eq assuming original |Case| satisfied its constraint
 satE' $ pre $ Case x as ==> satE' $ pre x
     -- \eq inline |pre|
 satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre x
@@ -1423,60 +1431,87 @@ True
 
 \case{|e == Case x as|}
 
-\todo{improve here}
-
-By definition:
-
-\begin{code}
-eval (Case x as) = case eval x of
-    Value c xs -> head [eval y | Alt c' vs y <- as, c == c']
-    Bottom -> Bottom
+\h{exprlist}\begin{code}
+satE' $ pre e ==> not $ isBottom $ eval e
+    -- \eq |e == Case x as|
+satE' $ pre $ Case x as ==> not $ isBottom $ eval $ Case x as
 \end{code}
 
-This equation may generate |Bottom| in two ways -- either the explicit |Bottom| may be taken, or the recursive call to |eval| may result in |Bottom|. In both cases, if we can prove the expression passed to |eval| satisfies its precondition, then we can eliminate the possibility of |Bottom|.
-
-We first prove that the explicit |Bottom| is not reached, assuming the initial expression does not violate the precondition check.
+\case{|e == Case x as|, |eval x == Bottom|}
 
 \h{exprlist}\begin{code}
-satE' $ pre $ Case x as ==> satE' $ pre x
+satE' $ pre $ Case x as ==> not $ isBottom $ eval $ Case x as
+    -- \eq inline |eval|, assuming |eval x == Bottom|
+satE' $ pre $ Case x as ==> not $ isBottom Bottom
+    -- \eq inline |isBottom|
+satE' $ pre $ Case x as ==> not True
+    -- \eq inline |not|
+satE' $ pre $ Case x as ==> False
+    -- \eq implication
+not $ satE' $ pre $ Case x as
     -- \eq inline |pre|
-satE' $ pre x `propAnd` propAnds (map alt as) ==> satE' $ pre x
+not $ satE' $ pre x `propAnd` propAnds (map alt as)
     -- \eq inline |satE'|
-satE' (pre x) && satE' (propAnds $ map alt as) ==> satE' $ pre x
-    -- \im weaken implication
-satE' $ pre x ==> satE' $ pre x
-    -- \eq tautology
+not $ satE' (pre x) && satE' (propAnds $ map alt as)
+    -- \eq inline |not|
+not (satE' $ pre x) || not  (satE' $ propAnds $ map alt as)
+    -- \im weaken condition
+not $ satE' $ pre x
+    -- \im \lemmap
+not $ not $ isBottom $ eval e
+    -- \eq |not (not x) == x|
+isBottom $ eval e
+    -- \eq |eval x == Bottom|
+isBottom Bottom
+    -- \eq inline |isBottom|
 True
 \end{code}
 
-We now need to ensure that the other call to |eval| meets its precondition.
+\case{|e == Case x as|, |eval x == Value c xs|}
 
 \h{exprlist}\begin{code}
-satE' $ pre $ Case x as ==>
-    all (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) as
+satE' $ pre $ Case x as ==> not $ isBottom $ eval $ Case x as
+    -- \eq inline |eval|, assuming |eval x == Value c xs|
+lhs ==> not $ isBottom $ head [eval y | Alt c' vs y <- as, c == c']
+    -- \im strengthen implication
+lhs ==> all (not .  isBottom) [eval y | Alt c' vs y <- as, c == c']
+    -- \eq inline |all| over list comprehension
+lhs ==> and [not $ isBottom $ eval y | Alt c' vs y <- as, c == c']
+    -- \eq rearrange guard as an implication
+lhs ==> and [c == c' ==> not $ isBottom $ eval y | Alt c' vs y <- as]
+    -- \eq rewrite list comprehension as an |all|
+lhs ==> all (\(Alt c' vs y) -> c == c' ==> not $ isBottom $ eval y) as
+    -- \im \lemmap
+lhs ==> all (\(Alt c' vs y) -> c == c' ==> satE' $ pre y) as
+    -- \eq switch to LHS
+satE' $ pre $ Case x as ==> rhs
     -- \eq inline |pre|
 satE' $ pre x `propAnd` propAnds (map alt as) ==> rhs
     -- \eq inline |satE'|
 satE' (pre x) && all (satE' . alt) as ==> rhs
     -- \im weaken implication
 all (satE' . alt) as ==>
-    all (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) as
+    all (\(Alt c' vs y) -> c == c' ==> satE' $ pre y) as
     -- \im lift implies over all
-satE' $ alt a ==> (\(Alt c vs y) -> valCtor (eval x) == Just c ==> satE' $ pre y) a
-    -- \eq instantiate |a == Alt c v ys|
-satE' $ alt $ Alt c v ys ==> (valCtor (eval x) == Just c ==> satE' $ pre y)
+satE' $ alt a ==> (\(Alt c' vs y) -> c == c' ==> satE' $ pre y) a
+    -- \eq instantiate |a == Alt c' v ys|
+satE' $ alt $ Alt c' v ys ==> (c == c' ==> satE' $ pre y)
+    -- \eq rearrange implication
+satE' (alt $ Alt c' v ys) && (c == c') ==> satE' $ pre y
+    -- \eq substitute |c == c'|
+satE' $ alt $ Alt c v ys ==> rhs
     -- \eq inline |alt|
 satE' (x -< (ctors c \\ [c]) `propOr` pre y) ==> rhs
     -- \eq inline |satE'|
 satE' (x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
     -- \eq \lemma{\lemSatE}
 sat' (eval x -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
-    -- \eq using |valCtor (eval x) == Just c| we infer |eval x == Value c ys|
-sat' (Value c ys -< (ctors c \\ [c])) || satE' (pre y) ==> satE' $ pre y
+    -- \eq |eval x == Value c xs|
+sat' (Value c ys -< (ctors c \\ [c])) || satE' (pre y) ==> rhs
     -- \im \lemma{\lemSat}
-c `elem` (ctors c \\ [c]) || satE' (pre y) ==> satE' $ pre y
+c `elem` (ctors c \\ [c]) || satE' (pre y) ==> rhs
     -- \eq \lemma{\lemElem}
-False || satE' (pre y) ==> satE' $ pre y
+False || satE' (pre y) ==> rhs
     -- \eq inline |(||||)|
 satE' $ pre y ==> satE' $ pre y
     -- \eq tautology
