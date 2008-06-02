@@ -32,18 +32,20 @@
 
 
 \hsdef{\begin{comment}
-k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws,c',ms_1,ms_2,e
+k,f,c,v,i,on,xs_i,x,ys_i,s,a,ws,c',ms_1,ms_2,e,h
 vs,xs,y,as,ys,cs,rhs,lhs,g,f_lhd,f_rhd,ks
 \end{comment}}
 \begin{comment}
-\h{#*}\begin{code}
+\h{.*}\begin{code}
 import Prelude hiding (($),(/))
 import Data.List
 
 infixr 1  $
-infixr 0  ==>
-class Implies a where (==>) :: a -> a -> Bool
+infix 0  ==>
+infix 0  ===
 ($) :: (a -> b) -> a -> b
+class Implies a where (==>) :: a -> a -> Bool
+(===) :: a -> a -> ()
 
 instance Implies Bool
 instance Implies (Prop a)
@@ -104,8 +106,6 @@ instance Eq Expr
 alt :: Alt -> Prop (Sat a)
 pre' :: String -> [Expr] -> Prop (Sat Expr)
 sub :: ([VarName],[Expr])
-
-(===) :: a -> a -> ()
 \end{code}
 
 \begin{code}
@@ -114,7 +114,7 @@ anys :: String -> Constraint
 instance Eq Constraint
 \end{code}
 
-\h{#mp}\begin{code}
+\h{.mp}\begin{code}
 -- for MP
 type Constraint = [Val]
 data Val = [Pattern] :* [Pattern] | Any deriving Eq
@@ -152,7 +152,7 @@ In order to reduce the size of some of the intermediate expressions, we have rep
 \label{secP:evaluator}
 
 \begin{figure}
-\h{#*}\begin{code}
+\h{.*}\begin{code}
 data Value  =  Value CtorName [Value]
             |  Bottom
 
@@ -185,7 +185,7 @@ There is no case in |eval| for |Var|, and the behaviour of |eval| with free vari
 We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs,ys)| to denote replacing the free variables |vs| in |x| with |ys|. We use |(/)| instead of |substP| in the proofs, where |substP (zip vs ys) x === x /# (vs,ys)|.
 
 \begin{figure}
-\h{#*}\begin{code}
+\h{.*}\begin{code}
 isBottom :: Value -> Bool
 isBottom Bottom = True
 isBottom (Value c xs) = any isBottom xs
@@ -394,13 +394,13 @@ The proofs in this section appeal to definitions in Figure \ref{figC:enumeration
 
 \define{\lemMPAny}
 
-\h{#mp expr}\begin{code}
+\h{.mp expr}\begin{code}
 sat (Sat (Value c xs) ks) == any (\k -> sat $ Sat (Value c xs) [k]) ks
 \end{code}
 
 We argue as follows:
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat (Sat (Value c xs) ks) == any (\k -> sat $ Sat (Value c xs) [k]) ks
     -- \eq inline |sat|
 sat' ((c <| ks) /# ([0..],xs)) == rhs
@@ -434,14 +434,14 @@ True
 
 \define{\lemMPMerge}
 
-\h{#mp expr}\begin{code}
+\h{.mp expr}\begin{code}
 sat $ Sat (Value c xs) [merge ms_1 ms_2 :* merge ms_1 ms_2] ==>
     sat $ Sat (Value c xs) [ms_1 :* ms_2]
 \end{code}
 
 We have \textit{not} proved this lemma, as we suspect the proof is very long. Instead we have used Lazy SmallCheck \cite{lazysmallcheck} to test the property. Lazy SmallCheck exhaustively tests properties up to some depth of input values. Here is the property we have tested, along with the invariants on values:
 
-\h{#mp}\begin{code}
+\h{.mp}\begin{code}
 prop :: (Value, [Pattern], [Pattern]) -> Bool
 prop (v,ms1,ms2) =
         validValue v && validPatterns ms1 && validPatterns ms2 &&
@@ -475,7 +475,7 @@ Testing all values and patterns up to depth 4 (446,105,404 tests) no counter-exa
 
 \define{\lemSat\ (MP)}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat' (Value c xs -< cs) ==> c `elem` cs
     -- \eq inline |(-<)|
 sat' $ propLit $ Sat (Value c xs)
@@ -484,7 +484,7 @@ sat' $ propLit $ Sat (Value c xs)
 
 \case{|cs === []|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat' $ propLit $ Sat (Value c xs)
     [map complete cs :* map complete (ctors (head cs)) | not (null cs)] ==> c `elem` cs
     -- \eq |cs === []|
@@ -512,7 +512,7 @@ True
 
 \case{|cs /= []|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat' $ propLit $ Sat (Value c xs)
     [map complete cs :* map complete (ctors (head cs)) | not (null cs)] ==> c `elem` cs
     -- \eq |null cs == False|
@@ -574,7 +574,7 @@ True
 
 \define{\lemSatTri\ (MP)}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
     -- \eq inline | ||> |
 sat $ Sat (Value c xs) (map f k) ==> sat $ Sat (xs !! i) k
@@ -586,11 +586,11 @@ sat' $ propOrs (map f_lhd (map f_rhd k)) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
 sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
 \end{code}
 
-We now proceed by induction over |k|. We assume |k| may take the values |[]|, |Any:ks| and \h{#mp}|(ms_1 :* ms_2):ks|.
+We now proceed by induction over |k|. We assume |k| may take the values |[]|, |Any:ks| and \h{.mp}|(ms_1 :* ms_2):ks|.
 
 \case{|k === []|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
     -- \eq |k === []|
 sat' $ propOrs (map (f_lhd . f_rhd) []) /# ([0..],xs) ==> sat $ Sat (xs !! i) []
@@ -608,7 +608,7 @@ True
 
 \case{|k === Any:ks|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
     -- \eq |k === Any:ks|
 sat' $ propOrs (map (f_lhd . f_rhd) (Any:ks)) /# ([0..],xs) ==> sat $ Sat (xs !! i) (Any:ks)
@@ -618,7 +618,7 @@ sat $ Sat (xs !! i) (Any:ks)
 
 \case{|k === Any:ks| \csp |xs !! i === Bottom|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat $ Sat (xs !! i) (Any:ks)
     -- \eq |xs !! i === Bottom|
 sat $ Sat Bottom (Any:ks)
@@ -628,7 +628,7 @@ True
 
 \case{|k === Any:ks| \csp |xs !! i === Value c' ys|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat $ Sat (xs !! i) (Any:ks)
     -- \eq |xs !! i === Value c' ys|
 sat $ Sat (Value c ys) (Any:ks)
@@ -646,11 +646,11 @@ sat' propTrue
 True
 \end{code}
 
-\case{\h{#mp}|k === (ms_1 :* ms_2):ks|}
+\case{\h{.mp}|k === (ms_1 :* ms_2):ks|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat' $ propOrs (map (f_lhd . f_rhd) k) /# ([0..],xs) ==> sat $ Sat (xs !! i) k
-    -- \eq |k === (ms_1 :* ms_2):ks|
+    -- \eq \h{.mp}|k === (ms_1 :* ms_2):ks|
 sat' $ propOrs (map (f_lhd . f_rhd) ((ms_1 :* ms_2):ks)) /# ([0..],xs) ==>
     sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
     -- \eq inline |map|
@@ -670,9 +670,9 @@ sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
     sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
 \end{code}
 
-\case{\h{#mp}|k === (ms_1 :* ms_2):ks| \csp |xs !! i === Bottom|}
+\case{\h{.mp}|k === (ms_1 :* ms_2):ks| \csp |xs !! i === Bottom|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
     sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==>
     sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
@@ -684,9 +684,9 @@ sat $ Sat Bottom ((ms_1 :* ms_2):ks)
 True
 \end{code}
 
-\case{\h{#mp}|k === (ms_1 :* ms_2):ks| \csp |xs !! i === Value c' ys|}
+\case{\h{.mp}|k === (ms_1 :* ms_2):ks| \csp |xs !! i === Value c' ys|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat' ((f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs)) ||
     sat' (propOrs (map (f_lhd . f_rhd) ks /# ([0..],xs))) ==>
     sat $ Sat (xs !! i) ((ms_1 :* ms_2):ks)
@@ -715,9 +715,9 @@ sat' $ (f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs) ==>
     sat $ Sat (xs !! i) [ms_1 :* ms_2]
 \end{code}
 
-\case{\h{#mp}|k === (ms_1 :* ms_2):ks| \csp |xs !! i === Value c' ys| \csp |isRec (c,i) === False|}
+\case{\h{.mp}|k === (ms_1 :* ms_2):ks| \csp |xs !! i === Value c' ys| \csp |isRec (c,i) === False|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat' $ (f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs) ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
     -- \eq inline |f_rhd|, assuming |isRec (c,i) === False|
 sat' $ (f_lhd $ [Pattern c [if i == j then ms_1 :* ms_2 else Any | j <- nonRecs c]] :*
@@ -762,7 +762,7 @@ all sat $ zipWith Sat (non /# ([0..],xs))
     -- \eq inline |map|
 all sat $ zipWith Sat (non /# ([0..],xs))
     [if i == j then [ms_1 :* ms_2] else [Any] | j <- nonRecs c] ==> lhs
-    -- \eq |non === nonRecs c|, by definition of |nonRecs|
+    -- \eq \h{.mp}|non === nonRecs c|, by definition of |nonRecs|
 all sat $ zipWith Sat (non /# ([0..],xs))
     [if i == j then [ms_1 :* ms_2] else [Any] | j <- non] ==> lhs
     -- \eq rewrite list comprehension
@@ -774,7 +774,7 @@ all sat $ zipWith Sat (map (/# ([0..],xs)) non)
     -- \eq |zipWith f (map g xs) (map h xs) === map (\x -> f (g x) (h x)) xs|
 all sat $ map (\j -> Sat (j /# ([0..],xs))
     (if i == j then [ms_1 :* ms_2] else [Any])) non ==> lhs
-    -- \im weaken implication, using |i `elem` non| because of false |isRec| test
+    -- \im weaken implication, using \h{.mp}|i `elem` non| because of false |isRec| test
 all sat $ map (\j -> Sat (j /# ([0..],xs))
     (if i == j then [ms_1 :* ms_2] else [Any])) [i] ==> lhs
     -- \eq inline |map|
@@ -793,16 +793,16 @@ sat $ Sat (xs !! i) [ms_1 :* ms_2] ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
 True
 \end{code}
 
-\case{\h{#mp}|k === (ms_1 :* ms_2):ks| \csp |xs !! i === Value c' ys| \csp |isRec (c,i) === True|}
+\case{\h{.mp}|k === (ms_1 :* ms_2):ks| \csp |xs !! i === Value c' ys| \csp |isRec (c,i) === True|}
 
-\h{#mp exprlist}\begin{code}
+\h{.mp exprlist}\begin{code}
 sat' $ (f_lhd $ f_rhd $ ms_1 :* ms_2) /# ([0..],xs) ==> sat $ Sat (xs !! i) [ms_1 :* ms_2]
     -- \eq inline |f_rhd|, assuming |isRec (c,i)|
 sat' $ (f_lhd $ [complete c] :* merge ms_1 ms_2) /# ([0..],xs) ==> lhs
     -- \eq inline |f_lhd|
 sat' $ propOrs [propAnds $ map propLit $ g vs_1 |
     Pattern c_1 vs_1 <- [complete c], c_1 == c] /# ([0..],xs) ==> lhs
-    -- \eq inline |complete c|
+    -- \eq inline \h{.mp}|complete c|
 sat' $ propOrs [propAnds $ map propLit $ g vs_1 | Pattern c_1 vs_1 <-
     [Pattern c (map (const Any) (nonRecs c))], c_1 == c] /# ([0..],xs) ==> lhs
     -- \eq simplify list comprehension
@@ -838,7 +838,7 @@ all sat $ map (\j -> Sat (j /# ([0..],xs))
     -- \eq combine |all| and |map|
 all (\j -> sat $ Sat (j /# ([0..],xs))
     [merge ms_1 ms_2 :* merge ms_1 ms_2]) rec ==> lhs
-    -- \im weaken implication, as |i `elem` rec|, because of |isRec| test
+    -- \im weaken implication, as \h{.mp}|i `elem` rec|, because of |isRec| test
 all (\j -> sat $ Sat (j /# ([0..],xs))
     [merge ms_1 ms_2 :* merge ms_1 ms_2]) [i] ==> lhs
     -- \eq inline |all|
