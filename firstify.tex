@@ -767,14 +767,14 @@ s_0  =  lam s_0 &+ fun s_0 s_0 &+ con s_0 &+ app s_0 s_0 &+ var &+
 
 \subsection{A Proposition about Residual Lambdas}
 
-We classify the location of lambdas within the residual program, assuming the program satisfies the following two conditions:
+We classify the location of lambdas within the residual program, assuming the following two conditions are satisfied:
 
 \begin{enumerate}
 \item The termination criteria do not curtail defunctionalisation (see \S\ref{secF:termination}).
 \item No primitive function receives a functional argument, or returns a functional result.
 \end{enumerate}
 
-Given these assumptions, a lambda or boxed lambda may only occur in the following places: (1) the body of the |main| function; (2) passed as an argument to a variable; (3) the body of a lambda expression. In \S\ref{secF:example_residual} we give examples of these residual forms.
+Given these assumptions, a lambda or boxed lambda may only occur in the following places: (1) the body of the |main| function; (2) passed as an argument to a variable of functional type; (3) the body of a lambda expression. In \S\ref{secF:example_residual} we give examples of these residual forms.
 
 \subsection{Proof of the Proposition}
 
@@ -790,7 +790,7 @@ s_1  =  lam s_1 &+ fun s_1 s_1 &+ con s_1 &+ app (s_1 - con s_1) s_1 &+ var &+
 \end{code}
 
 \paragraph{Restriction 2: Standard Simplification Rules}
-Our simplification rules from \S\ref{secB:core_simplify} are applied until a fixed point is found, meaning that the left-hand side of any rule cannot occur in the output. For example, the left-hand side of the (case-con) rule is \ignore|case_ (con s) s|, so this pattern cannot remain in a residual program. By similarly examining left-hand sides of all the standard simplification rules we can further reduce the bounding set of residual expressions:
+Our simplification rules from \S\ref{secB:core_simplify} are applied until a fixed point is found, meaning that no expression matching the left-hand side of a rule can occur in the output. For example, the left-hand side of the (case-con) rule is \ignore|case_ (con s) s|, so this pattern cannot remain in a residual program. By similarly examining left-hand sides of all the standard simplification rules we can further reduce the bounding set of residual expressions:
 
 % _ = L f C a(v, _) v c(f a v, _) l
 \ignore\begin{code}
@@ -827,7 +827,7 @@ b_n'  =  lam e_n &+ fun b_n' e_n &+ con (b_n' - lam e_n) &+ app e_n e_n &+ var &
          case_ e_n b_n' &+ let_ e_n b_n'
 \end{code}
 
-As an example of how |b_n'| was obtained, take |fun b_n' e_n|. A function application is a lambda box if the functions body is a lambda box, therefore provided the body of the function is not a lambda box, the function application will not be. The arguments to a function application do not effect whether the application is a lambda box, and are left unrestricted as |e_n|.
+As an example of how the component subsets of |b_n'| are obtained, take |fun b_n' e_n|. A function application is a lambda box if the function's body is a lambda box. Therefore, provided the body of the function is not a lambda box, the function application will not be. The arguments to a function application do not affect whether the application is a lambda box, and are left unrestricted as |e_n|.
 
 The inlining stage and the (bind-box) simplification rule match expressions which are lambda boxes, therefore these expressions can be can be eliminated from the residual program:
 
@@ -849,19 +849,19 @@ e_6  =  lam e_6 &+ fun l_6' (l_6' &* b_6') &+ con e_6 &+ app var e_6 &+ var &+
 \end{code}
 
 \paragraph{Residual Forms}
-Having applied all the rules, we now classify what the parent expressions of a lambda may be. Since |l_n'| by definition excludes lambda expressions, a lambda can not be the root of a residual function body. We can define |lp|, the lambda parents, consisting of the expressions drawn from |e_6| which permit a lambda expression as a direct child. We have denoted the possible presence of a lambda with |l|, and their absence with an underscore:
+Having applied all the rules, we now classify what the parent expressions of a lambda may be. Since |l_n'| by definition excludes lambda expressions, no residual function body can be a lambda. We can define |lp|, the lambda parents, consisting of the expressions drawn from |e_6| which permit a lambda expression as a direct child. We have denoted the possible presence of a lambda with |l|, and their absence with an underscore:
 
 \ignore\begin{code}
 lp = lam l &+ con l &+ app _ l
 \end{code}
 
-A lambda may therefore occur as the child of a lambda expression, as an argument to a constructor, or as an argument to an application. However, a constructor containing a lambda is a boxed lambda, and therefore is not permitted anywhere |b'| is intersected with the expression. Similarly to |lp|, we can define |bp|, the boxed parents, consisting of expressions drawn from |e_6| which permit a boxed lambda as a direct child:
+That is, a lambda may occur as the child of a lambda expression, as an argument to a constructor, or as an argument to an application. However, a constructor containing a lambda is a boxed lambda, and therefore is not permitted anywhere |b'| is intersected with the expression. Similarly to |lp|, we can define |bp|, the boxed parents, consisting of expressions drawn from |e_6| which permit a boxed lambda as a direct child:
 
 \ignore\begin{code}
 bp = lam b &+ fun b _ &+ con b &+ app _ b &+ case_ _ b &+ let_ _ b
 \end{code}
 
-Either the body of the root function is a boxed lambda, or a boxed lambda must have a parent expression which is not a boxed lambda. We can restate |bp| to exclude expressions which are themselves boxed lambdas, and determine the ultimate parent of a boxed lambda:
+Either the body of the |main| function is a boxed lambda, or a boxed lambda must have a parent expression which is not a boxed lambda. We can restate |bp| to exclude expressions which are themselves boxed lambdas, and determine the ultimate parent of a boxed lambda:
 
 \ignore\begin{code}
 bp = lam b &+ app _ b
@@ -873,7 +873,7 @@ The |con l| expression is itself a boxed lambda, and is only permitted where |bp
 p = lam (b &+ l) &+ app _ (b &+ l)
 \end{code}
 
-Additionally, as per the restrictions imposed in |e_6|, the first argument of any general application must be a variable. So we have shown, as required, that a lambda or boxed lambda may only occur as the body of a lambda, passed as an argument to a variable in a general application, or as the body of the |main| function.
+In view of the restrictions imposed on |e_6|, we also know that the first argument of any general application must be a variable. So we have shown, as required, that a lambda or boxed lambda may only occur as the body of a lambda, passed as an argument to a variable in a general application, or as the body of the |main| function.
 
 \subsection{Example Residual Lambdas}
 \label{secF:example_residual}
