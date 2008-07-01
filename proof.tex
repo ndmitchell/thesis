@@ -1403,13 +1403,14 @@ satE' $ pre $ Call "error" xs ==> not True
     -- \eq inline |not|
 satE' $ pre $ Call "error" xs ==> False
     -- \eq implication
-satE' $ pre $ Call "error" xs
+not $ satE' $ pre $ Call "error" xs
     -- \eq inline |pre|
-satE' $ (precond "error" /# (args "error", xs))
+not $ satE' $ (precond "error" /# (args "error", xs)) `propAnd` propAnds (map pre xs)
     -- \eq inline |satE'|
-satE' (precond "error" /# (args "error", xs)) && all (satE' . pre) xs
-    -- \im weaken implication
-satE' (precond "error" /# (args "error", xs))
+not $ satE' (precond "error" /# (args "error", xs)) && all (satE' . pre) xs
+    -- \eq inline |not|
+not (satE' (precond "error" /# (args "error", xs))) || not (all (satE' . pre) xs)
+    -- \im weaken proposition
 not $ satE' (precond "error" /# (args "error", xs))
     -- \eq \lemma{\lemPrecondError}
 not $ satE' $ (propFalse /# (args "error", xs))
