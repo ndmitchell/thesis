@@ -100,6 +100,8 @@ This chapter makes the following contributions:
 \item We have implemented our method, and present measured results for much of the nofib benchmark suite.
 \end{itemize}
 
+\todo{Identify limitations as well, i.e. partial algorithm and work duplication. REQUIRED}
+
 \section{First-Order Programs}
 \label{secF:first_order}
 
@@ -253,6 +255,8 @@ We define a number of goals: some are \textit{essential}, and others are \textit
 \subsubsection*{Desirable}
 
 \paragraph{Remove all functional values.} We aim to remove as many functional values as possible. In \S\ref{secF:completeness} we make precise where functional values may appear in the resultant programs. If a totally first-order program is required, Reynolds' method can be always be applied after our transformation. Applying our method first will cause Reynolds' method to introduce fewer additional data types and generate a smaller interpreter.
+
+\todo{Say why the possible loss of sharing is safe with the semantics and termination, but that this does/may not hold in other functional languages such as ML.}
 
 \paragraph{Preserve the space/sharing behaviour of the program.} In the expression |let y = f x in y + y|, according to the rules of lazy evaluation, |f x| will be evaluated at most once. We could inline the let binding to give |f x + f x|, but this expression evaluates |f x| twice. Where possible, we will avoid changing the sharing of the program. Our goals are primarily for analysis of the resultant code, not to compile and execute the result. Because we are not interested in performance, we permit the loss of sharing in computations if to do so will remove functional values.
 
@@ -532,6 +536,8 @@ map_id xs = case  xs of
 
 \subsubsection{Generating Templates}
 \label{secF:generate_templates}
+
+\todo{Explain and justify what template and tem do}
 
 %format underscore = _
 
@@ -923,6 +929,8 @@ let(lam(x),y)    -> lam(let(x,y))
 \label{figF:term_simplification}
 \end{figure}
 
+\todo{Explain the rewrite rules and argue that they faithfully model the termination behaviour of the original rules.}
+
 In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. An encoding of a simplified version of our rules is given in Figure \ref{figF:term_simplification}. We have proven termination using both this simple formulation, which considers all data types to have one constructor of arity one, and a more complex encoding. In both cases, the system is able to report success.
 
 The encoding of the (bind-box) and (bind-lam) rules is excluded. Given these rules, there are non terminating sequences. For example:
@@ -972,6 +980,8 @@ To avoid such problems, we permit inlining a function |f|, at all application si
 
 \subsection{Termination of Specialisation}
 \label{secF:termination_specialisation}
+
+\todo{In its general form, Kruskal's Tree Theorem works for infinite alphabets that are well-quasi ordered Is that applicable here?}
 
 The specialisation method, left unrestricted, also may not terminate.
 
@@ -1147,6 +1157,8 @@ In order to gain acceptable speed, we perform a number of optimisations over the
 \end{itemize}
 
 \subsection{Program Size}
+
+\todo{Correct the mislead implication that firstification is responsible for code shrinkage - its probably mainly the simplification stage. Ideally, measure; but that's not a formal requirement.}
 
 We measured program size by taking the number of nodes in the abstract syntax tree. On average the size of the resultant program is smaller by 33\% (see Size in Table \ref{tabF:results}). The decrease in program size is due to the elimination of dictionaries holding references to unnecessary code.
 
