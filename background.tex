@@ -46,7 +46,7 @@ expr  ::=  v                   {-"\f{variable}"-}
       |    f xs_               {-"\f{function application}"-}
       |    x xs_               {-"\f{general application}"-}
       |    \v -> x             {-"\f{lambda abstraction}"-}
-      |    let v = x in y      {-"\f{let binding}"-}
+      |    let v = x in y      {-"\f{let binding, non-recursive}"-}
       |    case x of as_       {-"\f{case expression}"-}
 
 alt   ::=  c vs_ -> x          {-"\f{case alternative}"-}
@@ -58,6 +58,8 @@ Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over f
 \end{figure}
 
 \todo{Mention the semantics of Core, possibly with a reference to the semantics/definition of Haskell}
+
+\todo{Explain the duplication present in the language}
 
 The syntax of our Core language is given in Figure \ref{figB:core}. To specify a list of items of unspecified length we write either \ignore|x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. In later chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation. The language is based upon Yhc.Core, a semantics for which is given in \cite{me:yhc_core}.
 
@@ -146,7 +148,7 @@ freeVars' xs_ = unions (map freeVars xs_)
 \label{figB:free_variables}
 \end{figure}
 
-An occurrence of a variable |v| is \textit{bound} if it occurs on the right-hand side a case alternative whose pattern includes |v|, as the argument of an enclosing lambda abstraction or as a binding in an enclosing let expression; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |freeVars e|, and can be computed using the function in Figure \ref{figB:free_variables}.
+An occurrence of a variable |v| is \textit{bound} in |x| if it occurs on the right-hand side a case alternative whose pattern includes |v|, as the argument of an enclosing lambda abstraction or as a binding in an enclosing let expression; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |freeVars e|, and can be computed using the function in Figure \ref{figB:free_variables}.
 
 In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume and should preserve this invariant.
 
@@ -359,7 +361,7 @@ The semantic rules for evaluating this expression result in:
 In the semantics, the expression |f 1| is reduced twice. However, the a compiler would only evaluate |f 1| once. The first time the value of |x| is demanded, |f 1| evaluates to WHNF, and is bound to |x|. Any successive examinations of |x| return immediately, pointing at the same result.
 \end{example}
 
-\todo{Fix the bug concerning linearity and lambdas, REQUIRED}
+\todo{Fix the bug concerning linearity and lambdas, REQUIRED. Consider let x = expensive in (let f  = \y -> x + y in map f xs))}
 
 \begin{figure}
 \begin{code}
@@ -493,6 +495,8 @@ The dictionary transformation is a global transformation. In Example \ref{exB:di
 
 \todo{Give the intution for homeomorphic embedding, add the alternative definition via rewrite rules. State that homeomorphic embedding is a well-quasi order, meaning that for every infinite sequence of expressions e1,e2 there exist indicies i<j such that ei <~ ej. This result is known as Kruskal's Tree Theorem. Explain that you can use it directly to prove termination of program transformations. REQUIRED}
 
+\todo{Rewrite dive and couple as a functional program}
+
 \begin{figure}
 \begin{tabular}{p{5cm}p{6.5cm}}
 \[\frac{\text{dive}(x,y)}{x \unlhd y}\] \vspace{-8mm}
@@ -509,6 +513,8 @@ The dictionary transformation is a global transformation. In Example \ref{exB:di
 \caption{Homeomorphic embedding relation.}
 \label{figB:homeomorphic}
 \end{figure}
+
+\todo{define what an expression shell is}
 
 The homeomorphic embedding relation \cite{leuschel:homeomorphic} has recently been used to guarantee termination of certain program transformations \cite{sorensen:supercompilation}. An expression $x$ is an embedding of $y$, written $x \unlhd y$, if the relationship can be inferred by the rules given in Figure \ref{figB:homeomorphic}, given a $\sim$ relation corresponding to equality of expression shells. The homeomorphic embedding uses the relations dive and couple. The dive relation checks if the first term is contained as a child of the second term, while the couple relation checks if both terms have the same outer shell.
 
@@ -534,5 +540,7 @@ The homeomorphic embedding assumes all elements are expressions over a finite al
 To compute $s \unlhd t$, by direct application of the rules in Figure \ref{figB:homeomorphic}, takes worse than polynomial time in the size of the expressions. Fortunately, there exists an algorithm \cite{stillman:computational_problems,stillman:homeomorphic} which takes $O(\text{size}(s) \cdot \text{size}(t) \cdot a)$, where $a$ is the maximum arity of any subexpression in $s$ or $t$.
 
 The faster algorithm first constructs a $\text{size}(s)$ by $\text{size}(t)$ table, recording whether each pair of subexpressions within $s$ and $t$ satisfy the homeomorphic embedding. By computing the homeomorphic embedding in a bottom-up manner, making use of the table to cache pre-computed results, much duplicate computation can be eliminated. By first assigning each subexpression a uniquely identifying number, table access and modification are both $O(1)$ operations. The result is a polynomial algorithm.
+
+\todo{refine comment about complexity class, what does it mean by doesn't seem to change}
 
 We have implemented both the direct homeomorphic algorithm, and the polynomial algorithm, in Haskell. Haskell is not well-suited to the use of mutable arrays, so we have instead used tree data structures to model the table. In practical experiments, the table-based algorithm seems to be around three times faster than the simple algorithm, but does not seem to change the complexity class. We suspect that our implementation could be improved, and that the worst-case behaviour of the simple algorithm occurs infrequently.
