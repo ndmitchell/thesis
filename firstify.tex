@@ -107,6 +107,10 @@ This chapter makes the following contributions:
 
 Informally, a program is higher-order if at runtime the program creates functional values. Functional values can only be created in two ways: (1) a lambda expression; or (2) a partially-applied function application. We therefore make the following definition:
 
+\todo{Definition style is not used elsewhere, make it consistent}
+
+\todo{Say a program is first order if at runtime it creates no functional values}
+
 \begin{definition}
 A program which contains no lambda expressions and no partially-applied functions is first-order.
 \end{definition}
@@ -120,7 +124,7 @@ We may expect the |map| definition to be higher-order, as |map| has the |f x| su
 \section{Our First-Order Reduction Method}
 \label{secF:overview}
 
-Our method works by combining three separate and well-known transformations. Each transformation on its own preserves correctness, and none introduces any additional data types. Our method also applies simplification rules before each transformation, most of which may be found in any optimising compiler \cite{spj:transformation}.
+Our method works by combining three separate and well-known transformations. Each transformation on its own is correct, and none introduces any additional data types. Our method also applies simplification rules before each transformation, most of which may be found in any optimising compiler \cite{spj:transformation}.
 
 \begin{description}
 \item[Arity Raising:] A function can be arity raised if the body of the function is a lambda expression. In this situation, the variables bound by the lambda can be added instead as arguments of the function definition.
@@ -243,13 +247,13 @@ We define a number of goals: some are \textit{essential}, and others are \textit
 
 \subsubsection*{Essential}
 
-\paragraph{Preserve the result computed by the program.} By making use of three established transformations, correctness is relatively easy to show.
+\paragraph{Preserve the result computed by the program.} By making use of three established transformations, total correctness is relatively easy to show.
 
 \paragraph{Ensure the transformation terminates.} The issue of termination is much harder. Both inlining and specialisation could be applied in ways that diverge. In \S\ref{secF:termination} we develop a set of criteria to ensure termination.
 
 \paragraph{Recover the original program.} Our transformation is designed to be performed before analysis. It is important that the results of the analysis can be presented in terms of the original program. We need a method for transforming expressions in the resultant program into equivalent expressions in the original program.
 
-\paragraph{Introduce no data types.} Reynolds method introduces a new data type that serves as a representation of functions, then embeds an interpreter for this data type into the program. We aim to eliminate the higher-order aspects of a program \textit{without} introducing any new data types. By composing our transformation out of existing transformations, none of which introduces data types, we can easily ensure that our resultant transformation does not introduce data types.
+\paragraph{Introduce no data types.} Reynolds method introduces a new data type that serves as a representation of functions, then embeds an interpreter for this data type into the program. We aim to eliminate the higher-order aspects of a program \textit{without} introducing any new data types. By composing our transformation out of existing transformations, none of which introduces data types, we can easily ensure that our resultant transformation does not introduce data types. \todo{Say why this is important, because it is a bottleneck for analysis}
 
 
 \subsubsection*{Desirable}
@@ -258,7 +262,7 @@ We define a number of goals: some are \textit{essential}, and others are \textit
 
 \todo{Say why the possible loss of sharing is safe with the semantics and termination, but that this does/may not hold in other functional languages such as ML.}
 
-\paragraph{Preserve the space/sharing behaviour of the program.} In the expression |let y = f x in y + y|, according to the rules of lazy evaluation, |f x| will be evaluated at most once. We could inline the let binding to give |f x + f x|, but this expression evaluates |f x| twice. Where possible, we will avoid changing the sharing of the program. Our goals are primarily for analysis of the resultant code, not to compile and execute the result. Because we are not interested in performance, we permit the loss of sharing in computations if to do so will remove functional values.
+\paragraph{Preserve the space/sharing behaviour of the program.} In the expression |let y = f x in y + y|, according to the rules of lazy evaluation, |f x| will be evaluated at most once. We could inline the let binding to give |f x + f x|, but this expression evaluates |f x| twice. Where possible, we will avoid changing the sharing of the program. Our goals are primarily for analysis of the resultant code, not to compile and execute the result. Because we are not interested in performance, we permit the loss of sharing in computations if to do so will remove functional values. \todo{However, we don't where we can avoid it, or we'll blow the program up and may decrease the accuracy of the analysis}
 
 \paragraph{Minimize the size of the program.} Previous defunctionalisation methods have reflected a concern to avoid undue code-size increase \cite{chin:higher_order_removal}. A smaller resultant program would be desirable, but not at the cost of clarity.
 
@@ -372,6 +376,8 @@ let v = x in \w -> y
 \end{figure}
 
 The simplification stage has the goal of moving lambda expressions upwards, and introducing lambdas for partially applied functions. This stage makes use of standard simplification rules from \ref{secB:core_simplify} plus additional rules which deal specifically with lambda expressions, given in Figure \ref{figF:lambda_simplify}. All of the simplification rules are correct individually. The rules are applied to any subexpression, as long as any rule matches.
+
+\todo{Conjecture that these rules are confluent including those from the background section}
 
 \subsubsection{Lambda Introduction}
 
@@ -537,7 +543,9 @@ map_id xs = case  xs of
 \subsubsection{Generating Templates}
 \label{secF:generate_templates}
 
-\todo{Explain and justify what template and tem do}
+\todo{Explain and justify what template and tem do. Give examples}
+
+\todo{Make the templates much clearer to follow. Justify with helpful examples, i.e. f (\x -> x) 1 and f (\x -> x) 2 give the same template}
 
 %format underscore = _
 

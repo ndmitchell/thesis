@@ -233,7 +233,7 @@ var "ys"  = Just (EVar "xs", (":",1))
 \end{code}
 \end{example}
 
-The |isRec (c,i)| function returns true if the constructor |c| has a recursive |i|th component. For example, let \h{stmt}|hd = (":",0)| and \h{stmt}|tl = (":",1)| then \h{stmt}|isRec hd = False| but \h{stmt}|isRec tl = True|.
+The |isRec (c,i)| function returns true if the constructor |c| has a recursive |i|th component. For example, let \h{stmt}|hd = (":",0)| and \h{stmt}|tl = (":",1)| then \h{stmt}|isRec hd = False| but \h{stmt}|isRec tl = True|. \todo{Non-recursive selectors must satisfy the property that they occur only some maximum number of times}
 
 \subsubsection{Algebraic Abstractions of Primitive Types}
 \label{secC:abstraction}
