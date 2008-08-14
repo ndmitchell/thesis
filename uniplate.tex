@@ -111,6 +111,8 @@ Ours is far from the first technique for `scrapping boilerplate'. The area has b
 \section{Queries and Transformations}
 \label{secU:use_play}
 
+\todo{Define maximal proper substructure and alpha-children}
+
 We define various traversals, using the |Expr| type defined in the introduction as an example throughout. We divide \textit{traversals} into two categories: queries and transformations. A \textit{query} is a function that takes a value, and extracts some information of a different type. A \textit{transformation} takes a value, and returns a modified version of the original value. All the traversals rely on the class |Uniplate|, an instance of which is assumed for |Expr|. The definition of this class and its instances are covered in \S\ref{secU:implement_play}.
 
 \subsection{Children}
@@ -259,6 +261,8 @@ The |Var| alternative may return an |Expr| from |rep|, but no additional transfo
 \end{example}
 
 \subsection{Transformations to a Normal Form}
+
+\todo{Make it clear that different strategies may give different results as patterns are allowed to overlap. ie. something like neg (neg x) = 1, applied to neg (neg (neg 1))}
 
 In addition to top-down and bottom-up transformations, we also provide transformations to a normal form. The idea is that a rule is applied exhaustively until a normal form is achieved. Consider a rewrite transformation:
 
@@ -598,6 +602,8 @@ _N $| List |$ \? v_1 x = case x of
 \label{figU:d_expr}
 \end{figure}
 
+\todo{Explain how the derived instance declaration is constructed. REQUIRED}
+
 We model the derivation of an instance by describing a derivation from a data type to a set of declarations. The derivation rules are given in Figure \ref{figU:derive}. The |_D| rule takes a data type declaration, and defines a function over that data type. The |_C| rule defines a case alternative for each constructor. The |_T| rule defines type specific behaviour: a type is either the target type on which an instance is being defined, or a primitive such as |Char|, or an algebraic data type, or a free type variable.
 
 The result of applying |_D| to |Expr| is given in Figure \ref{figU:d_expr}. Given these definitions we can define a Uniplate instance for the |Expr| type with:
@@ -774,6 +780,8 @@ In this redefinition we have again made a single change to the equation: the add
 
 \section{Implementing |Biplate|}
 \label{secU:implement_playex}
+
+\todo{Lots more todo here. Explain the role of PlateOne/PlateAll as a mechanism for giving Uniplate instances. Be clear that PlateAll in 3.5.1 is different from 3.5.2. How do these techniques work on parameterised and higher-kinded types. REQUIRED}
 
 The complicating feature of |biplate| is that when defining |Biplate| where \ignore|alpha == beta| the function does not descend to the children, but simply returns its argument. This rule can be captured either using the type system, or using the |Typeable| class \cite{lammel:syb}. We present three methods for defining a |Biplate| instance -- offering a trade-off between performance, compatibility and volume of code.
 

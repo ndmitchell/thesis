@@ -150,6 +150,8 @@ The original Supero work \cite{me:supero_ifl} inlined following evaluation order
 
 \subsection{Examples of Supercompilation}
 
+\todo{Try and draw parallels between the Figure 4.2 and the example. Especially the unique-name stuff, but more too.}
+
 \begin{examplename}{Supercompiling and Specialisation}
 
 \begin{code}
@@ -261,9 +263,13 @@ The original Supero program used a size bound on the expression to determine whe
 
 We use the homeomorphic embedding relation (described in \S\ref{secB:homeomorphic}). We terminate the supercompilation of an expression |y| if on the chain of reductions from |main| to |y| we have encountered an expression |x| such that $x \unlhd y$.
 
+\todo{Define the additional termination criteria.}
+
 In addition to using the homeomorphic embedding, we also terminate if further unfolding cannot yield any improvement to the root of the expression. For example, if the root of an expression is a constructor application, no further unfolding will change the root constructor. When terminating for this reason, we always residuate the outer shell of the expression, without applying any generalisation.
 
 \subsection{Generalisation}
+
+\todo{Separate into three different generalisation strategies. Give much better intuition.}
 
 When the termination criterion has been met, it is necessary to discard information about the current expression, so that the supercompilation terminates. We always residuate the outer shell of the expression, but first we attempt to generalise the expression so that the information lost is minimal. The paper by \citet{sorensen:supercompilation} provides a method for generalisation, which works by taking the most specific generalisation of the current expression and an expression which is a homeomorphic embedding of it.
 
@@ -505,6 +511,8 @@ Supercompilation \cite{supercompilation,turchin:experiments} was introduced by T
 The issue of let expressions in supercompilation has not previously been a primary focus. If lets are mentioned, the usual strategy is to substitute all linear lets and residuate all others. Lets have been considered in a strict setting \cite{jonsson:supercompilation}, where they are used to preserve termination semantics, but in this work all strict lets are inlined without regard to loss of sharing. Movement of lets can have a dramatic impact on performance: carefully designed let-shifting transformations give an average speedup of 15\% in GHC \cite{spj:letfloating}, suggesting let expressions are critical to the performance of real programs.
 
 \subsection{Partial evaluation}
+
+\todo{Say what is the difference between supercompilation and partial evaluation}
 
 There has been a lot of work on partial evaluation \cite{jones:partial_evaluation}, where a program is specialised with respect to some static data. The emphasis is on determining which variables can be entirely computed at compile time, and which must remain in the residual program. Partial evaluation is particularly appropriate for specialising an interpreter with an expression tree to generate a compiler automatically, often with an order of magnitude speedup, known as the First Futamura Projection \cite{futanama:projections}. Partial evaluation is not usually able to remove intermediate data structures. Our method is certainly less appropriate for specialising an interpreter, but in the absence of static data, is still able to show improvements.
 
