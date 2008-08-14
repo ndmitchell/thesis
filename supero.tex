@@ -107,14 +107,16 @@ drive(rho, x)
         (cs,gen) = uniplate\!!(generalise\!!(x))
         {-" \textsf{\textbf{return }} "-} gen\!!(fmap (tie rho) cs)
     else
-        {-" \textsf{\textbf{return }} "-} drive\!!(rho `union` {x}, unfold\!!(x))
+        {-" \textsf{\textbf{return }} "-} drive\!!(rho `union` {x}, simplify\!!(unfold\!!(x)))
 \end{code}
 
-Where |psi| is a mapping from expressions to function names, and \ignore|freeVars\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decides whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it.
+Where |psi| is a mapping from expressions to function names, and \ignore|freeVars\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decides whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it. \todo{Say what rho is, mention simplify as well}
 \vspace{3mm}
 \caption{The |supercompile| function.}
 \label{figS:supercompile}
 \end{figure}
+
+\todo{Give Haskell style definitions of termination and residuation}
 
 The general method of supercompilation is shown in Figure \ref{figS:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost shell of the expression becomes part of the residual program -- making use of a Uniplate instance for our Core language (see Chapter \ref{chp:uniplate}). All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to $\alpha$-renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions is then supercompiled as before.
 
@@ -131,7 +133,7 @@ let v = c x_1 ... x_n in y
     =>  let v_1 = x_1 in
         ...
         let v_n = x_n in
-        y[v/c x_1 ... x_n]
+        y[v/c v_1 ... v_n]
     where v_1 ... v_n {-" \hbox{ are fresh} "-}
 \end{code}
 \caption{Additional simplification rules.}
@@ -269,7 +271,7 @@ In addition to using the homeomorphic embedding, we also terminate if further un
 
 \subsection{Generalisation}
 
-\todo{Separate into three different generalisation strategies. Give much better intuition.}
+\todo{Separate into three different generalisation strategies. Give much better intuition. Three subsubsection headings, Shell only; MSG; bowtie}
 
 When the termination criterion has been met, it is necessary to discard information about the current expression, so that the supercompilation terminates. We always residuate the outer shell of the expression, but first we attempt to generalise the expression so that the information lost is minimal. The paper by \citet{sorensen:supercompilation} provides a method for generalisation, which works by taking the most specific generalisation of the current expression and an expression which is a homeomorphic embedding of it.
 
@@ -512,7 +514,7 @@ The issue of let expressions in supercompilation has not previously been a prima
 
 \subsection{Partial evaluation}
 
-\todo{Say what is the difference between supercompilation and partial evaluation}
+\todo{Say what is the difference between supercompilation and partial evaluation. Answer is that partial evaluation is more focused on binding times, particularly at removing interpretation overhead. There are lots of different definitions of exactly what each one does.}
 
 There has been a lot of work on partial evaluation \cite{jones:partial_evaluation}, where a program is specialised with respect to some static data. The emphasis is on determining which variables can be entirely computed at compile time, and which must remain in the residual program. Partial evaluation is particularly appropriate for specialising an interpreter with an expression tree to generate a compiler automatically, often with an order of magnitude speedup, known as the First Futamura Projection \cite{futanama:projections}. Partial evaluation is not usually able to remove intermediate data structures. Our method is certainly less appropriate for specialising an interpreter, but in the absence of static data, is still able to show improvements.
 
