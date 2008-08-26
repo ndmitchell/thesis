@@ -735,7 +735,7 @@ data CoreExpr  =  CoreVar   String
 
 Most traversals are performed on the |CoreExpr| type. However, it is often convenient to start from one of the other types. For example, \h{stmt}|coreSimplify :: CoreExpr -> CoreExpr| may be applied not just to an individual expression, but to all expressions in a function definition, or a complete program. If we are willing to freeze the type of the second argument to |biplate| as |CoreExpr| we can write a class:
 
-\todo{Useful to give more of the _On functions, i.e. childrenOn, and also the instances for UniplateExpr on Core/CoreFunc etc.}
+\todo{Useful to give more of the On functions, i.e. childrenOn, and also the instances for UniplateExpr on Core/CoreFunc etc.}
 
 \begin{code}
 class  UniplateExpr beta where
