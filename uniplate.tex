@@ -54,11 +54,7 @@ composOpFold :: Compos t => b -> (b -> b -> b) -> (forall a. t a -> b) -> t c ->
 \chapter{Boilerplate Removal}
 \label{chp:uniplate}
 
-Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. This chapter describes the Uniplate library, which offers a way to abstract several common forms of boilerplate code. \S\ref{secU:intro} gives an example problem, and our solution. \S\ref{secU:use_play} introduces the traversal combinators that we propose, along with short examples. \S\ref{secU:implement_play} discusses how these combinators are implemented in terms of a single primitive. \S\ref{secU:use_playex} extends this approach to multi-type traversals, and \S\ref{secU:implement_playex} covers the extended implementation. \S\ref{secU:performance} investigates some performance optimisations. \S\ref{secU:results} gives comparisons with other approaches, using examples such as the ``paradise'' benchmark. \S\ref{secU:related} presents related work.
-
-\todo{State up front, we are not considering functional values}
-
-
+Generic traversals over recursive data structures are often referred to as \textit{boilerplate} code. This chapter describes the Uniplate library, which offers a way to abstract several common forms of boilerplate code. The Uniplate library only supports traversals having value-specific behaviour for one type, and does not operate on functional values contained within a data structure. \S\ref{secU:intro} gives an example problem, and our solution. \S\ref{secU:use_play} introduces the traversal combinators that we propose, along with short examples. \S\ref{secU:implement_play} discusses how these combinators are implemented in terms of a single primitive. \S\ref{secU:use_playex} extends this approach to multi-type traversals, and \S\ref{secU:implement_playex} covers the extended implementation. \S\ref{secU:performance} investigates some performance optimisations. \S\ref{secU:results} gives comparisons with other approaches, using examples such as the ``paradise'' benchmark. \S\ref{secU:related} presents related work.
 
 \section{Introductory Example}
 \label{secU:intro}
@@ -116,7 +112,7 @@ Ours is far from the first technique for `scrapping boilerplate'. The area has b
 
 We define various traversals, using the |Expr| type defined in the introduction as an example throughout. We divide \textit{traversals} into two categories: queries and transformations. A \textit{query} is a function that takes a value, and extracts some information of a different type. A \textit{transformation} takes a value, and returns a modified version of the original value. All the traversals rely on the class |Uniplate|, an instance of which is assumed for |Expr|. The definition of this class and its instances are covered in \S\ref{secU:implement_play}.
 
-For some of the definitions we will make use of the terminology |alpha|-parent. The |alpha|-parent of a value 
+For some of the definitions we will make use of the terminology |alpha|-parent. The |alpha|-parent of a value
 
 \subsection{Children}
 
@@ -126,15 +122,13 @@ The first function in the Uniplate library serves as both a function, and a defi
 children :: Uniplate alpha => alpha -> [alpha]
 \end{code}
 
-\todo{Check this definition, perhaps with Colin}
-
-The function |children| takes a value |x|, and returns the substructures of |x| which have type |alpha| and whose only enclosing value of type |alpha| is |x| itself. For example:
+The function |children| takes a value |x|, and returns the substructures of |x| with type |alpha|, that are not contained by any value of type |alpha| apart from |x|. For example:
 
 \begin{code}
 children (Add (Neg (Var "x")) (Val 12)) = [Neg (Var "x"), Val 12]
 \end{code}
 
-The |children| function is occasionally useful, but is used more commonly as an auxiliary in the definition of other functions.
+Note that |Var "x"| is \textit{not} returned, as it is contained within |Neg (Var "x")|. The |children| function is occasionally useful, but is used more commonly as an auxiliary in the definition of other functions.
 
 
 \subsection{Queries}
@@ -302,7 +296,8 @@ Recall the |simplify| transformation:
 
 \begin{code}
 simplify = transform f
-
+\end{code}
+\begin{code}
 f (Sub x y)           = Add x (Neg y)
 f (Add x y) | x == y  = Mul (Val 2) x
 f x                   = x
@@ -379,11 +374,7 @@ depth = para (\_ cs -> 1 + maximum (0:cs))
 \subsection{Holes and Contexts}
 \label{secU:holes_contexts}
 
-\todo{Give a much stronger specification and description of these two functions, more than just some properties.}
-
-\todo{Connection with the zipper type, add a reference}
-
-The final two operations in the library seem to be a novelty -- we have not seen them in any other generics library, even in those which attempt to include all variations \citep{ren:generic_recursion_toolbox}. These operations are similar to contextual pattern matching \citep{mohnen:context_patterns}.
+The final two operations in the library seem to be a novelty -- we have not seen them in any other generics library, even in those which attempt to include all variations \citep{ren:generic_recursion_toolbox}. These operations are similar to contextual pattern matching \citep{mohnen:context_patterns}, and have some connection to the zipper pattern \cite{huet:zipper}.
 
 \begin{code}
 holes, contexts :: Uniplate alpha => alpha -> [(alpha, alpha -> alpha)]
@@ -466,16 +457,14 @@ Requiring each instance of the |Uniplate| class to implement eleven separate met
 
 \ignore\begin{code}
 uniplate :: Uniplate alpha => alpha -> (Str alpha, Str alpha -> alpha)
-uniplate x = (children,context)
+uniplate x = (cs,context)
 \end{code}
 
-\todo{Don't use the phrase maximal proper substructures}
-
-The original Uniplate paper \cite{me:uniplate} used lists of items, but we instead use the |Str| data type defined in Figure \ref{figU:str} to collect items. The use of |Str| simplifies the definition of instances and improves performance. The |children| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has the same structure of |Str| constructors as the result of |children|. The result pair splits the information in the value, but by combining the |context| with the |children| the original value can be recovered:
+The original Uniplate paper \cite{me:uniplate} used lists of items, but we instead use the |Str| data type defined in Figure \ref{figU:str} to collect items. The use of |Str| simplifies the definition of instances and improves performance. The value |cs| contains the same elements as |children x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has the same structure of |Str| constructors as |cs|. The result pair splits the information in the value, but by combining the |context| with |cs| the original value can be recovered:
 
 \begin{code}
-propId x = x == context children
-    where (children,context) = uniplate x
+propId x = x == context cs
+    where (cs,context) = uniplate x
 \end{code}
 
 \subsection{Operations in terms of |uniplate|}
@@ -563,6 +552,10 @@ The distinguishing feature of our library is that the children are defined in te
 
 \begin{figure}
 \ignore\begin{code}
+_I $| d t_1...t_n |$ =
+    instance Uniplate (d t_1...t_n) where
+        uniplate = _N $| d |$ \? _T $| t_1 |$ \? ... \? _T $| t_n |$
+
 _D $| data d v_1...v_n = a_1...a_m |$ =
         _N $| d |$ \? v_1...v_n x = case  x of _C $| a_1 |$ \? ... \? _C $| a_m |$
     where x {-" \mbox{ is fresh} "-}
@@ -586,6 +579,10 @@ _N {-" \mbox{ is an injection to fresh variables} "-}
 
 \begin{figure}
 \ignore\begin{code}
+_I $| Expr |$ =
+    instance Uniplate Expr where
+        uniplate = _N $| Expr |$
+
 _N $| Expr |$ \? x = case x of
     Val  y_1      -> (Zero `Two` a_1, \(Zero `Two` z_1) -> Val (b_1 z_1)
         where (a_1,b_1) = (\x -> (Zero, \Zero -> x)) y_1
@@ -614,18 +611,9 @@ _N $| List |$ \? v_1 x = case x of
 \label{figU:d_expr}
 \end{figure}
 
-\todo{Explain how the derived instance declaration is constructed. REQUIRED}
+We model the derivation of an instance by describing a derivation from a data type to a set of declarations. The derivation rules are given in Figure \ref{figU:derive}. The |_I| rule takes a concrete type, with no type variables, and generates an instance for the Uniplate class. The |_D| rule takes a data type declaration, and defines a function over that data type. The |_C| rule defines a case alternative for each constructor. The |_T| rule defines type specific behaviour: a type is either the target type on which an instance is being defined, or a primitive such as |Char|, or an algebraic data type, or a free type variable.
 
-We model the derivation of an instance by describing a derivation from a data type to a set of declarations. The derivation rules are given in Figure \ref{figU:derive}. The |_D| rule takes a data type declaration, and defines a function over that data type. The |_C| rule defines a case alternative for each constructor. The |_T| rule defines type specific behaviour: a type is either the target type on which an instance is being defined, or a primitive such as |Char|, or an algebraic data type, or a free type variable.
-
-The result of applying |_D| to |Expr| is given in Figure \ref{figU:d_expr}. Given these definitions we can define a Uniplate instance for the |Expr| type with:
-
-\ignore\begin{code}
-instance Uniplate Expr where
-    uniplate = _N $| Expr |$
-\end{code}
-
-By applying simple transformation steps we can obtain the same instance as presented in Figure \ref{figU:play_expr}.
+The result of applying these functions to |Expr| is given in Figure \ref{figU:d_expr}. By applying simple transformation steps we can obtain the same instance as presented in Figure \ref{figU:play_expr}.
 
 
 \subsection{Automated Derivation of |uniplate|}
@@ -633,15 +621,14 @@ By applying simple transformation steps we can obtain the same instance as prese
 
 Applying these derivation rules is a form of boilerplate coding! The DrIFT tool \citep{drift} derives instances automatically given rules depending only on the information contained in a type definition. However DrIFT is unable to operate with certain Haskell extensions (eg. {\TeX} style literate Haskell), and requires a separate pre-processing stage.
 
-\todo{Special rules - say what the rules are}
+In collaboration with Stefan O'Rear we have developed the Derive tool \citep{derive}, which is is based on Template Haskell \citep{template_haskell}. The Derive tool generates Uniplate instances by applying the rules from Figure \ref{figU:derive}, along with some simplification steps, replacing values such as |Two x Zero| with |x|.
 
-In collaboration with Stefan O'Rear we have developed the Derive tool \citep{derive}. Derive is based on Template Haskell \citep{template_haskell} and has predefined rules for derivation of |Uniplate| instances. It has special rules to remove redundant patterns to produce simpler and more efficient instances.
-
+\renewcommand{\f}{\hspace{-1mm}}
 \begin{example}
 \begin{code}
 data Term  =  Name String
            |  Apply Term Term
-              deriving ( {-! \textsf{Uniplate} !-} )
+              deriving ( {-" \text{\{-! } \textsf{Uniplate} \text{ !-\}} "-} )
 \end{code}
 
 Running the Derive tool over this file, the generated code is:
@@ -697,20 +684,27 @@ biplateSelf :: BiplateType alpha alpha
 biplateSelf x = (One x, \(One x') -> x')
 \end{code}
 
-\todo{The reason for not always descending, like uniplate, is that Uniplate processes alpha recursively, but biplate just finds the first uniplate then calls alpha}
+Unlike |Uniplate|, |Biplate| does \textit{not} always descend. The idea is that |Biplate| is used once at the beginning of a traversal to find the values of type |alpha|, then |Uniplate| operates recursively descending through the data structure.
 
-We can now define |universeOn| and |transformOn|. Each takes a |biplate| function as an argument:
+We can now define a selection of the |On| functions. Each takes a |biplate| function as an argument:
 
 \begin{code}
+childrenOn :: Uniplate alpha => BiplateType beta alpha -> beta -> [alpha]
+childrenOn biplate x = concatMap children $ strList $ fst $ biplate x
+
 universeOn :: Uniplate alpha => BiplateType beta alpha -> beta -> [alpha]
 universeOn biplate x = concatMap universe $ strList $ fst $ biplate x
 
-transformOn  ::  Uniplate alpha => BiplateType beta alpha -> (alpha -> alpha) -> beta -> beta
-transformOn biplate f x = context $ fmap (transform f) children
-    where (children, context) = biplate x
+descendOn ::  Uniplate alpha => BiplateType beta alpha -> (alpha -> alpha) -> beta -> beta
+descendOn biplate f x = context $ fmap (descend f) cs
+    where (cs, context) = biplate x
+
+transformOn :: Uniplate alpha => BiplateType beta alpha -> (alpha -> alpha) -> beta -> beta
+transformOn biplate f x = context $ fmap (transform f) cs
+    where (cs, context) = biplate x
 \end{code}
 
-These operations are similar to the original |universe| and |transform|. They unwrap |beta| values to find the |alpha| values within them, operate using the standard |Uniplate| operations for type |alpha|, then rewrap if necessary. If |alpha| is constant, there is another way to abstract away the |biplate| argument, as the following example shows.
+These operations are similar to the original functions. They unwrap |beta| values to find the |alpha| values within them, operate using the standard |Uniplate| operations for type |alpha|, then rewrap if necessary. If |alpha| is constant, there is another way to abstract away the |biplate| argument, as the following example shows.
 
 \begin{example}
 The Yhc.Core library \citep{me:yhc_core}, part of the York Haskell Compiler (Yhc), makes extensive use of |Uniplate|. In this library, the central types include:
@@ -733,22 +727,42 @@ data CoreExpr  =  CoreVar   String
                   -- other constructors
 \end{code}
 
-Most traversals are performed on the |CoreExpr| type. However, it is often convenient to start from one of the other types. For example, \h{stmt}|coreSimplify :: CoreExpr -> CoreExpr| may be applied not just to an individual expression, but to all expressions in a function definition, or a complete program. If we are willing to freeze the type of the second argument to |biplate| as |CoreExpr| we can write a class:
-
-\todo{Useful to give more of the On functions, i.e. childrenOn, and also the instances for UniplateExpr on Core/CoreFunc etc.}
+Most traversals are performed on the |CoreExpr| type. However, it is often convenient to start from one of the other types. For example, \h{stmt}|coreSimplify :: CoreExpr -> CoreExpr| may be applied not just to an individual expression, but to all expressions in a function definition, or a complete program. If we are willing to freeze the type of the second argument to |biplate| as |CoreExpr| we can write a class |UniplateExpr beta| corresponding to |Biplate beta CoreExpr |:
 
 \begin{code}
 class  UniplateExpr beta where
        uniplateExpr :: BiplateType beta CoreExpr
+\end{code}
 
+We then need to write instances for the types we are interested in, mainly those which are likely to contain a |CoreExpr| within them. These instances must follow the same rules as for the |Biplate| class.
+
+\begin{code}
+instance UniplateExpr Core where
+    uniplateExpr (Core a b c d) = (cs, \cs -> Core a b c (gen cs))
+        where (cs,gen) = uniplateExpr d
+
+instance UniplateExpr CoreFunc where
+    uniplateExpr (CoreFunc a b c) = (cs, \cs -> CoreFunc a b (gen cs))
+        where (cs,gen) = uniplateExpr c
+
+instance UniplateExpr CoreExpr where
+    uniplateExpr = biplateSelf
+
+instance UniplateExpr a => UniplateExpr [a] where
+    uniplateExpr [] = (Zero, \Zero -> [])
+    uniplateExpr (x:xs) = (Two a as, \(Two n ns) -> b n : bs ns)
+        where  (a , b ) = uniplateExpr x
+               (as, bs) = uniplateExpr xs
+\end{code}
+
+We can then implement traversal functions specific to |CoreExpr| in terms of the |On| functions:
+
+\begin{code}
+childrenExpr   x = childrenOn   uniplateExpr x
 universeExpr   x = universeOn   uniplateExpr x
+descendExpr    x = descendOn    uniplateExpr x
 transformExpr  x = transformOn  uniplateExpr x
-
-instance Uniplate CoreExpr
-instance UniplateExpr Core
-instance UniplateExpr CoreFunc
-instance UniplateExpr CoreExpr
-instance UniplateExpr beta => UniplateExpr [beta]
+-- Similarly for all 11 functions in Figure \ref{figU:play}
 \end{code}\codeexample
 \end{example}
 \bigskip
@@ -1354,7 +1368,7 @@ The Uniplate library is intended to be a way to remove the boilerplate of traver
 
 The SYB library \citep{lammel:syb} is perhaps the most popular boilerplate removal system in Haskell. One of the reasons for its success is tight integration with the GHC compiler, lowering the barrier to use. We have compared directly against traversals written in SYB in \S\ref{secU:results_boilerplate}, and have also covered how to implement Uniplate in terms of SYB in \S\ref{secU:implement_playdata}. In our experience most operations are shorter and simpler than the equivalents in SYB, and we are able to operate without the extension of rank-2 types. Most of these benefits stem directly from our definition of children as being the children of the same uniform type, contrasting with the SYB approach of all direct children.
 
-The SYB library is, however, more powerful than Uniplate. If you wish to visit values of different type in a single traversal, Uniplate is unsuitable. The |Data| and |Typeable| methods have also been pushed further in successive papers \citep{lammel:syb2,lammel:syb3} -- in directions Uniplate may be unable to go. \todo{Reflection, for example}
+The SYB library is, however, more powerful than Uniplate. If you wish to visit values of different type in a single traversal, Uniplate is unsuitable. The |Data| and |Typeable| methods have also been pushed further in successive papers \citep{lammel:syb2,lammel:syb3}, allowing operations such as runtime reflection on values, which Uniplate cannot provide.
 
 \subsection{The Compos library}
 
