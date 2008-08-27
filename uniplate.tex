@@ -59,6 +59,7 @@ Generic traversals over recursive data structures are often referred to as \text
 \todo{State up front, we are not considering functional values}
 
 
+
 \section{Introductory Example}
 \label{secU:intro}
 
@@ -113,9 +114,9 @@ Ours is far from the first technique for `scrapping boilerplate'. The area has b
 \section{Queries and Transformations}
 \label{secU:use_play}
 
-\todo{Define maximal proper substructure and alpha-children}
-
 We define various traversals, using the |Expr| type defined in the introduction as an example throughout. We divide \textit{traversals} into two categories: queries and transformations. A \textit{query} is a function that takes a value, and extracts some information of a different type. A \textit{transformation} takes a value, and returns a modified version of the original value. All the traversals rely on the class |Uniplate|, an instance of which is assumed for |Expr|. The definition of this class and its instances are covered in \S\ref{secU:implement_play}.
+
+For some of the definitions we will make use of the terminology |alpha|-parent. The |alpha|-parent of a value 
 
 \subsection{Children}
 
@@ -125,7 +126,9 @@ The first function in the Uniplate library serves as both a function, and a defi
 children :: Uniplate alpha => alpha -> [alpha]
 \end{code}
 
-The function |children| takes a value and returns \textit{all maximal proper substructures of the same type}. For example:
+\todo{Check this definition, perhaps with Colin}
+
+The function |children| takes a value |x|, and returns the substructures of |x| which have type |alpha| and whose only enclosing value of type |alpha| is |x| itself. For example:
 
 \begin{code}
 children (Add (Neg (Var "x")) (Val 12)) = [Neg (Var "x"), Val 12]
@@ -264,8 +267,6 @@ The |Var| alternative may return an |Expr| from |rep|, but no additional transfo
 
 \subsection{Transformations to a Normal Form}
 
-\todo{Make it clear that different strategies may give different results as patterns are allowed to overlap. ie. something like neg (neg x) = 1, applied to neg (neg (neg 1))}
-
 In addition to top-down and bottom-up transformations, we also provide transformations to a normal form. The idea is that a rule is applied exhaustively until a normal form is achieved. Consider a rewrite transformation:
 
 \begin{code}
@@ -278,7 +279,7 @@ A rewrite-rule argument |r| takes an expression |e| of type |alpha|, and returns
 propRewrite r x = all (isNothing . r) (universe (rewrite r x))
 \end{code}
 
-One way to define the |rewrite| function uses |transform|:
+One possible definition of the |rewrite| function uses |transform|:
 
 \begin{code}
 rewrite :: Uniplate alpha => (alpha -> Maybe alpha) -> alpha -> alpha
@@ -288,44 +289,43 @@ rewrite f = transform g
 
 This definition tries to apply the rule everywhere in a bottom-up manner. If at any point it makes a change, then the new value has the rewrite applied to it. The function only terminates when a normal form is reached.
 
-\todo{Not just performance sensitive, also semantics sensitive}
-
-A disadvantage of |rewrite| is that it may check unchanged sub-expressions repeatedly. Performance sensitive programmers might prefer to use an explicit transformation, and manage the rewriting themselves. We show under which circumstances a bottom-up transformation obtains a normal form, and how any transformation can be modified to ensure a normal form.
+The |rewrite| function has two potential problems. The first issue is that different application strategies may given results. Consider the rule replacing |Neg (Neg x)| with |1|, applied to the value |Neg (Neg (Neg 1))|. Depending on the application strategy, the result will be either |Neg 1| or |1|. The second issue is that the implementation of |rewrite| given may check unchanged sub-expressions repeatedly, causing a performance problem. Both these issues can be avoided by using an explicit transformation, and managing the rewriting manually.
 
 \subsubsection{Bottom-Up Transformations to a Normal Form}
 \label{secU:rewrite_bottom}
 
-We define the function |always| that takes a rewrite rule |r| and produces a function appropriate for use with |transform|.
-
-\begin{code}
-always :: (alpha -> Maybe alpha) -> (alpha -> alpha)
-always r x = fromMaybe x (r x)
-\end{code}
-
-What restrictions on |r| ensure that \ignore|rewrite r x == transform (always r) x| holds? It is sufficient that the constructors on the right-hand side of |r| do not overlap with the constructors on the left-hand side.
+An alternative way of obtaining a transformation to a normal form is to use the |transform| function directly. What restrictions on |f| ensure that |transform f| is idempotent, and hence a normal form? It is sufficient that the constructors on the right-hand side of |f| do not overlap with the constructors on the left-hand side.
 
 \begin{examplerevisit}{\ref{exU:simplify}}
 
-Recall the |simplify| transformation, as a rewrite:
+Recall the |simplify| transformation:
 
 \begin{code}
-r (Sub x y)           = Just $ Add x (Neg y)
-r (Add x y) | x == y  = Just $ Mul (Val 2) x
-r _                   = Nothing
+simplify = transform f
+
+f (Sub x y)           = Add x (Neg y)
+f (Add x y) | x == y  = Mul (Val 2) x
+f x                   = x
 \end{code}
 
-Here |Add| occurs on the right-hand side of the first line, and on the left-hand side of the second. From this we can construct a value where the two alternatives differ:
+Here |Add| occurs on the right-hand side of the first line, and on the left-hand side of the second. From this we can construct a value where |transform f| is not idempotent:
 
 \ignore\begin{code}
 let x = Sub (Neg (Var "q")) (Var "q")
 
-rewrite    r           x == Mul (Val 2) (Neg (Var "q"))
-transform  (always r)  x == Add (Neg (Var "q")) (Neg (Var "q"))
+transform f x                == Add (Neg (Var "q")) (Neg (Var "q"))
+transform f (transform f x)  == Mul (Val 2) (Neg (Var "q"))
 \end{code}
 
-\todo{Clarify this a lot, give a very precise definition of what is a new constructor, then say that I am using a stronger rule}
+To remedy this situation, whenever the right-hand side of a rule applies a constructor of type |Expr|, |f| can be reapplied:
 
-To remedy this situation in the original |simplify| transformation, whenever the right-hand side introduces a new constructor, |f| may need to be reapplied. Here only one additional |f| application is necessary, the one attached to the construction of an |Add| value.
+\begin{code}
+f (Sub x y)           = f $ Add x (f $ Neg y)
+f (Add x y) | x == y  = f $ Mul (f $ Val 2) x
+f x                   = x
+\end{code}
+
+Now we can guarantee that |transform f| is idempotent. In this particular example, we can inline the |f| applications attached to the constructors |Neg|, |Val| and |Mul| to give the more concise:
 
 \begin{code}
 f (Sub x y)           = f $ Add x (Neg y)
@@ -337,9 +337,7 @@ f x                   = x
 
 \subsection{Action Transformations}
 
-\todo{Say strategy is fixed to bottom-up}
-
-Rewrite transformations apply a set of rules \textit{repeatedly} until a normal form is found. One alternative is an action transformation, where each node is visited and transformed \textit{once}, and state is maintained and updated as the operation proceeds. The standard technique is to thread a monad through the operation, which we do using |transformM|.
+Rewrite transformations apply a set of rules \textit{repeatedly} until a normal form is found. One alternative is an action transformation, where each node is visited and transformed \textit{once}, and state is maintained and updated as the operation proceeds. The standard technique is to thread a monad through the operation, which we do using |transformM|, with a bottom-up transformation strategy.
 
 \begin{example}
 Suppose we wish to rename each variable to be unique:
@@ -470,6 +468,8 @@ Requiring each instance of the |Uniplate| class to implement eleven separate met
 uniplate :: Uniplate alpha => alpha -> (Str alpha, Str alpha -> alpha)
 uniplate x = (children,context)
 \end{code}
+
+\todo{Don't use the phrase maximal proper substructures}
 
 The original Uniplate paper \cite{me:uniplate} used lists of items, but we instead use the |Str| data type defined in Figure \ref{figU:str} to collect items. The use of |Str| simplifies the definition of instances and improves performance. The |children| are all the maximal proper substructures of the same type as |x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has the same structure of |Str| constructors as the result of |children|. The result pair splits the information in the value, but by combining the |context| with the |children| the original value can be recovered:
 
