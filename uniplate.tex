@@ -2,11 +2,11 @@
 
 %format target = "\textsc{target}"
 %format unit = "\textsc{unit}"
-%format |- = "\mathbin{\vdash}"
-%format |+ = "\mathsf{\hspace{1mm}|\hspace{-0.5mm}\hbox{\small{+}}\;}"
-%format |* = "\mathsf{\hspace{1mm}|\hspace{-0.65mm}*\;}"
-%format ||* = "\mathsf{\hspace{1mm}||\hspace{-0.65mm}*\;}"
-%format ||+ = "\mathsf{\hspace{1mm}||\hspace{-0.5mm}\hbox{\small{+}}\;}"
+%format |- = "\mathbin{|\hspace{-0.65mm}\hbox{-\hspace{-0.4mm}-}}"
+%format |+ = "\mathbin{|\hspace{-0.65mm}\hbox{\small{+}}}"
+%format |* = "\mathbin{|\hspace{-0.65mm}*}"
+%format ||* = "\mathbin{||\hspace{-0.65mm}*}"
+%format ||+ = "\mathbin{||\hspace{-0.65mm}\hbox{\small{+}}}"
 
 
 \hsdef{\begin{comment}
@@ -813,8 +813,6 @@ In this redefinition we have again made a single change to the equation: the add
 \section{Implementing |Biplate|}
 \label{secU:implement_playex}
 
-\todo{Lots more todo here. Explain the role of PlateOne/PlateAll as a mechanism for giving Uniplate instances. Be clear that PlateAll in 3.5.1 is different from 3.5.2. How do these techniques work on parameterised and higher-kinded types. REQUIRED}
-
 The complicating feature of |biplate| is that when defining |Biplate| where \ignore|alpha == beta| the function does not descend to the children, but simply returns its argument. This rule can be captured either using the type system, or using the |Typeable| class \cite{lammel:syb}. We present three methods for defining a |Biplate| instance -- offering a trade-off between performance, compatibility and volume of code.
 
 \begin{enumerate}
@@ -823,38 +821,54 @@ The complicating feature of |biplate| is that when defining |Biplate| where \ign
 \item The |Data| class can be used, providing fully automatic instances with GHC, but requiring the use of rank-2 types, and giving the worst performance.
 \end{enumerate}
 
-All three methods can be fully automated using the Derive tool, and all provide a simplified method for writing |Uniplate| instances. The first two methods require the user to define instances of auxiliary classes, |PlateAll| and |PlateOne|, on top of which the library defines the |Uniplate| and |Biplate| classes. The |Biplate| class definition itself is independent of the method used to implement its instances. This abstraction allows the user to start with the simplest instance scheme available to them, then move to alternative schemes to gain increased performance or compatibility.
+All three methods can be fully automated using the Derive tool, and all provide a simplified method for writing |Uniplate| instances. The |Biplate| class definition itself is independent of the method used to implement its instances. This abstraction allows the user to start with the simplest instance scheme available to them, then move to alternative schemes to gain increased performance or compatibility.
 
 
 \subsection{Direct instances}
 \label{secU:implement_playdirect}
 
-Writing direct instances requires the |Data.Generics.PlateDirect| module to be imported. This style requires a maximum of $n^2$ instance definitions, where $n$ is the number of types which contain each other, but gives the highest performance and most type-safety. The instances still depend on the type of each field, but are easier to define than the |Uniplate| instance discussed in \S\ref{secU:play_instances}. Here is a possible instance for the |Expr| type:
-
-\begin{comment}
+\begin{figure}
 \h{.direct}\begin{code}
-class PlateAll from to where
-    plateAll :: from -> Type from to
-class PlateOne to where
-    plateOne :: to -> Type to to
-type Type from to = (Str to, Str to -> from)
-plate :: from -> Type from to
-(|*) :: Type (to -> from) to -> to -> Type from to
-(|+) :: PlateAll item to => Type (item -> from) to -> item -> Type from to
-(|-) :: Type (item -> from) to -> item -> Type from to
-(||*) :: Type ([to] -> from) to -> [to] -> Type from to
-(||+) :: PlateAll item to => Type ([item] -> from) to -> [item] -> Type from to
+module Data.Generics.PlateDirect where
+
+type Type beta alpha = (Str alpha, Str alpha -> beta)
+
+plate :: beta -> Type beta alpha
+plate f = (Zero, \_ -> f)
+
+(|*) :: Type (alpha -> beta) alpha -> alpha -> Type beta alpha
+(|*) (xs,x') y = (Two xs (One y),\(Two xs (One y)) -> x' xs y)
+
+(|+) :: Biplate tau alpha => Type (tau -> beta) alpha -> tau -> Type beta alpha
+(|+) (xs,x') y = (Two xs ys, \(Two xs ys) -> x'xs (y' ys))
+    where (ys,y') = biplate y
+
+(|-) :: Type (tau -> beta) alpha -> tau -> Type beta alpha
+(|-) (xs,x') y = (xs,\xs -> x' xs y)
+
+(||*) :: Type ([alpha] -> beta) alpha -> [alpha] -> Type beta alpha
+(||*) (xs,x') y = (Two xs (listStr y), \(Two xs ys) -> x' xs (strList ys))
+
+(||+) :: Biplate item alpha => Type ([tau] -> beta) alpha -> [tau] -> Type beta alpha
+(||+) (xs,x') y = (Two xs ys, \(Two xs ys) -> x' xs (y' ys))
+    where  (ys,y') = plateListDiff y
+           plateListDiff [] = plate []
+           plateListDiff (x:xs) = plate (:) |+ x ||+ xs
 \end{code}
-\end{comment}
+\caption{Implementation of PlateDirect.}
+\label{figU:platedirect}
+\end{figure}
+
+Writing direct instances requires the |Data.Generics.PlateDirect| module to be imported, whose implementation is given in Figure \ref{figU:platedirect}. This style requires a maximum of $n^2$ instance definitions, where $n$ is the number of concrete types which contain each other, but gives the highest performance and most type-safety. The instances still depend on the type of each field, but are easier to define than the |Uniplate| instance discussed in \S\ref{secU:play_instances}. Here is a possible instance for the |Expr| type:
 
 \h{.direct}\begin{code}
-instance PlateOne Expr where
-    plateOne (Neg  a    )  = plate Neg  |* a
-    plateOne (Add  a b  )  = plate Add  |* a |* b
-    plateOne (Sub  a b  )  = plate Sub  |* a |* b
-    plateOne (Mul  a b  )  = plate Mul  |* a |* b
-    plateOne (Div  a b  )  = plate Div  |* a |* b
-    plateOne x             = plate x
+instance Uniplate Expr where
+    uniplate (Neg  a    )  = plate Neg  |* a
+    uniplate (Add  a b  )  = plate Add  |* a |* b
+    uniplate (Sub  a b  )  = plate Sub  |* a |* b
+    uniplate (Mul  a b  )  = plate Mul  |* a |* b
+    uniplate (Div  a b  )  = plate Div  |* a |* b
+    uniplate x             = plate x
 \end{code}
 
 Five infix combinators (| ||*|, | ||+|, | ||-|, | ||||*| and | ||||+|) indicate the structure of the field to the right. The | ||*| combinator says that the value on the right is of the target type, | ||+| says that a value of the target type \textit{may occur} in the right operand, | ||-| says that values of the target type \textit{cannot occur} in the right operand. | ||||*| and | ||||+| are versions of | ||*| and | ||+| used when the value to the right is a \textit{list} either of the target type, or of a type that may contain target values. The law \h{.direct}|plate f ||- x == plate (f x)| justifies the definition presented above.
@@ -863,17 +877,17 @@ This style of definition naturally expands to the multi-type traversal. For exam
 
 \begin{onepage}
 \h{.direct}\begin{code}
-instance PlateAll Stmt Expr where
-    plateAll (Assign    a b    ) = plate Assign    |-   a |*  b
-    plateAll (Sequence  a      ) = plate Sequence  ||+  a
-    plateAll (If        a b c  ) = plate If        |*   a |+  b |+ c
-    plateAll (While     a b    ) = plate While     |*   a |+  b
+instance Biplate Stmt Expr where
+    biplate (Assign    a b    ) = plate Assign    |-   a |*  b
+    biplate (Sequence  a      ) = plate Sequence  ||+  a
+    biplate (If        a b c  ) = plate If        |*   a |+  b |+ c
+    biplate (While     a b    ) = plate While     |*   a |+  b
 \end{code}
 \end{onepage}
 
-From the definitions of |PlateOne| and |PlateAll| the library can define |Uniplate| and |Biplate| instances. The information provided by uses of | ||-| and | ||+| avoids redundant exploration down branches that do not have the target type. The use of | ||||*| and | ||||+| avoid the definition of additional instances.
+The information provided by uses of | ||-| and | ||+| avoids redundant exploration down branches that do not have the target type. The use of | ||||*| and | ||||+| avoid the definition of additional instances. The combinators are implemented in Figure \ref{figU:platedirect}, and work by building up the instance from left to right, adding successive fields.
 
-In the worst case, this approach requires a |PlateAll| instance for each container/contained pair. In reality few traversal pairs are actually needed. The restricted pairing of types in |Biplate| instances also gives increased type safety; instances such as \ignore|Biplate Expr Stmt| do not exist.
+Instances are given only on concrete types, containing no type variables. In the worst case, this approach requires a |Biplate| instance for each container/contained pair. In reality few traversal pairs are actually needed. The restricted pairing of types in |Biplate| instances also gives increased type safety; instances such as \ignore|Biplate Expr Stmt| do not exist.
 
 In our experience definitions using these combinators offer similar performance to hand-tuned instances; see \S\ref{secU:results_speed} for measurements.
 
@@ -881,20 +895,37 @@ In our experience definitions using these combinators offer similar performance 
 \subsection{|Typeable| based instances}
 \label{secU:implement_playtypeable}
 
-Instead of writing $O(n^2)$ class instances to locate values of the target type, we can use the |Typeable| class to \textit{test at runtime} whether we have reached the target type. We present derivations much as before, based this time only on combinators | ||+| and | ||-|:
-
-\begin{comment}
+\begin{figure}
 \h{.typeable}\begin{code}
-type Type from to = (Str to, Str to -> from)
-uniplateAll :: PlateAll a b => a -> (Str b, Str b -> a)
-class PlateAll from to where
-    plateAll :: from -> Type from to
-plate :: from -> Type from to
-(|+) :: (Typeable item, Typeable to, PlateAll item to) => Type (item -> from) to -> item -> Type from to
-(|-) :: Type (item -> from) to -> item -> Type from to
-instance (PlateAll from to, Typeable from, Typeable to, Uniplate to) => PlateAll [from] to where
+module Data.Generics.PlateTypeable where
+
+class PlateAll beta alpha where
+    plateAll :: beta -> Type beta alpha
+
+plate :: beta -> Type beta alpha
+plate x = (Zero, \_ -> x)
+
+(|+)  :: (Typeable tau, Typeable alpha, PlateAll tau alpha)
+      => Type (tau -> beta) alpha -> tau -> Type beta alpha
+(|+) (xs,x') y = (Two xs ys,\(Two xs ys) -> x' xs (y' ys))
+    where (ys,y') = plateSome y
+
+instance  (Typeable alpha, Typeable beta, Uniplate alpha, PlateAll beta alpha) =>
+          Biplate beta alpha where
+    biplate = plateSome
+
+plateSome :: (Typeable beta, Typeable alpha, PlateAll beta alpha) => beta -> Type beta alpha
+plateSome x = res
+    where
+        res = case asTypeOf (cast x) (Just $ head $ strList $ fst res) of
+                  Nothing -> plateAll x
+                  Just y -> (One y, \(One y) -> fromJust $ cast y)
 \end{code}
-\end{comment}
+\caption{Implementation of PlateTypeable.}
+\label{figU:platetypeable}
+\end{figure}
+
+Instead of writing $O(n^2)$ class instances to locate values of the target type, we can use the |Typeable| class to \textit{test at runtime} whether we have reached the target type. This strategy is implemented in the |Data.Generics.Typeable| module, whose implementation is given in Figure \ref{figU:platetypeable}. The user is required to define an instance of the auxiliary class |PlateAll|, separating the fields of a constructor with | ||+|:
 
 \h{.typeable}\begin{code}
 instance (Typeable alpha, Uniplate alpha) => PlateAll Expr alpha where
@@ -906,29 +937,36 @@ instance (Typeable alpha, Uniplate alpha) => PlateAll Expr alpha where
     plateAll x            = plate x
 
 instance (Typeable alpha, Uniplate alpha) => PlateAll Stmt alpha where
-    plateAll (Assign    a b    ) = plate Assign    |-  a |+ b
+    plateAll (Assign    a b    ) = plate Assign    |+  a |+ b
     plateAll (Sequence  a      ) = plate Sequence  |+  a
     plateAll (If        a b c  ) = plate If        |+  a |+ b |+ c
     plateAll (While     a b    ) = plate While     |+  a |+ b
 \end{code}
 
-The | ||+| combinator is the most common, denoting that the value on the right may be of the target type, or may contain values of the target type. However, if we were to use | ||+| when the right-hand value was an |Int|, or other primitive type we did not wish to examine, we would require a |PlateAll| definition for |Int|. To omit these unnecessary instances, we can use | ||-| to indicate that the type is not of interest.
+To give an instance of |PlateAll beta alpha|, for a concrete type |beta|, we require the context |Typeable alpha| and |Uniplate alpha|. To give an instance where |beta| has type variables of kind |*|, we require the context |Typeable tau| and |PlateAll tau alpha| for all the type variables |tau| in |beta|. We do not permit |beta| to have any higher-kinded type variables. To give an example instance with type variables, the instance for lists is:
 
-The |Data.Generics.PlateTypeable| module is able to infer a |Biplate| instance given a |PlateAll| instance. Alas this is not the case for |Uniplate|. Instead we must explicitly declare:
+\begin{code}
+instance  (PlateAll tau alpha, Typeable tau, Typeable alpha, Uniplate alpha) =>
+          PlateAll [tau] alpha where
+    plateAll []     = plate []
+    plateAll (x:xs) = plate (:) |+ x |+ xs
+\end{code}
+
+From a |PlateAll| instance, a |Biplate| is inferred, using the code from Figure \ref{figU:platetypeable}. The function |plateAll| always descends at least one level, then looks for values of the target type, corresponding to the functionality of |uniplate|. The function |plateSome| looks for the first values of the target type, corresponding to |biplate|. Unfortunately, we cannot infer an instance for |Uniplate| automatically, and must explicitly declare:
 
 \ignore\begin{code}
 instance Uniplate Expr where
-    uniplate = uniplateAll
+    uniplate = plateAll
 
 instance Uniplate Stmt where
-    uniplate = uniplateAll
+    uniplate = plateAll
 \end{code}
 
 The reader may wonder why we cannot define:
 
 \h{.typeable}\begin{code}
 instance PlateAll alpha alpha => Uniplate alpha where
-    uniplate = uniplateAll
+    uniplate = plateAll
 \end{code}
 
 Consider the |Expr| type. To infer \ignore|Uniplate Expr| we require an instance for \ignore|PlateAll Expr Expr|. But to infer this instance we require \ignore|Uniplate Expr| -- which we are in the process of inferring! \footnote{GHC has co-inductive or recursive dictionaries, but Hugs does not. To allow continuing compatibility with Hugs, and the use of fewer extensions, we require the user to write these explicitly for each type.}
@@ -936,6 +974,8 @@ Consider the |Expr| type. To infer \ignore|Uniplate Expr| we require an instance
 
 \subsection{Using the |Data| class}
 \label{secU:implement_playdata}
+
+\todo{more here, pin everything down, perhaps a instance Data Biplate}
 
 The existing |Data| and |Typeable| instances provided by the SYB approach can also be used to define |Uniplate| instances:
 
@@ -1368,7 +1408,7 @@ The Uniplate library is intended to be a way to remove the boilerplate of traver
 
 The SYB library \citep{lammel:syb} is perhaps the most popular boilerplate removal system in Haskell. One of the reasons for its success is tight integration with the GHC compiler, lowering the barrier to use. We have compared directly against traversals written in SYB in \S\ref{secU:results_boilerplate}, and have also covered how to implement Uniplate in terms of SYB in \S\ref{secU:implement_playdata}. In our experience most operations are shorter and simpler than the equivalents in SYB, and we are able to operate without the extension of rank-2 types. Most of these benefits stem directly from our definition of children as being the children of the same uniform type, contrasting with the SYB approach of all direct children.
 
-The SYB library is, however, more powerful than Uniplate. If you wish to visit values of different type in a single traversal, Uniplate is unsuitable. The |Data| and |Typeable| methods have also been pushed further in successive papers \citep{lammel:syb2,lammel:syb3}, allowing operations such as runtime reflection on values, which Uniplate cannot provide.
+The SYB library is, however, more powerful than Uniplate. If you wish to visit values of different type in a single traversal, Uniplate is unsuitable. The |Data| and |Typeable| classes have also been pushed further in successive papers \citep{lammel:syb2,lammel:syb3}, allowing operations such as runtime reflection on values, which Uniplate cannot provide.
 
 \subsection{The Compos library}
 
