@@ -13,3 +13,5 @@
 %format (ELet2 a b) = "\ll{}\!\!" let a in b "\rr{}"
 
 %format (EAlt a b c) = "\ll{}" a \? b -> c "\rr{}"
+
+%format (EAny (a)) = "\ll{}" a "\rr{}"
