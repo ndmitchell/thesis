@@ -37,19 +37,19 @@ In this chapter we introduce the background material and general notations used 
 \begin{figure}
 \renewcommand{\f}[1]{\text{\hspace{1cm}#1}}
 \ignore\begin{code}
-prog  ::=  fs_                 {-"\f{program}"-}
+data Prog  =  [Func]              {-"\f{program}"-}
 
-func  ::=  f vs_ = x           {-"\f{function}"-}
+data Func  =  (f vs_ = x)         {-"\f{function}"-}
 
-expr  ::=  v                   {-"\f{variable}"-}
-      |    c xs_               {-"\f{constructor application}"-}
-      |    f xs_               {-"\f{function application}"-}
-      |    x xs_               {-"\f{general application}"-}
-      |    \v -> x             {-"\f{lambda abstraction}"-}
-      |    let v = x in y      {-"\f{let binding, non-recursive}"-}
-      |    case x of as_       {-"\f{case expression}"-}
+data Expr  =  v                   {-"\f{local variable}"-}
+           |  c xs_               {-"\f{constructor application}"-}
+           |  f xs_               {-"\f{function application}"-}
+           |  x xs_               {-"\f{general application}"-}
+           |  \v -> x             {-"\f{lambda abstraction}"-}
+           |  let v = x in y      {-"\f{let binding, non-recursive}"-}
+           |  case x of as_       {-"\f{case expression}"-}
 
-alt   ::=  c vs_ -> x          {-"\f{case alternative}"-}
+data Alt   =  c vs_ -> x          {-"\f{case alternative}"-}
 \end{code}
 
 Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over function names, |x| and |y| range over expressions and |a| ranges over case alternatives. \\
@@ -57,18 +57,16 @@ Where |v| ranges over variables, |c| ranges over constructors, |f| ranges over f
 \label{figB:core}
 \end{figure}
 
-\todo{Mention the semantics of Core, possibly with a reference to the semantics/definition of Haskell}
+The syntax of our Core language is given in Figure \ref{figB:core}. To specify a list of items of unspecified length we write either \ignore|x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. The language is based upon Yhc.Core, a semantics for which is given in \cite{me:yhc_core}.
 
-\todo{Explain the duplication present in the language}
+A program is a list of functions, with a root function named |main|. A function definition gives a name, a list of arguments and a body expression. Variables and lambda abstractions are much as they would be in any Core language.  Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary.
 
-The syntax of our Core language is given in Figure \ref{figB:core}. To specify a list of items of unspecified length we write either \ignore|x_1,...,x_n| or |xs_|. Our Core language is higher order and lazy, but lacks much of the syntactic sugar found in Haskell. In later chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation. The language is based upon Yhc.Core, a semantics for which is given in \cite{me:yhc_core}.
-
-A program is a list of functions, with a root function named |main|. A function definition gives a name, a list of arguments and a body expression. Variables and lambda abstractions are much as they would be in any Core language.  Pattern matching occurs only in case expressions; alternatives match only the top level constructor and are exhaustive, including an |error| alternative if necessary. We have three forms of application, all of which take two values: the first value may be either a constructor, a top-level named function, or any arbitrary expression; the second value is a list of arguments, which may be empty. These forms of application give rise to three equivalences:
+In later chapters it will be necessary to make a distinction between higher-order and first-order programs, so our Core language has some redundancy in its representation. Our Core language permits both lambda expressions, and allows top-level definitions to take arguments. There are three forms of application, all of which take two values: the first value may be either a constructor, a top-level named function, or any arbitrary expression; the second value is a list of arguments, which may be empty. These forms of application give rise to three equivalences:
 
 \ignore\begin{code}
-(x xs_) ys_ == x xs_ ys_
-(f xs_) ys_ == f xs_ ys_
-(c xs_) ys_ == c xs_ ys_
+(c  xs_) ys_ == c  xs_ ys_
+(f  xs_) ys_ == f  xs_ ys_
+(x  xs_) ys_ == x  xs_ ys_
 \end{code}
 
 We allow a list of variables to appear in a lambda abstraction and a list of bindings to appear in a let. This syntactic sugar can be translated away using the following rules:
@@ -152,6 +150,7 @@ An occurrence of a variable |v| is \textit{bound} in |x| if it occurs on the rig
 
 In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume and should preserve this invariant.
 
+
 \subsection{Simplification Rules}
 \label{secB:core_simplify}
 
@@ -160,19 +159,19 @@ In order to avoid accidental variable name clashes while performing transformati
 \simp{app-app}{
 \ignore\begin{code}
 (x xs_) ys_
-    => x xs_ ys_
+    => x (xs_ ++ ys_)
 \end{code}}
 
 \simp{fun-app}{
 \ignore\begin{code}
 (f xs_) ys_
-    => f xs_ ys_
+    => f (xs_ ++ ys_)
 \end{code}}
 
 \simp{con-app}{
 \ignore\begin{code}
 (c xs_) ys_
-    => c xs_ ys_
+    => c (xs_ ++ ys_)
 \end{code}}
 
 \simp{case-con}{
@@ -240,9 +239,7 @@ let v = x in y
 \label{figB:simplify}
 \end{figure}
 
-\todo{State that the rules duplicate code, but not work Conjecture the are confluent, if I believe it to be true}
-
-We present several simplification rules in Figure \ref{figB:simplify}, which can be applied to our Core language. These rules are standard and would be applied by any optimising compiler \cite{spj:transformation}. All the rules preserve both the semantics and the sharing behaviour of an expression.
+We present several simplification rules in Figure \ref{figB:simplify}, which can be applied to our Core language. These rules are standard and would be applied by any optimising compiler \cite{spj:transformation}. Some of the rules duplicate code, but none duplicate work. All the rules preserve both the semantics and the sharing behaviour of an expression. We believe the rules to be confluent.
 
 The (app-app), (fun-app) and (con-app) rules normalise applications. The (case-con) and (lam-app) rules simply follow the semantics, using let expressions to preserve the sharing. The (case-app), (let-case) and (case-case) rules move outer expressions over an inner case expression, duplicating the outer expression in each alternative. The (case-lam) rule promotes a lambda from inside a case alternative outwards. The (let-app) and (let-case) rules move an expression over an inner let expression. The (let) rule substitutes let expressions where the bound variable is used only once, and therefore no loss of sharing is possible.
 
@@ -361,8 +358,6 @@ The semantic rules for evaluating this expression result in:
 In the semantics, the expression |f 1| is reduced twice. However, the a compiler would only evaluate |f 1| once. The first time the value of |x| is demanded, |f 1| evaluates to WHNF, and is bound to |x|. Any successive examinations of |x| return immediately, pointing at the same result.
 \end{example}
 
-\todo{Fix the bug concerning linearity and lambdas, REQUIRED. Consider |let x = expensive in (let f  = \y -> x + y in map f xs)|}
-
 \begin{figure}
 \begin{code}
 occurs :: VarName -> Expr -> Int
@@ -370,7 +365,7 @@ occurs v (EVar v'      ) = if v == v' then 1 else 0
 occurs v (ECon c xs_   ) = occurss v xs_
 occurs v (EFun f xs_   ) = occurss v xs_
 occurs v (EApp x xs_   ) = occurss v (x:xs_)
-occurs v (ELam v' x    ) = if v == v' then 0 else occurs v x
+occurs v (ELam v' x    ) = if v == v' then 0 else 2 * occurs v x
 occurs v (ELet v' x y  ) = if v == v' then 0 else occurss v [x,y]
 occurs v (ECase x as_  ) = occurs v x + maximum (map f as_)
     where f (EAlt c vs_ y) = if v `elem` vs_ then 0 else occurs v y
@@ -429,10 +424,28 @@ f x = x : f x
 \end{code}
 \end{examplerevisit}
 
-In the |repeat| example we have lost sharing of the |(:)|-node. If a program consumes $n$ elements of the list generated by the new |repeat| function, the space complexity will be $O(n)$, compared to $O(1)$ for the recursive let definition. The time complexity remains unchanged at $O(n)$, but the constant factor will be higher.
+In the |repeat| example we have lost sharing of the |(:)|-node. If a program consumes $n$ elements of the list generated by the new |repeat| function, the space complexity will be $O(n)$, compared to $O(1)$ for the recursive let definition. The time complexity remains unchanged at $O(n)$, but the constant factor will be higher. However, in other examples, the time complexity may be worse.
 
-\todo{Figure out if in general a local letrec being reencoded can duplicate work. State the conclusion. Try things like Bird style using the result as an input parameter. REQUIRED}
- 
+\begin{example} 
+Consider the following program, where |f| is an expensive computation:
+
+\begin{code}
+main x =  let y = f x : y
+          in y
+\end{code}
+
+We insert dummy arguments around recursive lets:
+
+\begin{code}
+main x =  let y = \dummy -> f x : y dummy
+          in y dummy
+\end{code}
+
+We have now changed the time complexity of the example. Originally |f| was performed once per call of |main|, in the revised code |f| will be performed once for each element of |main| demanded -- an unbounded number of times, changing the complexity.
+\end{example}
+
+In practice, only a small number of programs make use of values bound in recursive lets, and nearly all of them are instances of |repeat|. However, it is possible to construct examples where the removal of recursive lets makes the computation significantly more expensive.
+
 \subsection{Constant Applicative Forms}
 
 A Constant Applicative Form (CAF) is a top level definition of zero arity. In Haskell, CAFs are computed at most once per program run, and retained as long as references to them remain.
@@ -493,32 +506,13 @@ The dictionary transformation is a global transformation. In Example \ref{exB:di
 \section{Homeomorphic Embedding}
 \label{secB:homeomorphic}
 
-\todo{Give the intution for homeomorphic embedding, add the alternative definition via rewrite rules. State that homeomorphic embedding is a well-quasi order, meaning that for every infinite sequence of expressions e1,e2 there exist indicies i<j such that ei <~ ej. This result is known as Kruskal's Tree Theorem. Explain that you can use it directly to prove termination of program transformations. REQUIRED}
+The homeomorphic embedding relation \cite{leuschel:homeomorphic} has been used to guarantee termination of certain program transformations \cite{sorensen:supercompilation}. The relation $x \unlhd y$ indicates the expression $x$ is an embedding of $y$. We can define $\unlhd$ using the following rewrite rule:
 
-\todo{\verb"emb = {f(x1..xn) -> xi | 1 <= i <= n, f \in Z}, now <<| = <---* emb"}
-
-\todo{Rewrite dive and couple as a functional program}
-
-\begin{figure}
-\begin{tabular}{p{5cm}p{6.5cm}}
-\[\frac{\text{dive}(x,y)}{x \unlhd y}\] \vspace{-8mm}
-&
-\[\frac{\text{couple}(x,y)}{x \unlhd y}\] \vspace{-8mm}
-\\
-\[\frac{s \unlhd t_i \text{ for some } |i|}{\text{dive}(s, \sigma(t_1,\ldots,t_n))} \]
-&
-\[\frac{\sigma_1 \sim \sigma_2,
-        s_1 \unlhd t_1, \ldots , s_n \unlhd t_n}
-       {\text{couple}(\sigma_1 (s_1,\ldots,s_n), \sigma_2 (t_1,\ldots,t_n))}
+\[
+emb = \{f(x_1,\dots,x_n) \rightarrow x_i \, || \, 1 \leq i \leq n\}
 \]
-\end{tabular}
-\caption{Homeomorphic embedding relation.}
-\label{figB:homeomorphic}
-\end{figure}
 
-\todo{define what an expression shell is}
-
-The homeomorphic embedding relation \cite{leuschel:homeomorphic} has recently been used to guarantee termination of certain program transformations \cite{sorensen:supercompilation}. An expression $x$ is an embedding of $y$, written $x \unlhd y$, if the relationship can be inferred by the rules given in Figure \ref{figB:homeomorphic}, given a $\sim$ relation corresponding to equality of expression shells. The homeomorphic embedding uses the relations dive and couple. The dive relation checks if the first term is contained as a child of the second term, while the couple relation checks if both terms have the same outer shell.
+Now $x \unlhd y$ can be defined as $x \leftarrow^*_{emb} y$ \cite{term_rewriting}. The rule $emb$ takes an expression, and replaces it with one of its immediate subexpressions. If repeated non-deterministic application of this rule to any subexpression transforms $y$ to $x$, then $x \unlhd y$. The intuition is that by removing some parts of $y$ we obtain $x$, or that $x$ is somehow ``contained'' within $y$.
 
 Some examples:
 
@@ -527,22 +521,50 @@ Some examples:
 $a$ & $a$                       & $b(a)$ & $a$ \\
 $a$ & $b(a)$                    & $a$ & $b(c)$ \\
 $c(a)$ & $c(b(a))$              & $d(a,a)$ & $d(b(a),c)$ \\
-$d(a,a)$ & $c(b(a),c(c(a)))$    & $b(a,a)$ & $b(a,a,a)$
+$d(a,a)$ & $d(b(a),c(c(a)))$    & $b(a,a)$ & $b(a,a,a)$
 \end{tabular}
 \end{center}
 
 \smallskip
 
-The homeomorphic embedding $\unlhd$ is a well-founded binary relation, meaning there are no infinite admissible sequences. A sequence $s_1,s_2 \ldots$ is admissible if there are no $i < j$ such that $s_i \unlhd s_j$. Given a set $S$, we permit the insertion of an element $t$ if $\forall s \in S \bullet \neg(s \unlhd t)$. Following this restriction, the set $S$ will remain finite.
+Homeomorphic embedding $\unlhd$ is a well-quasi order, meaning that for every infinite sequence of expressions $e_1,e_2 \ldots$ over a finite alphabet, there exist indicies $i < j$ such that $e_i \unlhd e_j$. This result is known as Kruskal's Tree Theorem \cite{kruskal:tree}. We can use this result to ensure an algorithm over expressions performs a bounded number of iterations, by stopping at iteration $n$ once $\exists i \bullet 1 \leq i < n \wedge e_i \unlhd e_n$.
 
-The homeomorphic embedding assumes all elements are expressions over a finite alphabet. To ensure this condition, we weaken the $\sim$ relation to consider all variables and literals to be equivalent.
+\subsection{Homeomorphic Embedding of Core Expressions}
+
+\begin{figure}
+\begin{code}
+data Shell a = Shell a [Shell a]
+
+(<<|) :: Eq a => Shell a -> Shell a -> Bool
+a <<| b = dive x y || couple x y
+
+dive x (Shell _ ys) = any (x <<|) ys
+
+couple (Shell x xs) (Shell y ys) =
+    x == y && length xs == length ys && and (zip (<<|) xs ys)
+\end{code}
+\caption{Homeomorphic embedding relation.}
+\label{figB:homeomorphic}
+\end{figure}
+
+Figure \ref{figB:homeomorphic} gives an implementation of homeomorphic embedding in Haskell, making use of the auxiliary functions |dive| and |couple| \cite{leuschel:homeomorphic}. The |dive| function checks if the first term is contained as a child of the second term, while the |couple| function checks if both terms have the same outer shell.
+ 
+In order to perform homeomorphic embedding tests on expressions in our Core language, it is necessary to convert expressions to shells. To generate shells it is useful to have some sentinel value for expressions, we use the variable consisting of the empty string, which we represent as |bullet|. To convert an expression |x| to a |Shell|, we make the first field of |Shell| the expression |x| with all subexpressions replaced by |bullet|, and the second field a list of the shells of all the immediate subexpressions. Some examples:
+
+\begin{code}
+shell (EAny v)                 = Shell (EAny v) []
+shell (EAny (map f xs))        = Shell (EAny (bullet bullet bullet)) [EAny map, EAny f, EAny xs]
+shell (EAny (c xs))            = Shell (EAny (bullet bullet)) [EAny c, EAny xs]
+shell (EAny (\v -> c xs))      = Shell (EAny (\v -> bullet)) [Shell (EAny (bullet bullet)) [EAny c, EAny xs]]
+shell (EAny (let v = x in y))  = Shell (EAny (let v = bullet in bullet)) [EAny x, EAny y]
+\end{code}
+
+To ensure that the first field in a |Shell| is drawn from a finite alphabet, we can replace any locally bound variables with the empty string. For example, |shell (EAny v)| would become |Shell (EAny bullet) []|.
 
 \subsection{Fast Homeomorphic Embedding}
 
-To compute $s \unlhd t$, by direct application of the rules in Figure \ref{figB:homeomorphic}, takes worse than polynomial time in the size of the expressions. Fortunately, there exists an algorithm \cite{stillman:computational_problems,stillman:homeomorphic} which takes $O(\text{size}(s) \cdot \text{size}(t) \cdot a)$, where $a$ is the maximum arity of any subexpression in $s$ or $t$.
+To compute whether $x \unlhd y$, using the function in Figure \ref{figB:homeomorphic}, takes worse than polynomial time in the size of the expressions. Fortunately, there exists an algorithm \cite{stillman:computational_problems,stillman:homeomorphic} which takes $O(\text{size}(x) \cdot \text{size}(y) \cdot a)$, where $a$ is the maximum arity of any subexpression in $x$ or $y$.
 
-The faster algorithm first constructs a $\text{size}(s)$ by $\text{size}(t)$ table, recording whether each pair of subexpressions within $s$ and $t$ satisfy the homeomorphic embedding. By computing the homeomorphic embedding in a bottom-up manner, making use of the table to cache pre-computed results, much duplicate computation can be eliminated. By first assigning each subexpression a uniquely identifying number, table access and modification are both $O(1)$ operations. The result is a polynomial algorithm.
+The faster algorithm first constructs a $\text{size}(x) \times \text{size}(y)$ table, recording whether each pair of subexpressions within $x$ and $y$ satisfy the homeomorphic embedding. By computing the homeomorphic embedding in a bottom-up manner, making use of the table to cache pre-computed results, much duplicate computation can be eliminated. By first assigning each subexpression a uniquely identifying number, table access and modification are both $O(1)$ operations. The result is a polynomial algorithm.
 
-\todo{refine comment about complexity class, what does it mean by doesn't seem to change}
-
-We have implemented both the direct homeomorphic algorithm, and the polynomial algorithm, in Haskell. Haskell is not well-suited to the use of mutable arrays, so we have instead used tree data structures to model the table. In practical experiments, the table-based algorithm seems to be around three times faster than the simple algorithm, but does not seem to change the complexity class. We suspect that our implementation could be improved, and that the worst-case behaviour of the simple algorithm occurs infrequently.
+We have implemented the polynomial algorithm in Haskell. Haskell is not well-suited to the use of mutable arrays, so we have instead used tree data structures to model the table. In practical experiments, the table-based algorithm seems to perform around three times faster than the function in Figure \ref{figB:homeomorphic}. Comparing the complexity classes, we may have expected a greater speed-up, but it appears that the worst-case behaviour of the simple algorithm occurs infrequently.
