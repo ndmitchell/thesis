@@ -1,5 +1,9 @@
 %include thesis.fmt
 
+%format <<| = "\mathbin{\unlhd}"
+%format |><| = "\mathbin{\bowtie}"
+
+
 \hsdef{\begin{comment}
 as,ds,f,ys,r,y,psi
 supercompile,generalise,terminate
@@ -104,19 +108,17 @@ tie(rho, x)
 
 drive(rho, x)
     if terminate\!!(rho, x) then
-        (cs,gen) = uniplate\!!(generalise\!!(x))
+        (cs,gen) = uniplate\!!(generalise\!!(rho,x))
         {-" \textsf{\textbf{return }} "-} gen\!!(fmap (tie rho) cs)
     else
         {-" \textsf{\textbf{return }} "-} drive\!!(rho `union` {x}, simplify\!!(unfold\!!(x)))
 \end{code}
 
-Where |psi| is a mapping from expressions to function names, and \ignore|freeVars\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decides whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it. \todo{Say what rho is, mention simplify as well}
+Where |psi| is a mapping from expressions to function names, |rho| is the termination context and \ignore|freeVars\!!(x)| returns the free variables in |x|. This code is parameterised by: |terminate| which decides whether to stop supercompilation of this expression; |generalise| which generalises an expression before residuation; |unfold| which chooses a function application and unfolds it. The |simplify| function is the application of the simplification rules given in Figures \ref{figB:simplify} and \ref{figS:simplify}.
 \vspace{3mm}
 \caption{The |supercompile| function.}
 \label{figS:supercompile}
 \end{figure}
-
-\todo{Give Haskell style definitions of termination and residuation}
 
 The general method of supercompilation is shown in Figure \ref{figS:supercompile}. Each function in the output program is an optimised version of some associated expression in the input program. Supercompilation starts at the |main| function, and supercompiles the expression associated with |main|. Once the expression has been supercompiled, the outermost shell of the expression becomes part of the residual program -- making use of a Uniplate instance for our Core language (see Chapter \ref{chp:uniplate}). All the subexpressions are assigned names, and will be given definitions in the residual program. If any expression (up to $\alpha$-renaming) already has a name in the residual program, then the same name is used. Each of these named inner expressions is then supercompiled as before.
 
@@ -152,8 +154,6 @@ The original Supero work \cite{me:supero_ifl} inlined following evaluation order
 
 \subsection{Examples of Supercompilation}
 
-\todo{Try and draw parallels between the Figure 4.2 and the example. Especially the unique-name stuff, but more too.}
-
 \begin{examplename}{Supercompiling and Specialisation}
 
 \begin{code}
@@ -166,17 +166,17 @@ map f cs = case  cs of
 
 There are two primary inefficiencies in this example: (1) the |map| function passes the |f| argument invariantly in every call; (2) the application of |f| is more expensive than if the function was known in advance.
 
-The supercompilation proceeds by first assigning a new unique name (we choose |h_0|) to |map (\b -> b + 1) as|, providing parameters for each of the free variables in the expression, namely |as|. We then choose to expand |map|, and invoke the simplification rules:
+In order to simplify the example, we begin supercompilation from the expression |map (\b -> b + 1) as|, rather than |main|. Supercompilation proceeds by first applying |psi\!!(map (\b -> b + 1) as)|, to generate a fresh name, which we choose to be |h_0|. This new function |h_0| then has the free variables of the original expression as arguments, namely |as|. We then apply |drive| to the RHS, first inlining the |map| application, then applying the simplification rules:
 
 \h{deflist}\begin{code}
-h_0 as  = map (\b -> b + 1) as
+h_0 as   = map (\b -> b + 1) as
 
-        = case  as of
-                []    -> []
-                d:ds  -> d+1 : map (\b -> b + 1) ds
+         = case  as of
+                 []    -> []
+                 d:ds  -> d+1 : map (\b -> b + 1) ds
 \end{code}
 
-We now have a |case| with a variable as the scrutinee at the root of the expression, which cannot be reduced further, so we residuate the outer shell of the expression. When processing the expression |map (\b -> b + 1) ds| we spot this to be an $\alpha$-renaming of the body of an existing generated function, namely |h_0|, and use this function:
+We now have a |case| with a variable as the scrutinee at the root of the expression, which |terminate| determines cannot be reduced further, so we residuate the outer shell of the expression. When processing the expression |map (\b -> b + 1) ds| the |tie| function spots this to be an $\alpha$-renaming of the body of an existing generated function already in the |seen| set, namely |h_0|, so |h_0| is used without applying |drive|:
 
 \begin{code}
 h_0 as = case  as of
@@ -203,7 +203,7 @@ h_0 as = case  map (\c -> c*2) as of
                d:ds  -> d+1 : map (\b -> b+1) ds
 \end{code}
 
-Next we choose to inline the |map| scrutinised by the case, then perform the |case|/|case| simplification, and finally residuate:
+Next the |unfold| function chooses to inline the |map| scrutinised by the case, then perform the |case|/|case| simplification, and finally residuate:
 
 \h{deflist}\begin{code}
 h_0 as  = case  (case  as of
@@ -263,33 +263,58 @@ The |unfolds| function computes all possible one-step inlinings, using an in-ord
 
 The original Supero program used a size bound on the expression to determine when to stop. The problem with a size bound is that different programs require different bounds to ensure both timely completion at compile-time and efficient residual programs. Indeed, within a single program, there may be different elements requiring different size bounds -- a problem exacerbated as the size and complexity of a program increases.
 
-We use the homeomorphic embedding relation (described in \S\ref{secB:homeomorphic}). We terminate the supercompilation of an expression |y| if on the chain of reductions from |main| to |y| we have encountered an expression |x| such that $x \unlhd y$.
+Our solution is to use the homeomorphic embedding relation (described in \S\ref{secB:homeomorphic}). We terminate the supercompilation of an expression |y| if on the chain of reductions from |main| to |y| (represented by |rho|) we have encountered an expression |x| such that |x| $\unlhd$ |y|.
 
-\todo{Define the additional termination criteria.}
+\begin{figure}
+\begin{code}
+simpleTerminate (ECon c _)          = True
+simpleTerminate (ECase (EVar v) _)  = True
+simpleTerminate (ELam _ _)          = True
+simpleTerminate (EVar v)            = True
+simpleTerminate _ = False
+\end{code}
+\caption{Simple Termination function.}
+\label{figS:simpleterm}
+\end{figure}
 
-In addition to using the homeomorphic embedding, we also terminate if further unfolding cannot yield any improvement to the root of the expression. For example, if the root of an expression is a constructor application, no further unfolding will change the root constructor. When terminating for this reason, we always residuate the outer shell of the expression, without applying any generalisation.
+In addition to using the homeomorphic embedding, we also terminate if further unfolding cannot yield any improvement to the root of the expression, as calculated by |simpleTerminate| in Figure \ref{figS:simpleterm}. For example, if the root of an expression is a constructor application, no further unfolding will change the root constructor. When terminating for this reason, we always residuate the outer shell of the expression, without applying any generalisation.
 
 \subsection{Generalisation}
 
-\todo{Separate into three different generalisation strategies. Give much better intuition. Three subsubsection headings, Shell only; MSG; bowtie}
+When the termination criterion has been met, it is necessary to discard information about the current expression, so that the supercompilation terminates. We always residuate the outer shell of the expression, but first we attempt to generalise the expression to improve subsequent optimisation. The simplest generalisation strategy is to do nothing, and always residuate the outer shell. We now introduce and compare two additional strategies, the first based on the most specific generalisation, and a second of our own creation.
 
-When the termination criterion has been met, it is necessary to discard information about the current expression, so that the supercompilation terminates. We always residuate the outer shell of the expression, but first we attempt to generalise the expression so that the information lost is minimal. The paper by \citet{sorensen:supercompilation} provides a method for generalisation, which works by taking the most specific generalisation of the current expression and an expression which is a homeomorphic embedding of it.
+The additional strategies work by using both the current expression |x|, and the expression |y| which caused the termination criteria to apply, where |y `elem` rho| and |y <<|| x|. The generalisation must return an expression equivalent to |x|, but aims to have similarities with |y| after residuation of the outer shell. By being similar to |y|, the parts of the expression that occur repeatedly are not split apart by residuation and can be optimised well.
 
-The most specific generalisation of two expressions $s$ and $t$, $\text{msg}(s,t)$, is produced by applying the following rewrite rule to the initial triple \linebreak $(x,\{x=s\},\{x=t\})$, resulting in a common expression and two sets of bindings.
+\subsubsection{Most Specific Generalisation}
+
+The paper by \citet{sorensen:supercompilation} provides a method for generalisation, which works by taking the most specific generalisation of the current expression and an expression which is a homeomorphic embedding of it.
+
+The most specific generalisation of two expressions $s$ and $t$, $\text{msg}(s,t)$, is produced by applying the following rewrite rule to the initial triple \linebreak $(v,\{v=s\},\{v=t\})$, resulting in a common expression and two sets of bindings.
 
 \[
 \left( \begin{array}{lcl}
 	t_g \\
-	\{x = \sigma(s_1,\ldots,s_n)\} & \cup & \theta_1 \\
-	\{x = \sigma(t_1,\ldots,t_n)\} & \cup & \theta_2
+	\{v = \sigma(s_1,\ldots,s_n)\} & \cup & \theta_1 \\
+	\{v = \sigma(t_1,\ldots,t_n)\} & \cup & \theta_2
 	\end{array} \right)
 \rightarrow
 \left( \begin{array}{lcl}
-	t_g[x / \sigma(y_1,\ldots,y_n)] \\
+	t_g[v / \sigma(y_1,\ldots,y_n)] \\
 	\{y_1 = s_1,\ldots,y_n = s_n\} & \cup & \theta_1 \\
 	\{y_1 = t_1,\ldots,y_n = t_n\} & \cup & \theta_2
 	\end{array} \right)
 \]
+
+We can now write generalise as follows:
+
+\begin{code}
+generalise rho x = ELet2 bind x'
+    where (x',bind,_) = msg x (head [y | y <<| x, y <- rho])
+\end{code}
+
+The |generalise| function applies |msg| and creates a let expression containing the binding produced. For example, given |Just (1:[])| as the current expression, and |Just []| as the expression from |rho| which is a homeomorphic embedding of it, we would obtain |let v = 1:[] in Just v|. This method factors out similar parts of the two expressions, starting from the root.
+
+\subsubsection{Our Generalisation}
 
 Our generalisation is characterised by $x \bowtie y$, which produces an expression equivalent to $y$, but similar in structure to $x$.
 
@@ -303,16 +328,28 @@ Our generalisation is characterised by $x \bowtie y$, which produces an expressi
         {-" \text{where }(t_g,\theta_1,\theta_2) = \text{msg}(x,y) "-}
 \end{code}
 
-The |freeVars| function in the first rule calculates the free variables of an expression, and $\sigma^*(y)$ denotes a subexpression $y$ within a containing context $\sigma^*$. The first rule applies if the homeomorphic embedding first applied the dive rule. The idea is to descend to the element which matched, and then promote this to the top-level using a lambda. The second rule applies the most specific generalisation operation if the coupling rule was applied first.
+We use $\sigma^*(y)$ to denote a subexpression $y$ within a containing context $\sigma^*$. The first rule applies if the homeomorphic embedding first applied the dive rule. The idea is to descend to the element which matched, and then promote this to the top-level using a lambda. The second rule applies the most specific generalisation operation if the coupling rule was applied first.
 
-Some examples of our generalisation method, and the msg generalisation, are:
+We can now write |generalise| as:
 
+\begin{code}
+generalise rho x = head [y | y <<| x, y <- rho] |><| x
+\end{code}
+
+Compared the to generalisation using msg alone, our method is able to factor out similar expressions which are not at the root of the expression. For example, given |Just (1:[])| as the current expression, and |[]| as the expression from |rho| which is a homeomorphic embedding of it, we would obtain |let v = [] in Just (1:v)|.
+
+\subsubsection{Comparison of Generalisations}
+
+Some examples of the msg function, and our $\bowtie$ operator, are:
+
+\smallskip
 \begin{tabular}{@@{}r@@{ $\unlhd$ }l@@{\hspace{7mm}(}l@@{, }l@@{, }l@@{)\hspace{5.5mm} |let|\hspace{1mm}}l@@{\hspace{1mm}|in|\hspace{1mm}}l}
 \multicolumn{2}{l}{\hspace{-2mm}Embedding} & \multicolumn{3}{l}{\hspace{-3mm}msg} & \multicolumn{2}{l}{\hspace{-7.5mm}$\bowtie$} \vspace{2mm} \\
 $a$ & $b(a)$ & $x$ & $\{x = a\}$ & $\{x = b(a)\}$ & $f = b(a)$ & $f$ \\
 $c(b)$ & $c(a(b))$ & $c(x)$ & $\{x = b\}$ & $\{x = a(b))\}$ & $x = a(b)$ & $c(x)$ \\
 $b(a)$ & $c(b(a))$ & $x$ & $\{x = b(a)\}$ & $\{x = c(b(a))\}$ & $f = b(a)$ & $c(f)$
 \end{tabular}
+\smallskip
 
 We now show an example where most specific generalisation fails to produce the ideal generalised version.
 
@@ -446,7 +483,7 @@ We exclude two benchmarks, paraffins and gen\_regexps. The paraffins benchmark m
 \end{center}
 
 \smallskip
-\textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{shell} applies no generalisation operation; \textbf{none} never performs any inlining. \\
+\textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{spine} applies no generalisation operation; \textbf{none} never performs any inlining. \\
 
 \caption{Runtime, relative to GHC being 1.}
 \label{figS:haskell_results}
@@ -455,7 +492,7 @@ We exclude two benchmarks, paraffins and gen\_regexps. The paraffins benchmark m
 \begin{table}
 \bigskip
 \begin{tabular*}{\linewidth}{@@{\extracolsep{\fill}}lrrrrrr@@{\extracolsep{0cm}}}
-\textbf{Program} & \textbf{Supero} & \textbf{msg} & \textbf{shell} & \textbf{none} & \textbf{Size} & \textbf{Memory} \\
+\textbf{Program} & \textbf{Supero} & \textbf{msg} & \textbf{spine} & \textbf{none} & \textbf{Size} & \textbf{Memory} \\
 bernouilli 		& 1.41 & 1.53 & 1.58 & 1.18 & 1.10 & 0.97 \\
 digits-of-e1	& 1.03 & 1.16 & 1.03 & 1.06 & 1.01 & 1.11 \\
 digits-of-e2	& 0.72 & 0.72 & 0.72 & 1.86 & 1.00 & 0.84 \\
@@ -471,13 +508,13 @@ x2n1 			& 0.58 & 0.64 & 1.61 & 3.04 & 1.09 & 0.33 \\
 \end{tabular*}
 \bigskip
 
-\textbf{Program} is the name of the program; \textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{shell} applies no generalisation operation; \textbf{none} never performs any inlining; \textbf{Size} is the size of the Supero generated executable; \textbf{Memory} is the amount of memory allocated on the heap by the Supero executable. \\
+\textbf{Program} is the name of the program; \textbf{Supero} uses the $\bowtie$ generalisation method; \textbf{msg} uses the msg function for generalisation; \textbf{spine} applies no generalisation operation; \textbf{none} never performs any inlining; \textbf{Size} is the size of the Supero generated executable; \textbf{Memory} is the amount of memory allocated on the heap by the Supero executable. \\
 
 \caption{Runtime, relative to GHC being 1.}
 \label{tabS:haskell_results}
 \end{table}
 
-The results of these benchmarks are given in Figure \ref{figS:haskell_results}, along with detailed breakdowns in Table \ref{tabS:haskell_results}. All results are relative to the runtime of a program compiled with GHC -O2, lower numbers being better. The first three variants (Supero, msg, shell) all use homeomorphic embedding as the termination criterion, and $\bowtie$, msg or nothing respectively as the generalisation function. The final variant, none, uses a termination test that always causes a residuation. The `none' variant is useful as a control to determine which improvements are due to bringing all definitions into one module scope, and which are a result of supercompilation. Compilation times ranged from a few seconds to five minutes.
+The results of these benchmarks are given in Figure \ref{figS:haskell_results}, along with detailed breakdowns in Table \ref{tabS:haskell_results}. All results are relative to the runtime of a program compiled with GHC -O2, lower numbers being better. The first three variants (Supero, msg, spine) all use homeomorphic embedding as the termination criterion, and $\bowtie$, msg or nothing respectively as the generalisation function. The final variant, none, uses a termination test that always causes a residuation. The `none' variant is useful as a control to determine which improvements are due to bringing all definitions into one module scope, and which are a result of supercompilation. Compilation times ranged from a few seconds to five minutes.
 
 The Bernouilli benchmark is the only one where Supero is slower than GHC by more than 3\%. The reason for this anomaly is that a dictionary is referred to in an inner loop which is specialised away by GHC, but not by Supero.
 
@@ -514,9 +551,9 @@ The issue of let expressions in supercompilation has not previously been a prima
 
 \subsection{Partial evaluation}
 
-\todo{Say what is the difference between supercompilation and partial evaluation. Answer is that partial evaluation is more focused on binding times, particularly at removing interpretation overhead. There are lots of different definitions of exactly what each one does.}
-
-There has been a lot of work on partial evaluation \cite{jones:partial_evaluation}, where a program is specialised with respect to some static data. The emphasis is on determining which variables can be entirely computed at compile time, and which must remain in the residual program. Partial evaluation is particularly appropriate for specialising an interpreter with an expression tree to generate a compiler automatically, often with an order of magnitude speedup, known as the First Futamura Projection \cite{futanama:projections}. Partial evaluation is not usually able to remove intermediate data structures. Our method is certainly less appropriate for specialising an interpreter, but in the absence of static data, is still able to show improvements.
+There has been a lot of work on partial evaluation \cite{jones:partial_evaluation}, where a program is specialised with respect to some static data. Partial evaluation works by marking all variable bindings within a program as either static or dynamic, using binding time analysis, then specialises the program with respect to the static bindings. Partial evaluation is particularly appropriate for optimising an interpreter to the expression tree of a particular program, automatically generating a compiler, and removing \textit{interpretation overhead}. The translation of an interpreter into a compiler is known as the First Futamura Projection \cite{futanama:projections}, and can often give an order of magnitude speedup.
+ 
+Supercompilation and partial evaluation both remove overhead within a program. Partial evaluation is more suited to completely removing static data, such as an expression tree which is interpreted. Supercompilation is able to remove intermediate data structures, similar to deforestation, which partial evaluation cannot.
 
 % Partial evaluation has been applied to full-scale functional languages, such as Curry
 % \cite{albert:partial_evaluation_curry}.
