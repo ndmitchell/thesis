@@ -7,5 +7,6 @@
 %format (EVar a) = "\ll{}" a "\rr{}"
 %format (ECase a b) = "\ll{}\!\!" case a of b "\rr{}"
 %format (ELet a b c) = "\ll{}\!\!" let a = b in c "\rr{}"
+%format (ELet2 a b) = "\ll{}\!\!" let a in b "\rr{}"
 
 %format (EAlt a b c) = "\ll{}" a \? b -> c "\rr{}"
