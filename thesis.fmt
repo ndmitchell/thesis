@@ -1,5 +1,8 @@
 %include paper.fmt
 
+%format <<| = "\mathbin{\unlhd}"
+
+
 %format (ELam a (b)) = "\ll{}" \a -> b "\rr{}"
 %format (EFun a b) = "\ll{}" a \? b "\rr{}"
 %format (ECon a b) = "\ll{}" a \? b "\rr{}"

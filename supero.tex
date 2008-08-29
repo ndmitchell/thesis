@@ -1,6 +1,5 @@
 %include thesis.fmt
 
-%format <<| = "\mathbin{\unlhd}"
 %format |><| = "\mathbin{\bowtie}"
 
 
@@ -552,7 +551,7 @@ The issue of let expressions in supercompilation has not previously been a prima
 \subsection{Partial evaluation}
 
 There has been a lot of work on partial evaluation \cite{jones:partial_evaluation}, where a program is specialised with respect to some static data. Partial evaluation works by marking all variable bindings within a program as either static or dynamic, using binding time analysis, then specialises the program with respect to the static bindings. Partial evaluation is particularly appropriate for optimising an interpreter to the expression tree of a particular program, automatically generating a compiler, and removing \textit{interpretation overhead}. The translation of an interpreter into a compiler is known as the First Futamura Projection \cite{futanama:projections}, and can often give an order of magnitude speedup.
- 
+
 Supercompilation and partial evaluation both remove overhead within a program. Partial evaluation is more suited to completely removing static data, such as an expression tree which is interpreted. Supercompilation is able to remove intermediate data structures, similar to deforestation, which partial evaluation cannot.
 
 % Partial evaluation has been applied to full-scale functional languages, such as Curry
