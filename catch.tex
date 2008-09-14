@@ -544,8 +544,6 @@ When designing a constraint system, the main decision is which distinctions betw
 \subsection{Regular Expression (RE) Constraints}
 \label{secC:regexp}
 
-\todo{Give the BNF for the regular expressions in use}
-
 \begin{figure}
 \h{.re}\begin{code}
 data Constraint  = RegExp :- [CtorName]
@@ -601,7 +599,20 @@ In earlier versions of Catch, regular expressions were unrestricted and quickly 
 1        & the language is the set containing the empty string
 \end{tabular} \\
 
-We implement REs using the data type |RegExp| from Figure \ref{figC:regexp}, with |RegExp| being a list of concatenated |RegItem|. In addition to the restrictions imposed by the data type, we require: (1) within |Atom| the |Selector| is not recursive; (2) within |Star| there is a non-empty list of |Selector|s, each of which is recursive; (3) no two |Star| constructors are adjacent in a concatenation. These restrictions are motivated by three observations:
+%format sel_R = "\Varid{sel_R}"
+%format sel_N = "\Varid{sel_N}"
+
+We implement REs using the data type |RegExp| from Figure \ref{figC:regexp}, with |RegExp| being a list of concatenated |RegItem|. In addition to the restrictions imposed by the data type, we require: (1) within |Atom| the |Selector| is not recursive; (2) within |Star| there is a non-empty list of |Selector|s, each of which is recursive; (3) no two |Star| constructors are adjacent in a concatenation. Our restricted regular expressions have the following grammar:
+
+\begin{code}
+re'    = item | item^.sel_N^.re' | sel_N^.re' | 1
+item   = stars^*
+stars  = sel_R | sel_R+stars
+sel_N  = {-" \text{non-recursive selector} "-}
+sel_R  = {-" \text{recursive selector} "-}
+\end{code}
+
+For example, the regular expression |tl^* ^.tl^*| is disallowed as there are two adjacent stars, |hd^*| is disallowed as a non-recursive selector under a star, and |tl| is disallowed as a recursive selector without a star. The restrictions are motivated by three observations:
 
 \begin{itemize}
 \item Because of static typing, constructor-sets must all be of the same type.
