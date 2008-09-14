@@ -530,10 +530,6 @@ map_id xs = case  xs of
 \subsubsection{Generating Templates}
 \label{secF:generate_templates}
 
-\todo{Explain and justify what template and tem do. Give examples}
-
-\todo{Make the templates much clearer to follow. Justify with helpful examples, i.e. |f (\x -> x) 1| and |f (\x -> x) 2| give the same template}
-
 %format underscore = _
 
 \begin{figure}
@@ -543,41 +539,41 @@ underscore = undefined :: Expr
 \end{code}
 \end{comment}
 \begin{code}
-template :: Expr -> Expr
-template (EFun f xs_)  = apply (EFun f) $ map (tem []) xs_
-template _            = underscore
+shouldTemplate :: Expr -> Bool
+shouldTemplate (EFun f xs_) = any (\x -> isLambda x || isBox x) (universe (EFun f xs_))
+shouldTemplate _ = False
 
-tem :: [String] -> Expr -> Expr
-tem seen y =  let tem' = tem seen in case y of
-    ELam v x       ->  ELam v (tem (v:seen) x)
-    EFun f xs_     |   isBox y -> EFun f (tems' xs_)
-    EVar v         ->  if v `elem` seen then EVar v else underscore
-    EFun f xs_     ->  apply (EFun f) $ tems' xs_
-    ECon c xs_     ->  apply (ECon c) $ tems' xs_
-    EApp x xs_     ->  apply  (\(x:xs_) -> EApp x xs_) $ tems' (x:xs_)
-    ELet v x y     ->  apply  (\[x,_] ->
-                              ELet v x (tem (v:seen) y)) $
-                              tems' [x,y]
-    ECase x alts_  ->  apply  (\(x:_) ->
-                              ECase x (map alt alts_)) $
-                              tems' (x:map rhs alts_)
-    where
-        tem' = tem seen
-        tems' = map tem'
-        alt (EAlt c vs_ x) = EAlt c vs_ (tem (vs_++seen) x)
+isLambda (ELam _ _) = True
+isLambda _ = False
 
-apply :: ([Expr] -> Expr) -> [Expr] -> Expr
-apply f xs = if all (== underscore) xs then underscore else f xs
+abstractTemplate :: Expr -> Expr
+abstractTemplate x =
+    transform (\x -> if abstract x then underscore else x) $
+    abstractVars (freeVars x) x
+
+abstract :: Expr -> Bool
+abstract (ECon c xs_) = all abstract xs_
+abstract (EFun f xs_) = all abstract xs_
+abstract (EApp x xs_) = all abstract xs_
+abstract (ELet v x y) = abstract x && abstract (abstractVars [v] y)
+abstract (ECase x alts_) = abstract x && all alt alts_
+   where alt (EAlt c vs_ x) = abstract (abstractVars vs_ x)
+abstract x = (x == underscore)
+
+abstractVars :: [VarName] -> Expr -> Expr
+abstractVars vs x = ... 
+    -- replace the variables |vs| in |x| with |underscore|
+    -- respecting variables rebound locally
 \end{code}
 \caption{Template generation function.}
 \label{figF:template_generation}
 \end{figure}
 
-A template is generated if an expression is a function application, whose arguments include a sub-expression which is either a lambda expression or a boxed lambda -- as calculated by the |template| function in Figure \ref{figF:template_generation}. The template additionally includes all sub-expressions whose removal would lead to functional values as omitted subexpressions, and all free variables bound within the template.
+A template is generated if an expression is a function application, whose arguments include a sub-expression which is either a lambda or a boxed lambda -- as calculated by the |shouldTemplate| function in Figure \ref{figF:template_generation}. Before generating a template, the |abstractTemplate| function is applied to make the template more widely applicable, while ensuring that the revised template requires no additional functional arguments. For example, given the expression |f (\v -> v) True|, |shouldTemplate| would return |True| as one of the arguments is a lambda expression. The |abstractTemplate| function would abstract |True|, and generate the template |f (\v -> v) _|. If the expression |f (\v -> x) False| was encountered, the abstraction would ensure that no new template was required.
 
 \begin{example}
 \noindent\begin{tabular}{@@{}ll}
-Expression & Template \\
+Expression & Template after abstraction \\
 |id (\x -> x)|                & |id (\x -> x)| \\
 |id (Just (\x -> x))|         & |id (Just (\x -> x))| \\
 |id (\x -> let y = 12 in 4)|  & |id (\x -> underscore)| \\
@@ -924,9 +920,7 @@ let(lam(x),y)    -> lam(let(x,y))
 \label{figF:term_simplification}
 \end{figure}
 
-\todo{Explain the rewrite rules and argue that they faithfully model the termination behaviour of the original rules.}
-
-In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. An encoding of a simplified version of our rules is given in Figure \ref{figF:term_simplification}. We have proven termination using both this simple formulation, which considers all data types to have one constructor of arity one, and a more complex encoding. In both cases, the system is able to report success.
+In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. An encoding of a simplified version of our rules is given in Figure \ref{figF:term_simplification}. We have encoded rules by considering what type of expression is transformed by a rule. For example, then rule replacing |(\v -> x) y| with |let v = y in x| is expressed as a rewrite replacing |app(lam(x),y)| with |let(y,x)|. The names of binding variables with expressions have been ignored. To simplify the encoding, we have only considered applications with on argument. The rules are applied non-deterministically at any suitable location, so faithfully model the behaviour of the original rules.
 
 The encoding of the (bind-box) and (bind-lam) rules is excluded. Given these rules, there are non terminating sequences. For example:
 
@@ -1034,33 +1028,33 @@ Given an initial program, the arity raising, inlining and specialisation stages 
 \section{Results}
 \label{secF:results}
 
-\todo{Update with the results from the revised draft paper}
-
 \subsection{Benchmark Tests}
 
 \begin{table}
 \bigskip
-\begin{tabular*}{\linewidth}{@@{\extracolsep{\fill}}lrrrrrrr@@{\extracolsep{0cm}}}
+\begin{tabular*}{\linewidth}{@@{}l@@{\extracolsep{\fill}}rrrrrrr@@{\extracolsep{0cm}}}
 \textbf{Name} & \textbf{Bound} & \multicolumn{2}{c}{\textbf{HO Create}} & \multicolumn{2}{c}{\textbf{HO Use}} & \textbf{Time} & \textbf{Size} \\
 \vspace{-1ex} \\
-bernouilli      & 4 & 240 & 0 & 190 & 2 & 0.4 & -32\% \\
-digits-of-e1    & 4 & 217 & 0 & 153 & 2 & 0.3 & -35\% \\
-digits-of-e2    & 5 & 236 & 0 & 198 & 3 & 0.4 & -32\% \\
-exp3\_8         & 4 & 232 & 0 & 154 & 2 & 0.3 & -39\% \\
-gen\_regexps    & 7 & 116 & 0 &  69 & 0 & 0.1 & -31\% \\
-integrate       & 4 & 348 & 0 & 358 & 2 & 0.8 & -38\% \\
-paraffins       & 4 & 360 & 0 & 351 & 2 & 0.7 & -53\% \\
-primes          & 4 & 217 & 0 & 148 & 2 & 0.2 & -38\% \\
-queens          & 4 & 217 & 0 & 146 & 2 & 0.3 & -38\% \\
-rfib            & 4 & 338 & 0 & 355 & 2 & 0.8 & -31\% \\
-tak             & 4 & 212 & 0 & 145 & 4 & 0.3 & -40\% \\
-wheel-sieve1    & 4 & 224 & 0 & 151 & 2 & 0.3 & -35\% \\
-wheel-sieve2    & 4 & 224 & 0 & 162 & 2 & 0.3 & -36\% \\
-x2n1            & 4 & 345 & 0 & 385 & 2 & 0.8 & -57\% \\
- & \multicolumn{7}{c}{$\ldots{}$ plus 35 tests from the spectral suite $\ldots{}$} \\
-Minimum         & 2 & 60 & 0 & 46 & 0 & 0.1  & -78\% \\
-Maximum         & 14 & 437 & 1 & 449 & 100 & 1.0  & 15\% \\
-Average         & 4.8 & 237 & 0.06 & 202 & 3.6 & 0.4  & -33\% \\
+\multicolumn{8}{@@{}l}{Programs curtailed by a termination bound:} \\
+cacheprof	 & 8	 & 611	 & 44	 & 686	 & 40  & 1.8	 & 2\% \\
+grep	 & 8	 & 129	 & 9	 & 108	 & 22	 & 0.8  & 40\% \\
+lift	 & 8	 & 187	 & 123	 & 175	 & 125  & 1.2	 & -6\% \\
+prolog	 & 8	 & 308	 & 301	 & 203	 & 137	 & 1.1  & -5\% \\
+\vspace{-1ex} \\
+\multicolumn{8}{@@{}l}{All other programs:} \\
+ansi	 & 4	 & 239	 & 0	 & 187	 & 2   & 0.5	 & -29\% \\
+bernouilli	 & 4	 & 240	 & 0	 & 190	 & 2  & 0.3	 & -32\% \\
+bspt	 & 4	 & 262	 & 0	 & 264	 & 1	 & 0.7  & -22\% \\
+ & \multicolumn{7}{c}{$\ldots{}$ plus 56 additional programs $\ldots{}$} \\
+sphere &	4	 & 343	 & 0	 & 366	 & 2  & 0.7	 & -45\% \\
+symalg & 	5	 & 402	 & 0	 & 453	 & 64  & 1.0	 & -32\% \\
+x2n1	& 4 & 	345	 & 0	 & 385	 & 2  & 0.8	 & -57\% \\
+\vspace{-1ex} \\
+\multicolumn{8}{@@{}l}{Summary of all other programs:} \\
+Minimum         & 2 & 60   & 0 & 46 &  0 & 0.1  & -78\% \\
+Maximum         & 14 & 580 & 1 & 581 & 100 & 1.2  & 27\% \\
+Average         & 5 & 260  & 0 & 232 & 5 & 0.5  & -30\% \\
+\hline
 \end{tabular*}
 
 \bigskip
@@ -1069,42 +1063,44 @@ Average         & 4.8 & 237 & 0.06 & 202 & 3.6 & 0.4  & -33\% \\
 \textbf{HO Create} the number of lambda expressions and under-applied functions, first in the input program and then in the output program;
 \textbf{HO Use} the number of application expressions and over-applied functions;
 \textbf{Time} the execution time of our method in seconds;
-\textbf{Size} the change in the program size measured as the number of nodes in the abstract syntax tree.
+\textbf{Size} the change in the program size measured as the number of lines of Core.
 \bigskip
 
 \caption{Results of defunctionalisation on the nofib suite.}
 \label{tabF:results}
 \end{table}
 
-We have tested our method with programs drawn from the nofib benchmark suite, and the results are given in Table \ref{tabF:results}. Looking at the input Core programs, we see many sources of functional values.
+We have tested our method with programs drawn from the nofib benchmark suite \cite{nofib}, and the results are given in Table \ref{tabF:results}. Looking at the input Core programs, we see many sources of functional values.
 
 \begin{itemize}
 \item Type classes create dictionaries which are implemented as tuples of functions.
 \item The monadic bind operation is higher-order.
 \item The IO data type is implemented as a function.
 \item The Haskell |Show| type class uses continuation-passing style extensively.
-\item List comprehensions in Yhc are desugared to continuations. There are other translations which require less functional value manipulations \cite{wadler:list_comprehensions,coutts:stream_fusion}.
+\item List comprehensions in Yhc are desugared to continuations. There are other translations which require less functional value manipulations \cite{coutts:stream_fusion}.
 \end{itemize}
 
-We have tested all 14 programs from the imaginary section (each represented in the table), and 35 out of the 47 tests in the spectral section. The remaining 12 programs in the spectral section do not compile using the Yhc compiler, mainly due to missing or incomplete libraries. After applying our defunctionalisation method, only 3 programs remain higher-order. We first discuss the residual higher-order programs, then make some observations about each of the columns in the table.
+We have tested all 14 programs from the imaginary section of the nofib suite, 35 of the 47 spectral programs, and 17 of the 30 real programs. The remaining 25 programs do not compile using the Yhc compiler, mainly due to missing or incomplete libraries. Upon applying our defunctionalisation method, 4 programs are curtailed by the termination bound, and 5 additional programs remain higher-order. We first discuss the residual higher-order programs, then make some observations about each of the columns in the table.
 
 \subsection{Higher-Order Residues}
 
-The three programs with residual higher-order expressions are as follows:
+All four programs curtailed by the termination bound are listed in Table \ref{tabF:results}. The lift program uses pretty-printing combinators, while the other three programs use parser combinators. In all programs, the combinators are used to build up a functional value representing the action to perform, storing an unbounded amount of information inside the functional value, which therefore cannot be removed.
+
+The five programs that are not curtailed by the termination bound, but still contain residual higher-order expressions, are as follows:
 
 \begin{example}
-\textit{The integer program} passes functional values to the primitive |seq|, using the following function:
+\textit{The integer and maillist programs} pass functional values to primitive functions. The maillist program calls the |catch| function (see \S\ref{secF:primitives}). The integer program passes functional values to the |seq| primitive, using the following function:
 
 \begin{code}
-seqlist [] = return ()
-seqlist (x:xs) = x `seq` seqlist xs
+seqlist []      = return ()
+seqlist (x:xs)  = x `seq` seqlist xs
 \end{code}
 
 This function is invoked with the IO monad, so the |return ()| expression is a functional value. It is impossible to remove this functional value without having access to the implementation of the |seq| primitive.
 \end{example}
 
 \begin{example}
-\textit{The pretty and constraints programs} both pass a functional value to an expression that evaluates to |undefined|. The case in \textit{pretty} comes from the fragment:
+\textit{The pretty, constraints and mkhprog programs} pass functional values to expressions that evaluate to $\bot$. The case in pretty comes from the fragment:
 
 \begin{comment}
 % for paper haskell
@@ -1120,7 +1116,7 @@ ppBesides :: [Pretty] -> Pretty
 ppBesides = foldr1 ppBeside
 \end{code}
 
-Here |ppBesides xs| evaluates to |undefined| if |xs == []|. The |undefined| value will be of type |Pretty|, and will be given further arguments, which can be functional arguments. In reality, the code ensures that the input list is never |[]|, so the program will never fail with this error.
+Here |ppBesides xs| evaluates to $\bot$ if |xs == []|. The $\bot$ value will be of type |Pretty|, and will be given further arguments, which can be functional arguments. In reality, the code ensures that the input list is never |[]|, so the program will never fail with this error.
 \end{example}
 
 \subsection{Termination Bound}
@@ -1129,7 +1125,7 @@ The termination bound used varies from 2 to 11 for the sample programs (see Boun
 
 \subsection{Creating of Functional Values}
 
-We use Yhc generated programs as input, which have been lambda lifted \cite{lambda_lift}, so contain no lambda expressions. The residual program has no partial application, only lambda expressions. Most programs in our test suite start with hundreds of partial applications, but only 3 residual programs contain lambda expressions (see HO Create in Table \ref{tabF:results}).
+We use Yhc generated programs as input, which have been lambda lifted \cite{lambda_lift}, so contain no lambda expressions. The residual program has no partial application, only lambda expressions. Most programs in our test suite start with hundreds of partial applications, but only 5 residual programs contain lambda expressions (see HO Create in Table \ref{tabF:results}).
 
 For the purposes of testing defunctionalisation, we have worked on unmodified Yhc libraries, including all the low-level detail. For example, |readFile| in Yhc is implemented in terms of file handles and pointer operations. Most analysis operations work on an abstracted view of the program, which reduces the number and complexity of functional values.
 
@@ -1140,22 +1136,13 @@ While very few programs have residual functional values, a substantial number ma
 \subsection{Execution Time}
 \label{secF:time}
 
-The timing results were all measured on a 1.2GHz laptop, running GHC 6.8.2 \cite{ghc}. The longest execution time was only one second, with the average time under half a second (see Time in Table \ref{tabF:results}). The programs requiring most time made use of floating point numbers, suggesting that library code requires most effort to defunctionalise. If abstractions were given for library methods, the execution time would drop substantially.
+The timing results were all measured on a 1.2GHz laptop, running GHC 6.8.2 \cite{ghc}. The longest execution time was just over one second, with the average time being half a second (see Time in Table \ref{tabF:results}). The programs requiring most time made use of floating point numbers, suggesting that library code requires most effort to defunctionalise. If abstractions were given for library methods, the execution time would drop substantially.
 
-In order to gain acceptable speed, we perform a number of optimisations over the algorithm presented in \S\ref{secF:detailed}:
-
-\begin{itemize}
-\item We transform functions in an order determined by a topological sort with respect to the call-graph.
-\item We delay the transform of dictionary components, as these will often be eliminated.
-\item We fuse the inlining, arity raising and simplification stages.
-\item We track the arity and boxed lambda status of each function.
-\end{itemize}
+In order to gain acceptable speed, we perform a number of optimisations over the algorithm presented in \S\ref{secF:detailed}. (1) We transform functions in an order determined by a topological sort with respect to the call-graph. (2) We delay the transformation of dictionary components, as these will often be eliminated. (3) We fuse the inlining, arity raising and simplification stages. (4) We track the arity and boxed lambda status of each function.
 
 \subsection{Program Size}
 
-\todo{Correct the mislead implication that firstification is responsible for code shrinkage - its probably mainly the simplification stage. Ideally, measure; but that's not a formal requirement.}
-
-We measured program size by taking the number of nodes in the abstract syntax tree. On average the size of the resultant program is smaller by 33\% (see Size in Table \ref{tabF:results}). The decrease in program size is due to the elimination of dictionaries holding references to unnecessary code.
+We measured program size by counting the number of lines of Core code. On average the size of the resultant program is smaller by 30\% (see Size in Table \ref{tabF:results}). The decrease in program size is mainly due to the elimination of dictionaries holding references to unnecessary code. An optimising compiler will perform dictionary specialisation, and therefore is likely to also reduce program size. We do not claim that defunctionalisation reduces code size, merely hope to alleviate concerns raised by previous papers \cite{chin:higher_order_removal} that doing so might cause an explosion in code size.
 
 
 \section{Related Work}
