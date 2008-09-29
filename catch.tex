@@ -69,8 +69,6 @@ This chapter describes an automated analysis to check for pattern match errors, 
 \section{Motivation}
 \label{secC:catch_intro}
 
-\todo{Say the problem is undecidable, and encode the halting problem.}
-
 Many functional languages support case-by-case definition of functions
 over algebraic data types, matching arguments against alternative
 constructor patterns.  In the most widely used languages, such as Haskell
@@ -117,6 +115,15 @@ Program is Safe
 \end{example}
 
 In other examples, where Catch cannot verify pattern-match safety, it can provide information such as sufficient conditions on arguments for safe application of a function.
+
+The problem of checking if a program will terminate with an error is undecidable, and can be reduced to the halting problem \cite{turing:halting} with the following encoding:
+
+\begin{code}
+main = case  computation of
+             () -> error "failure"
+\end{code}
+
+If |computation| terminates there will be an error, otherwise there will not. Therefore, it will be necessary to make conservative approximations in order to obtain a powerful but correct analysis.
 
 \subsection{Contributions}
 
@@ -233,7 +240,8 @@ var "ys"  = Just (EVar "xs", (":",1))
 \end{code}
 \end{example}
 
-The |isRec (c,i)| function returns true if the constructor |c| has a recursive |i|th component. For example, let \h{stmt}|hd = (":",0)| and \h{stmt}|tl = (":",1)| then \h{stmt}|isRec hd = False| but \h{stmt}|isRec tl = True|. \todo{Non-recursive selectors must satisfy the property that they occur only some maximum number of times}
+The |isRec (c,i)| function returns true if the constructor |c| has a recursive |i|th component. For example, let \h{stmt}|hd = (":",0)| and \h{stmt}|tl = (":",1)| then \h{stmt}|isRec hd = False| but \h{stmt}|isRec tl = True|. We require that for any value of a particular type, a non-recursive selector must only occur some maximum number of times.
+
 
 \subsubsection{Algebraic Abstractions of Primitive Types}
 \label{secC:abstraction}
