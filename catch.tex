@@ -40,6 +40,7 @@ arity  :: String    -> Int
 ctors  :: CtorName  -> [CtorName]
 
 ellipses :: a
+computation :: ()
 
 instance Eq a => Eq (Prop a)
 \end{code}
@@ -612,7 +613,7 @@ In earlier versions of Catch, regular expressions were unrestricted and quickly 
 
 We implement REs using the data type |RegExp| from Figure \ref{figC:regexp}, with |RegExp| being a list of concatenated |RegItem|. In addition to the restrictions imposed by the data type, we require: (1) within |Atom| the |Selector| is not recursive; (2) within |Star| there is a non-empty list of |Selector|s, each of which is recursive; (3) no two |Star| constructors are adjacent in a concatenation. Our restricted regular expressions have the following grammar:
 
-\begin{code}
+\ignore\begin{code}
 re'    = item | item^.sel_N^.re' | sel_N^.re' | 1
 item   = stars^*
 stars  = sel_R | sel_R+stars
@@ -620,7 +621,7 @@ sel_N  = {-" \text{non-recursive selector} "-}
 sel_R  = {-" \text{recursive selector} "-}
 \end{code}
 
-For example, the regular expression |tl^* ^.tl^*| is disallowed as there are two adjacent stars, |hd^*| is disallowed as a non-recursive selector under a star, and |tl| is disallowed as a recursive selector without a star. The restrictions are motivated by three observations:
+For example, the regular expression \ignore|tl^* ^.tl^*| is disallowed as there are two adjacent stars, \ignore|hd^*| is disallowed as a non-recursive selector under a star, and |tl| is disallowed as a recursive selector without a star. The restrictions are motivated by three observations:
 
 \begin{itemize}
 \item Because of static typing, constructor-sets must all be of the same type.
