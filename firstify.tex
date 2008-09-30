@@ -38,6 +38,13 @@ data World = World
 expensive :: a -> b
 primEqInt, primNeqInt :: Int -> Int -> Bool
 primCatch :: alpha -> (IOError -> alpha) -> alpha
+apply :: a
+ellipses :: a
+
+type VarName   = String
+freeVars :: Expr -> [VarName]
+universe :: Expr -> [Expr]
+transform :: (Expr -> Expr) -> Expr -> Expr
 \end{code}
 \end{comment}
 
@@ -561,7 +568,7 @@ abstract (ECase x alts_) = abstract x && all alt alts_
 abstract x = (x == underscore)
 
 abstractVars :: [VarName] -> Expr -> Expr
-abstractVars vs x = ... 
+abstractVars vs x = ellipses
     -- replace the variables |vs| in |x| with |underscore|
     -- respecting variables rebound locally
 \end{code}
@@ -569,7 +576,7 @@ abstractVars vs x = ...
 \label{figF:template_generation}
 \end{figure}
 
-A template is generated if an expression is a function application, whose arguments include a sub-expression which is either a lambda or a boxed lambda -- as calculated by the |shouldTemplate| function in Figure \ref{figF:template_generation}. Before generating a template, the |abstractTemplate| function is applied to make the template more widely applicable, while ensuring that the revised template requires no additional functional arguments. For example, given the expression |f (\v -> v) True|, |shouldTemplate| would return |True| as one of the arguments is a lambda expression. The |abstractTemplate| function would abstract |True|, and generate the template |f (\v -> v) _|. If the expression |f (\v -> x) False| was encountered, the abstraction would ensure that no new template was required.
+A template is generated if an expression is a function application, whose arguments include a sub-expression which is either a lambda or a boxed lambda -- as calculated by the |shouldTemplate| function in Figure \ref{figF:template_generation}. Before generating a template, the |abstractTemplate| function is applied to make the template more widely applicable, while ensuring that the revised template requires no additional functional arguments. For example, given the expression |f (\v -> v) True|, |shouldTemplate| would return |True| as one of the arguments is a lambda expression. The |abstractTemplate| function would abstract |True|, and generate the template \ignore|f (\v -> v) _|. If the expression |f (\v -> x) False| was encountered, the abstraction would ensure that no new template was required.
 
 \begin{example}
 \noindent\begin{tabular}{@@{}ll}
@@ -920,7 +927,7 @@ let(lam(x),y)    -> lam(let(x,y))
 \label{figF:term_simplification}
 \end{figure}
 
-In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. An encoding of a simplified version of our rules is given in Figure \ref{figF:term_simplification}. We have encoded rules by considering what type of expression is transformed by a rule. For example, then rule replacing |(\v -> x) y| with |let v = y in x| is expressed as a rewrite replacing |app(lam(x),y)| with |let(y,x)|. The names of binding variables with expressions have been ignored. To simplify the encoding, we have only considered applications with on argument. The rules are applied non-deterministically at any suitable location, so faithfully model the behaviour of the original rules.
+In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. An encoding of a simplified version of our rules is given in Figure \ref{figF:term_simplification}. We have encoded rules by considering what type of expression is transformed by a rule. For example, then rule replacing |(\v -> x) y| with |let v = y in x| is expressed as a rewrite replacing \ignore|app(lam(x),y)| with \ignore|let(y,x)|. The names of binding variables with expressions have been ignored. To simplify the encoding, we have only considered applications with on argument. The rules are applied non-deterministically at any suitable location, so faithfully model the behaviour of the original rules.
 
 The encoding of the (bind-box) and (bind-lam) rules is excluded. Given these rules, there are non terminating sequences. For example:
 
