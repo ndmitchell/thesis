@@ -4,4 +4,91 @@
 
 \todo{Give the definition site for all functions and types defined in the thesis. Give types of Prelude functions at least, and ideally some implementations.}
 
-At least, maybe, liftM, put, get, =<< etc.
+
+\printindex
+
+
+\section{Library Functions}
+
+\begin{comment}
+\begin{code}
+import Prelude(Char)
+ellipses = undefined
+\end{code}
+\end{comment}
+
+
+The following functions come from the following libraries:
+
+\begin{code}
+module Prelude where
+
+type String = [Char]
+
+(.) :: (b -> c) -> (a -> b) -> a -> c
+(.) f g x = f (g x)
+
+flip :: (a -> b -> c) -> b -> a -> c
+flip f a b = f b a
+
+id :: alpha -> alpha
+id x = x
+
+error :: String -> alpha
+error = ellipses -- terminate with an error
+
+undefined :: alpha
+undefined = error "undefined"
+\end{code}
+
+\begin{code}
+module Data.List where
+
+{-"|data [alpha] = [] | (:) alpha [alpha]|"-}
+
+map :: (alpha -> beta) -> [alpha] -> [beta]
+map f []      = []
+map f (x:xs)  = f x : map f xs
+
+(++) :: [alpha] -> [alpha] -> [alpha]
+[] ++ xs = xs
+(y:ys) ++ xs = y : (xs ++ ys)
+\end{code}
+
+
+\begin{code}
+module Data.Maybe where
+
+data Maybe alpha = Nothing | Just alpha
+
+maybe :: beta -> (alpha -> beta) -> Maybe alpha -> beta
+maybe nothing just Nothing   = nothing
+maybe nothing just (Just x)  = just x
+\end{code}
+
+
+\begin{code}
+module Control.Monad where
+
+class Monad m where
+		(>>=) :: m alpha -> (alpha -> m beta) -> m beta
+		(>>) :: m alpha -> m beta -> m beta
+		return :: alpha -> m alpha
+
+(=<<) :: Monad m => (a -> m b) -> m a -> m b
+(=<<) = flip (>>=)
+
+liftM :: Monad m => (alpha -> beta) -> m alpha -> m beta
+liftM f x = x >>= (return . f)
+\end{code}
+
+
+\begin{code}
+module Control.Monad.State where
+
+newtype State s a = State	{runState :: s -> (a, s)}
+instance Monad (State s)
+
+get :: State s s
+put :: s -> State s ()
+\end{code}
