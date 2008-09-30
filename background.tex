@@ -2,7 +2,7 @@
 
 \hsdef{\begin{comment}
 a,e,v_i,x_i,i,f
-Ord,letrec,xs,bottom
+Ord,letrec,xs,bottom,bullet
 \end{comment}}
 \begin{comment}
 \begin{code}
@@ -533,15 +533,15 @@ Homeomorphic embedding $\unlhd$ is a well-quasi order, meaning that for every in
 
 \begin{figure}
 \begin{code}
-data Shell a = Shell a [Shell a]
+data Shell alpha = Shell alpha [Shell alpha]
 
-(<<|) :: Eq a => Shell a -> Shell a -> Bool
-a <<| b = dive x y || couple x y
+(<<|) :: Eq alpha => Shell alpha -> Shell alpha -> Bool
+x <<| y = dive x y || couple x y
 
 dive x (Shell _ ys) = any (x <<|) ys
 
 couple (Shell x xs) (Shell y ys) =
-    x == y && length xs == length ys && and (zip (<<|) xs ys)
+    x == y && length xs == length ys && and (zipWith (<<|) xs ys)
 \end{code}
 \caption{Homeomorphic embedding relation.}
 \label{figB:homeomorphic}
@@ -551,7 +551,7 @@ Figure \ref{figB:homeomorphic} gives an implementation of homeomorphic embedding
 
 In order to perform homeomorphic embedding tests on expressions in our Core language, it is necessary to convert expressions to shells. To generate shells it is useful to have some sentinel value for expressions, we use the variable consisting of the empty string, which we represent as |bullet|. To convert an expression |x| to a |Shell|, we make the first field of |Shell| the expression |x| with all subexpressions replaced by |bullet|, and the second field a list of the shells of all the immediate subexpressions. Some examples:
 
-\begin{code}
+\ignore\begin{code}
 shell (EAny v)                 = Shell (EAny v) []
 shell (EAny (map f xs))        = Shell (EAny (bullet bullet bullet)) [EAny map, EAny f, EAny xs]
 shell (EAny (c xs))            = Shell (EAny (bullet bullet)) [EAny c, EAny xs]
@@ -559,7 +559,7 @@ shell (EAny (\v -> c xs))      = Shell (EAny (\v -> bullet)) [Shell (EAny (bulle
 shell (EAny (let v = x in y))  = Shell (EAny (let v = bullet in bullet)) [EAny x, EAny y]
 \end{code}
 
-To ensure that the first field in a |Shell| is drawn from a finite alphabet, we can replace any locally bound variables with the empty string. For example, |shell (EAny v)| would become |Shell (EAny bullet) []|.
+To ensure that the first field in a |Shell| is drawn from a finite alphabet, we can replace any locally bound variables with the empty string. For example, \ignore|shell (EAny v)| would become \ignore|Shell (EAny bullet) []|.
 
 \subsection{Fast Homeomorphic Embedding}
 
