@@ -64,8 +64,6 @@ instance Eq Val
 
 \todo{Tough chapter to follow. Try and make clear the separation of constraints and analysis, including which data types belong to each part and what the conditions are. Draw a picture, perhaps?}
 
-\todo{Add def links to things}
-
 This chapter describes an automated analysis to check for pattern match errors, which we have called Catch. A proof of the work presented in this chapter is given in Appendix \ref{chp:proof}. \S\ref{secC:catch_intro} gives a small example, and \S\ref{secC:walkthrough} gives an overview of the checking process for this example. \S\ref{secC:manipulate} introduces a small core functional language and a mechanism for reasoning about this language, \S\ref{secC:constraint} describes two constraint languages. \S\ref{secC:results} evaluates Catch on programs from the Nofib suite, on a widely-used library and on a larger application program. \S\ref{secC:catch_related} offers comparisons with related work.
 
 
@@ -210,6 +208,7 @@ This section describes the method used to calculate preconditions for functions.
 \todo{Would be useful to name the different sublanguages of Core that are used here and in the soundness proof.}
 
 \begin{figure}
+\def{var,isRec,Selector}
 \h{.*}\begin{code}
 type Selector  =  (CtorName, Int)
 
@@ -264,6 +263,7 @@ The final issue of abstraction relates to primitive functions in the |IO| monad,
 \label{secC:constraints}
 
 \begin{figure}
+\def{Prop,propAnd,propOr,propAnds,propOrs,propMap,propTrue,propFalse,propBool,propLit}
 \h{.*}\begin{code}
 data Prop alpha
 
@@ -283,6 +283,7 @@ We write |Sat x c| to assert that the value of expression |x| must be a member o
 Several underlying constraint models are possible. To keep the introduction of the algorithms simple we first use \textit{basic pattern constraints} (\S\ref{secC:basic}), which are unsuitable for reasons given in \S\ref{secC:bounded}. We then describe \textit{regular expression constraints} in \S\ref{secC:regexp} -- a variant of the constraints used in earlier versions of Catch. Finally we present \textit{multi-pattern constraints} in \S\ref{secC:multipattern} -- used in the current Catch tool to enable scaling to much larger problems.
 
 \begin{figure}
+\def{Sat,-<,||>,<||}
 \h{.*}\begin{code}
 data Sat alpha = Sat alpha Constraint
 
@@ -297,6 +298,7 @@ data Sat alpha = Sat alpha Constraint
 Three operations must be provided by every constraint model, whose signatures are given in Figure \ref{figC:constraint}. The lifting and splitting operators |(||>)| and |(<||)| are discussed in \S\ref{secC:backward}. The expression |x -< cs| generates a predicate ensuring that the value |x| must be constructed by one of the constructors in |cs|.
 
 \begin{figure}
+\def{substP}
 \begin{code}
 precond   :: FuncName -> Prop (Sat VarName)
 prePost   :: FuncName -> Constraint -> Prop (Sat VarName)
@@ -315,6 +317,7 @@ The type signatures for the functions calculating preconditions and entailments 
 \label{secC:basic}
 
 \begin{figure}
+\def{Constraint,Any,Con}
 \begin{code}
 data Constraint  =  Any
                  |  Con CtorName [Constraint]
@@ -327,6 +330,7 @@ For simplicity, our analysis framework will be introduced using basic pattern co
 
 As an example of an operator definition for the BP-constraint language, |(-<)| can be defined:
 
+\def{-<}
 \begin{code}
 a -< xs = propOrs [propLit (a `Sat` anys x) | x <- xs]
     where anys x = Con x (replicate (arity x) Any)
@@ -345,6 +349,7 @@ e -< [":","[]"]  =  propLit (e `Sat` Con ":" [Any,Any]) `propOr`
 \label{secC:precond}
 
 \begin{figure}
+\def{pre}
 \begin{code}
 pre ::  Expr -> Prop (Sat Expr)
 pre (EVar v       ) = propTrue
@@ -383,6 +388,7 @@ This predicate states that the invocation of |null xs| must be safe, and either 
 
 
 \begin{figure}
+\def{precond}
 \ignore\begin{code}
 precond  :: FuncName -> Prop (Sat VarName)
 precond Rec0   f =  if f == "error" then propFalse else propTrue
@@ -405,6 +411,7 @@ The |pre| function defined in Figure \ref{figC:precondition} does not exploit la
 \label{secC:backward}
 
 \begin{figure}
+\def{reduce}
 \begin{code}
 reduce :: Prop (Sat Expr) -> Prop (Sat VarName)
 reduce = propMap (\(Sat x k) -> red x k)
@@ -449,6 +456,7 @@ xs -< ["[]"] `propOr` xs -< [":"]
 
 \para{The variable rule} has two alternatives. The first alternative deals with top-level bound arguments, which are already in the correct form. The other alternative applies to variables bound by patterns in case alternatives. It lifts conditions on a bound variable to the scrutinee of the case expression in which they occur. The | ||>| operator lifts a constraint on one part of a data structure to a constraint on the entire data structure. For BP-constraints, | ||>| can be defined as:
 
+\def{||>}
 \begin{code}
 (c,i) |> k = Con c  [  if i == j then k else Any
                     |  j <- [0..arity c - 1]]
@@ -466,6 +474,7 @@ Here the initial precondition will be |y -< [":"]|, which evaluates to the resul
 
 \para{The constructor application rule} deals with an application of a constructor. The |<||| operator splits a constraint on an entire structure into a proposition combining constraints on each part.
 
+\def{<||}
 \begin{code}
 c <| Any         =  propTrue
 c <| Con c_2 xs  =  propBool (c_2 == c) `propAnd` propAnds (map propLit (zipWith Sat [0..] xs))
@@ -483,6 +492,7 @@ The intuition is that given knowledge of the root constructor of a data value, w
 \para{The case rule} generates a conjunct for each alternative. An alternative satisfies a constraint if \textit{either} it is never taken, \textit{or} it meets the constraint when taken.
 
 \begin{figure}
+\def{prePost}
 \ignore\begin{code}
 prePost :: FuncName -> Constraint -> Prop (Sat VarName)
 prePost Rec0   f k =  propTrue
@@ -501,6 +511,7 @@ prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $
 
 The semantics of a constraint are determined by which values satisfy it. We can model values in our first-order Core with the data type:
 
+\def{Value,Bottom}
 \begin{code}
 data Value  =  Value CtorName [Value]
             |  Bottom
@@ -509,6 +520,7 @@ data Value  =  Value CtorName [Value]
 Given this value representation, we can implement a |satisfies| function using the |<||| operator:
 
 \begin{onepage}
+\def{satisfies,satisfiesP}
 \begin{code}
 satisfies :: Value -> Constraint -> Bool
 satisfies Bottom        k = True
@@ -556,6 +568,7 @@ When designing a constraint system, the main decision is which distinctions betw
 \label{secC:regexp}
 
 \begin{figure}
+\def{Constraint,:-,RegExp,RegItem,Atom,Star,-<,||>,<||,ewp,integrate,differentiate}
 \h{.re}\begin{code}
 data Constraint  = RegExp :- [CtorName]
 type RegExp      = [RegItem]
@@ -690,6 +703,7 @@ Catch computes over propositional formulae with constraints as atomic propositio
 \todo{Tighten up the definition of MP constraints}
 
 \begin{figure}
+\def{Constraint,Val,Pattern,:*,Any,Pattern,nonRecs,complete,-<,||>,<||,mergeVal,merge}
 \h{.mp}\begin{code}
 type Constraint  =  [Val]
 data Val         =  [Pattern] :* [Pattern] |  Any

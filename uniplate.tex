@@ -10,11 +10,12 @@
 
 
 \hsdef{\begin{comment}
-Char,Bool,Float,Data
+Char,Bool,Float,Data,Int
 Traversable
 UniplateOn,On,Bi
-f,x,x',x_i,y,e,e',k
-_D,_C,_T
+f,x,x',x_i,y,e,e',k,r
+_D,_C,_T,_I
+alpha,tau,beta
 warnAssign
 increase,incrOne,com_increase,syb_increase,syb_incrOne
 Data.Generics.PlateDirect,Data.Generics.PlateTypeable,PlateData
@@ -283,7 +284,7 @@ rewrite f = transform g
 
 This definition tries to apply the rule everywhere in a bottom-up manner. If at any point it makes a change, then the new value has the rewrite applied to it. The function only terminates when a normal form is reached.
 
-The |rewrite| function has two potential problems. The first issue is that different application strategies may given results. Consider the rule replacing |Neg (Neg x)| with |1|, applied to the value |Neg (Neg (Neg 1))|. Depending on the application strategy, the result will be either |Neg 1| or |1|. The second issue is that the implementation of |rewrite| given may check unchanged sub-expressions repeatedly, causing a performance problem. Both these issues can be avoided by using an explicit transformation, and managing the rewriting manually.
+The |rewrite| function has two potential problems. The first issue is that different application strategies may given results. Consider the rule replacing |Neg (Neg x)| with |1|, applied to the value |Neg (Neg (Neg (Val 1)))|. Depending on the application strategy, the result will be either |Neg (Val 1)| or |Val 1|. The second issue is that the implementation of |rewrite| given may check unchanged sub-expressions repeatedly, causing a performance problem. Both these issues can be avoided by using an explicit transformation, and managing the rewriting manually.
 
 \subsubsection{Bottom-Up Transformations to a Normal Form}
 \label{secU:rewrite_bottom}
@@ -530,7 +531,8 @@ All eleven operations from \S\ref{secU:use_play} can be defined in terms of |uni
 \h{.*}\begin{code}
 class Uniplate alpha where
     uniplate :: alpha -> (Str alpha, Str alpha -> alpha)
-
+\end{code}
+\h{.default .expr2}\begin{code}
 instance Uniplate Expr where
     uniplate (Neg  a    )  =  (One a, \(One a') -> Neg  a')
     uniplate (Add  a b  )  =  (Two (One a) (One b)
@@ -632,7 +634,7 @@ In collaboration with Stefan O'Rear we have developed the Derive tool \citep{der
 \begin{code}
 data Term  =  Name String
            |  Apply Term Term
-              deriving ( {-" \text{\{-! } \textsf{Uniplate} \text{ !-\}} "-} )
+              deriving ( {-" \text{\{\hspace{0}-! } \textsf{Uniplate} \text{ !-\}} "-} )
 \end{code}
 
 Running the Derive tool over this file, the generated code is:
@@ -670,14 +672,8 @@ We first introduce |UniplateOn|, which requires an explicit function to find the
 
 We define operations, including |universeOn| and |transformOn|, which take an extra argument relative to the standard |Uniplate| operators. We call this extra argument |biplate|: it is a function from the containing type (|beta|) to the contained type (|alpha|).
 
-\begin{comment}
-\ignore\begin{code}
-type BiplateType beta alpha = beta -> (Str alpha, Str alpha -> beta)
-\end{code}
-\end{comment}
-
 \def{BiplateType}
-\begin{code}
+\h{.*}\begin{code}
 type BiplateType beta alpha = beta -> (Str alpha, Str alpha -> beta)
 biplate :: BiplateType beta alpha
 \end{code}
@@ -719,6 +715,7 @@ The Yhc.Core library \citep{me:yhc_core}, part of the York Haskell Compiler (Yhc
 \begin{comment}
 \begin{code}
 data CoreData = CoreData
+instance Uniplate CoreExpr
 \end{code}
 \end{comment}
 
@@ -734,7 +731,7 @@ data CoreExpr  =  CoreVar   String
                   -- other constructors
 \end{code}
 
-Most traversals are performed on the |CoreExpr| type. However, it is often convenient to start from one of the other types. For example, \h{stmt}|coreSimplify :: CoreExpr -> CoreExpr| may be applied not just to an individual expression, but to all expressions in a function definition, or a complete program. If we are willing to freeze the type of the second argument to |biplate| as |CoreExpr| we can write a class |UniplateExpr beta| corresponding to |Biplate beta CoreExpr |:
+Most traversals are performed on the |CoreExpr| type. However, it is often convenient to start from one of the other types. For example, \h{stmt}|coreSimplify :: CoreExpr -> CoreExpr| may be applied not just to an individual expression, but to all expressions in a function definition, or a complete program. If we are willing to freeze the type of the second argument to |biplate| as |CoreExpr| we can write a class \ignore|UniplateExpr beta| corresponding to \ignore|Biplate beta CoreExpr |:
 
 \begin{code}
 class  UniplateExpr beta where
@@ -781,7 +778,7 @@ This technique has been used in the Yhc compiler. The Yhc compiler is written in
 If we are willing to make use of \textit{multi-parameter type classes} \cite{jones:mptc} we can define a class |Biplate| with |biplate| as its sole method. We do not require functional dependencies.
 
 \def{Biplate,biplate}
-\begin{code}
+\h{.*}\begin{code}
 class  Uniplate alpha => Biplate beta alpha where
        biplate :: BiplateType beta alpha
 \end{code}
@@ -837,7 +834,7 @@ All three methods can be fully automated using the Derive tool, and all provide 
 \label{secU:implement_playdirect}
 
 \begin{figure}
-\def{Type,PlateDirect,plate,|*,|+,|-,||*,||+}
+\def{Type,PlateDirect,plate,||*,||+,||-,||||*,||||+}
 \h{.direct}\begin{code}
 module Data.Generics.PlateDirect where
 
@@ -850,7 +847,7 @@ plate f = (Zero, \_ -> f)
 (|*) (xs,x') y = (Two xs (One y),\(Two xs (One y)) -> x' xs y)
 
 (|+) :: Biplate tau alpha => Type (tau -> beta) alpha -> tau -> Type beta alpha
-(|+) (xs,x') y = (Two xs ys, \(Two xs ys) -> x'xs (y' ys))
+(|+) (xs,x') y = (Two xs ys, \(Two xs ys) -> x' xs (y' ys))
     where (ys,y') = biplate y
 
 (|-) :: Type (tau -> beta) alpha -> tau -> Type beta alpha
@@ -859,7 +856,7 @@ plate f = (Zero, \_ -> f)
 (||*) :: Type ([alpha] -> beta) alpha -> [alpha] -> Type beta alpha
 (||*) (xs,x') y = (Two xs (listStr y), \(Two xs ys) -> x' xs (strList ys))
 
-(||+) :: Biplate item alpha => Type ([tau] -> beta) alpha -> [tau] -> Type beta alpha
+(||+) :: Biplate tau alpha => Type ([tau] -> beta) alpha -> [tau] -> Type beta alpha
 (||+) (xs,x') y = (Two xs ys, \(Two xs ys) -> x' xs (y' ys))
     where  (ys,y') = plateListDiff y
            plateListDiff [] = plate []
@@ -906,8 +903,8 @@ In our experience definitions using these combinators offer similar performance 
 \label{secU:implement_playtypeable}
 
 \begin{figure}
-\def{PlateTypeable,plateAll,PlateAll,Type,plate,|+,plateSome}
-\h{.typeable}\begin{code}
+\def{PlateTypeable,plateAll,PlateAll,Type,plate,||+,plateSome}
+\h{.typeable .data}\begin{code}
 module Data.Generics.PlateTypeable where
 
 class PlateAll beta alpha where
@@ -938,7 +935,13 @@ plateSome x = res
 \label{figU:platetypeable}
 \end{figure}
 
-Instead of writing $O(n^2)$ class instances to locate values of the target type, we can use the |Typeable| class to \textit{test at runtime} whether we have reached the target type. This strategy is implemented in the |Data.Generics.Typeable| module, whose implementation is given in Figure \ref{figU:platetypeable}. The user is required to define an instance of the auxiliary class |PlateAll|, separating the fields of a constructor with | ||+|:
+Instead of writing $O(n^2)$ class instances to locate values of the target type, we can use the |Typeable| class to \textit{test at runtime} whether we have reached the target type. This strategy is implemented in the |Data.Generics.PlateTypeable| module, whose implementation is given in Figure \ref{figU:platetypeable}. The user is required to define an instance of the auxiliary class |PlateAll|, separating the fields of a constructor with | ||+|:
+
+\begin{comment}
+\h{.typeable}\begin{code}
+instance PlateAll Char a
+\end{code}
+\end{comment}
 
 \h{.typeable}\begin{code}
 instance (Typeable alpha, Uniplate alpha) => PlateAll Expr alpha where
@@ -956,9 +959,9 @@ instance (Typeable alpha, Uniplate alpha) => PlateAll Stmt alpha where
     plateAll (While     a b    ) = plate While     |+  a |+ b
 \end{code}
 
-To give an instance of |PlateAll beta alpha|, for a concrete type |beta|, we require the context |Typeable alpha| and |Uniplate alpha|. To give an instance where |beta| has type variables of kind |*|, we require the context |Typeable tau| and |PlateAll tau alpha| for all the type variables |tau| in |beta|. We do not permit |beta| to have any higher-kinded type variables. To give an example instance with type variables, the instance for lists is:
+To give an instance of \h{.typeable ctxt}|PlateAll beta alpha|, for a concrete type |beta|, we require the context \h{ctxt}|Typeable alpha| and \h{ctxt}|Uniplate alpha|. To give an instance where |beta| has type variables of kind |*|, we require the context \h{ctxt}|Typeable tau| and \h{.typeable ctxt}|PlateAll tau alpha| for all the type variables |tau| in |beta|. We do not permit |beta| to have any higher-kinded type variables. To give an example instance with type variables, the instance for lists is:
 
-\begin{code}
+\h{.typeable}\begin{code}
 instance  (PlateAll tau alpha, Typeable tau, Typeable alpha, Uniplate alpha) =>
           PlateAll [tau] alpha where
     plateAll []     = plate []
@@ -967,7 +970,7 @@ instance  (PlateAll tau alpha, Typeable tau, Typeable alpha, Uniplate alpha) =>
 
 From a |PlateAll| instance, a |Biplate| is inferred, using the code from Figure \ref{figU:platetypeable}. The function |plateAll| always descends at least one level, then looks for values of the target type, corresponding to the functionality of |uniplate|. The function |plateSome| looks for the first values of the target type, corresponding to |biplate|. Unfortunately, we cannot infer an instance for |Uniplate| automatically, and must explicitly declare:
 
-\ignore\begin{code}
+\h{.typeable}\begin{code}
 instance Uniplate Expr where
     uniplate = plateAll
 
@@ -977,12 +980,12 @@ instance Uniplate Stmt where
 
 The reader may wonder why we cannot define:
 
-\h{.typeable}\begin{code}
+\ignore\begin{code}
 instance PlateAll alpha alpha => Uniplate alpha where
     uniplate = plateAll
 \end{code}
 
-Consider the |Expr| type. To infer \ignore|Uniplate Expr| we require an instance for \ignore|PlateAll Expr Expr|. But to infer this instance we require \ignore|Uniplate Expr| -- which we are in the process of inferring! \footnote{GHC has co-inductive or recursive dictionaries, but Hugs does not. To allow continuing compatibility with Hugs, and the use of fewer extensions, we require the user to write these explicitly for each type.}
+Consider the |Expr| type. To infer \h{ctxt}|Uniplate Expr| we require an instance for \h{.typeable ctxt}|PlateAll Expr Expr|. But to infer this instance we require \h{ctxt}|Uniplate Expr| -- which we are in the process of inferring! \footnote{GHC has co-inductive or recursive dictionaries, but Hugs does not. To allow continuing compatibility with Hugs, and the use of fewer extensions, we require the user to write these explicitly for each type.}
 
 
 \subsection{Using the |Data| class}
@@ -1002,7 +1005,7 @@ The disadvantages of this approach are (1) \textit{lack of type safety} -- there
 
 \begin{figure}
 \def{PlateData}
-\h{.data}\begin{code}
+\ignore\begin{code}
 module Data.Generics.PlateData where
 
 import Data.Generics.PlateTypeable
@@ -1027,7 +1030,7 @@ instance (Typeable alpha, Data alpha) => Uniplate alpha where
 
 How do we implement the Uniplate class instances? The implementation is given in Figure \ref{figU:platedata}, making use of the class |PlateAll| from PlateTypeable in Figure \ref{figU:platetypeable}. The operation to get the children can be done using |gmapQ|. The operation to replace the children is more complex, requiring a state monad to keep track of the items to insert.
 
-The code in Figure \ref{figU:platedata} is not optimised for speed. Uses of |splitAt| and |length| require the list of children to be traversed multiple times. Transforming between |Str alpha| and |[alpha]| is also inefficient. We discuss improvements in \S\ref{secU:optimise_playdata}.
+The code in Figure \ref{figU:platedata} is not optimised for speed. Uses of |splitAt| and |length| require the list of children to be traversed multiple times. Transforming between \ignore|Str alpha| and |[alpha]| is also inefficient. We discuss improvements in \S\ref{secU:optimise_playdata}.
 
 
 \section{Performance Improvements}
@@ -1077,8 +1080,8 @@ The next optimisation relies on the extra information present in the |Uniplate| 
 
 \begin{onepage}
 \def{TypeBox,contains}
-\ignore\begin{code}
-data TypeBox = forall alpha `o` (Typeable alpha, Data alpha) => TypeBox alpha
+\begin{code}
+data TypeBox = forall alpha . (Typeable alpha, Data alpha) => TypeBox alpha
 
 contains :: TypeBox -> [TypeBox]
 contains (TypeBox x) = if isAlgType dtyp then concatMap f ctrs else []
@@ -1089,11 +1092,11 @@ contains (TypeBox x) = if isAlgType dtyp then concatMap f ctrs else []
 \end{code}
 \end{onepage}
 
-A |TypeBox| can be thought of as storing a \textit{type}, rather than a \textit{value}. The |TypeBox| constructor stores the |Data| and |Typeable| instance information for a particular type, along with the value |undefined| of that type. The \ignore|contains| function takes a |TypeBox| and returns a |TypeBox| representing the type of each field for each possible constructor. For example, the type |[Int]| has two constructors, |[]| which has no fields, and |(:)| which has fields of type |Int| and |[Int]|:
+A |TypeBox| can be thought of as storing a \textit{type}, rather than a \textit{value}. The |TypeBox| constructor stores the |Data| and |Typeable| instance information for a particular type, along with the value |undefined| of that type. The \ignore|contains| function takes a |TypeBox| and returns a |TypeBox| representing the type of each field for each possible constructor. For example, the type \ignore|[Int]| has two constructors, |[]| which has no fields, and |(:)| which has fields of type |Int| and \ignore|[Int]|:
 
-\begin{code}
+\ignore\begin{code}
 contains (undefined :: [Int]) =
-    [DataBox (undefined :: Int), DataBox (undefined :: [Int])]
+    [TypeBox (undefined :: Int), TypeBox (undefined :: [Int])]
 \end{code}
 
 The |contains| function determines the types directly contained by a data type. By taking the transitive closure we can determine all the types reachable from a particular type. Hence all types can be divided into three sets:
