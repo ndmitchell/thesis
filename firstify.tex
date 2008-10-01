@@ -550,9 +550,6 @@ shouldTemplate :: Expr -> Bool
 shouldTemplate (EFun f xs_) = any (\x -> isLambda x || isBox x) (universe (EFun f xs_))
 shouldTemplate _ = False
 
-isLambda (ELam _ _) = True
-isLambda _ = False
-
 abstractTemplate :: Expr -> Expr
 abstractTemplate x =
     transform (\x -> if abstract x then underscore else x) $
