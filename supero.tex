@@ -102,6 +102,7 @@ Our goal is an automatic optimisation that makes high-level Haskell programs run
 Our supercompiler takes a Core program as input, in the format described in \S\ref{secB:core}, and produces an equivalent Core program as output. To improve the program we do not make small local changes to the original, but instead \textit{evaluate it at compile time} so far as possible, leaving a \textit{residual program} to be run.
 
 \begin{figure}
+\def{supercompile,tie,drive}
 \ignore\begin{code}
 supercompile()
     seen := {}
@@ -258,6 +259,7 @@ Taking the second example, |repeat| can be inlined indefinitely. However, by unf
 
 Unfortunately these two examples seem to suggest different strategies for unfolding -- unfold in the let binding or unfold in the let body. However, they do have a common theme -- unfold the function that cannot be unfolded infinitely often. Our strategy can be defined by the |unfold| function:
 
+\def{unfold,unfolds}
 \begin{code}
 unfold x = head (filter (not . terminate) xs ++ xs ++ [x])
     where xs = unfolds x
@@ -275,6 +277,7 @@ The original Supero program used a size bound on the expression to determine whe
 Our solution is to use the homeomorphic embedding relation (described in \S\ref{secB:homeomorphic}). We terminate the supercompilation of an expression |y| if on the chain of reductions from |main| to |y| (represented by |rho|) we have encountered an expression |x| such that |x| $\unlhd$ |y|.
 
 \begin{figure}
+\def{simpleTerminate}
 \begin{code}
 simpleTerminate (ECon c _)          = True
 simpleTerminate (ECase (EVar v) _)  = True
@@ -300,6 +303,7 @@ The paper by \citet{sorensen:supercompilation} provides a method for generalisat
 
 The most specific generalisation of two expressions $s$ and $t$, $\text{msg}(s,t)$, is produced by applying the following rewrite rule to the initial triple \linebreak $(v,\{v=s\},\{v=t\})$, resulting in a common expression and two sets of bindings.
 
+\def{msg}
 \[
 \left( \begin{array}{lcl}
 	t_g \\
@@ -316,6 +320,7 @@ The most specific generalisation of two expressions $s$ and $t$, $\text{msg}(s,t
 
 We can now write generalise as follows:
 
+\def{generalise}
 \begin{code}
 generalise rho x = ELet2 bind x'
     where (x',bind,_) = msg x (head [y | y <- rho, y <<| x])
@@ -327,6 +332,7 @@ The |generalise| function applies |msg| and creates a let expression containing 
 
 Our generalisation is characterised by $x \bowtie y$, which produces an expression equivalent to $y$, but similar in structure to $x$.
 
+\def{|><|}
 \ignore\begin{code}
 {-" x \bowtie \sigma^*(y), \text{if dive}(x,\sigma^*(y)) \wedge \text{couple}(x,y) "-}
         let f = \vs_ -> x in {-" \sigma^* "-}(f vs_)
@@ -341,6 +347,7 @@ We use $\sigma^*(y)$ to denote a subexpression $y$ within a containing context $
 
 We can now write |generalise| as:
 
+\def{generalise}
 \begin{code}
 generalise rho x = head [y | y <- rho, y <<| x] |><| x
 \end{code}
@@ -432,6 +439,7 @@ During initial trials using these benchmarks, we identified two unnecessary bott
 The first issue is that |isSpace| in Haskell is much more expensive than \texttt{isspace} in C. The simplest solution is to use a FFI (Foreign Function Interface) \cite{spj:awkward_squad} call to the C \texttt{isspace} function in all cases, removing this factor from the benchmark. A GHC bug (number 1473) has been filed about the slow performance of |isSpace|.
 
 \begin{figure}
+\def{words}
 \begin{code}
 words :: String -> [String]
 words s = case  dropWhile isSpace s of

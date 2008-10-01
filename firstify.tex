@@ -288,11 +288,13 @@ We have implemented our steps in a monadic framework to deal with issues such as
 
 Our method is written as:
 
+\def{firstify}
 \begin{code}
 firstify = simplify +|+ arity +|+ inline +|+ specialise
 \end{code}
 
 \begin{figure}
+\def{+|+,fix}
 \begin{code}
 infixl +|+
 
@@ -447,6 +449,7 @@ Given a body which is a lambda expression, the arguments to the lambda expressio
 We use inlining as the first stage in the removal of functional values stored within a data value -- for example |Just (\x -> x)|. We refer to expressions that evaluate to functional values inside data values as \textit{boxed lambdas}. If a boxed lambda is bound in a let expression, we substitute the let binding, using the (bind-box) rule from Figure \ref{figF:lambda_simplify}. We only inline a function if two conditions both hold: (1) the function's body is a boxed lambda; (2) the function application occurs within a case scrutinee.
 
 \begin{figure}
+\def{isBox,isLambda}
 \begin{code}
 isBox (ECon c xs_     )  =  any isLambda xs_ ||  any isBox xs_
 isBox (ELet v x y     )  =  isBox y
@@ -545,6 +548,7 @@ map_id xs = case  xs of
 underscore = undefined :: Expr
 \end{code}
 \end{comment}
+\def{shouldTemplate,abstractTemplate}
 \begin{code}
 shouldTemplate :: Expr -> Bool
 shouldTemplate (EFun f xs_) = any (\x -> isLambda x || isBox x) (universe (EFun f xs_))

@@ -432,6 +432,7 @@ We present signatures for all our methods in Figure \ref{figU:play}, including s
 \label{secU:implement_play}
 
 \begin{figure}
+\def{Str,Zero,One,Two,strList,listStr}
 \h{.*}\begin{code}
 data Str alpha = Zero | One alpha | Two (Str alpha) (Str alpha)
 
@@ -472,6 +473,7 @@ propId x = x == context cs
 \label{secU:using_replacechildren}
 
 \begin{figure}
+\def{children,universe,descend,transform,rewrite,descendM,transformM,rewriteM,para,holes,contexts}
 \begin{code}
 children :: Uniplate alpha => alpha -> [alpha]
 children = strList . fst . uniplate
@@ -524,6 +526,7 @@ All eleven operations from \S\ref{secU:use_play} can be defined in terms of |uni
 \label{secU:play_instances}
 
 \begin{figure}
+\def{uniplate,Uniplate}
 \h{.*}\begin{code}
 class Uniplate alpha where
     uniplate :: alpha -> (Str alpha, Str alpha -> alpha)
@@ -673,6 +676,7 @@ type BiplateType beta alpha = beta -> (Str alpha, Str alpha -> beta)
 \end{code}
 \end{comment}
 
+\def{BiplateType}
 \begin{code}
 type BiplateType beta alpha = beta -> (Str alpha, Str alpha -> beta)
 biplate :: BiplateType beta alpha
@@ -680,6 +684,7 @@ biplate :: BiplateType beta alpha
 
 The intuition for |biplate| is that given a structure of type |beta|, the function should return the largest substructures in it of type |alpha|. If \ignore|alpha == beta| the original value should be returned:
 
+\def{biplateSelf}
 \begin{code}
 biplateSelf :: BiplateType alpha alpha
 biplateSelf x = (One x, \(One x') -> x')
@@ -689,6 +694,7 @@ Unlike |Uniplate|, |Biplate| does \textit{not} always descend. The idea is that 
 
 We can now define a selection of the |On| functions. Each takes a |biplate| function as an argument:
 
+\def{childrenOn,universeOn,descendOn,transformOn}
 \begin{code}
 childrenOn :: Uniplate alpha => BiplateType beta alpha -> beta -> [alpha]
 childrenOn biplate x = concatMap children $ strList $ fst $ biplate x
@@ -774,6 +780,7 @@ This technique has been used in the Yhc compiler. The Yhc compiler is written in
 
 If we are willing to make use of \textit{multi-parameter type classes} \cite{jones:mptc} we can define a class |Biplate| with |biplate| as its sole method. We do not require functional dependencies.
 
+\def{Biplate,biplate}
 \begin{code}
 class  Uniplate alpha => Biplate beta alpha where
        biplate :: BiplateType beta alpha
@@ -781,6 +788,7 @@ class  Uniplate alpha => Biplate beta alpha where
 
 We can now implement |universeBi| and |transformBi| in terms of their |On| counterparts:
 
+\def{universeBi,transformBi}
 \begin{code}
 universeBi :: Biplate beta alpha => beta -> [alpha]
 universeBi = universeOn biplate
@@ -829,6 +837,7 @@ All three methods can be fully automated using the Derive tool, and all provide 
 \label{secU:implement_playdirect}
 
 \begin{figure}
+\def{Type,PlateDirect,plate,|*,|+,|-,||*,||+}
 \h{.direct}\begin{code}
 module Data.Generics.PlateDirect where
 
@@ -897,6 +906,7 @@ In our experience definitions using these combinators offer similar performance 
 \label{secU:implement_playtypeable}
 
 \begin{figure}
+\def{PlateTypeable,plateAll,PlateAll,Type,plate,|+,plateSome}
 \h{.typeable}\begin{code}
 module Data.Generics.PlateTypeable where
 
@@ -991,6 +1001,7 @@ data Stmt  = ... \? \? deriving (Typeable, Data)
 The disadvantages of this approach are (1) \textit{lack of type safety} -- there are now |Biplate| instances for many pairs of types where one is not a container of the other; (2) \textit{compiler dependence} -- it will only work where |Data.Generics| is supported, namely GHC at the time of writing.\footnote{Hugs supports the required rank-2 types for |Data.Generics|, but the work to port the library has not been done yet.} The clear advantage is that there is almost no work required to create instances.
 
 \begin{figure}
+\def{PlateData}
 \h{.data}\begin{code}
 module Data.Generics.PlateData where
 
@@ -1065,6 +1076,7 @@ Surprisingly, it is possible to layer |Uniplate| over the |Data| instances of SY
 The next optimisation relies on the extra information present in the |Uniplate| operations -- namely the target type. A boilerplate operation walks over a data structure, looking for target values to process. In SYB, the target values may be of \textit{any} type. For Uniplate the target is a \textit{single uniform} type. If a value is reached which is not a container for the target type, no further exploration is required of the values children. Computing which types are containers for the target type can be done relatively easily in the SYB framework \citep{lammel:syb2}:
 
 \begin{onepage}
+\def{TypeBox,contains}
 \ignore\begin{code}
 data TypeBox = forall alpha `o` (Typeable alpha, Data alpha) => TypeBox alpha
 
