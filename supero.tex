@@ -4,8 +4,8 @@
 
 
 \hsdef{\begin{comment}
-as,ds,f,ys,r,y,psi
-supercompile,generalise,terminate
+as,ds,f,ys,r,y,psi,x
+supercompile,generalise,terminate,simplify,drive,tie,seen,rho
 \end{comment}}
 \begin{comment}
 \begin{code}
@@ -14,8 +14,15 @@ import Data.List hiding (map,words)
 import Data.Char
 import GHC.Exts(build)
 
-data Expr = EFun String [Expr]
+data Expr = EVar String
+          | ECon String [Expr]
+          | EFun String [Expr]
           | EApp Expr [Expr]
+          | ELam String Expr
+          | ELet String Expr Expr
+          | ECase Expr [Alt]
+          | ELet2 [(String,Expr)] Expr
+data Alt = EAlt String [String] Expr
 
 freeVars :: Expr -> [String]
 holes :: Expr -> [(Expr, Expr -> Expr)]
@@ -25,6 +32,9 @@ terminate :: Expr -> Bool
 data RealWorld = RealWorld
 putStr :: String -> RealWorld -> (RealWorld, ())
 putChar :: Char -> RealWorld -> (RealWorld, ())
+(<<|) :: Expr -> Expr -> Bool
+(|><|) :: Expr -> Expr -> Expr
+msg :: Expr -> Expr -> (Expr, [(String,Expr)], [(String,Expr)])
 \end{code}
 \end{comment}
 
@@ -165,7 +175,7 @@ map f cs = case  cs of
 
 There are two primary inefficiencies in this example: (1) the |map| function passes the |f| argument invariantly in every call; (2) the application of |f| is more expensive than if the function was known in advance.
 
-In order to simplify the example, we begin supercompilation from the expression |map (\b -> b + 1) as|, rather than |main|. Supercompilation proceeds by first applying |psi\!!(map (\b -> b + 1) as)|, to generate a fresh name, which we choose to be |h_0|. This new function |h_0| then has the free variables of the original expression as arguments, namely |as|. We then apply |drive| to the RHS, first inlining the |map| application, then applying the simplification rules:
+In order to simplify the example, we begin supercompilation from the expression |map (\b -> b + 1) as|, rather than |main|. Supercompilation proceeds by first applying \ignore|psi\!!(map (\b -> b + 1) as)|, to generate a fresh name, which we choose to be |h_0|. This new function |h_0| then has the free variables of the original expression as arguments, namely |as|. We then apply |drive| to the RHS, first inlining the |map| application, then applying the simplification rules:
 
 \h{deflist}\begin{code}
 h_0 as   = map (\b -> b + 1) as
@@ -308,7 +318,7 @@ We can now write generalise as follows:
 
 \begin{code}
 generalise rho x = ELet2 bind x'
-    where (x',bind,_) = msg x (head [y | y <<| x, y <- rho])
+    where (x',bind,_) = msg x (head [y | y <- rho, y <<| x])
 \end{code}
 
 The |generalise| function applies |msg| and creates a let expression containing the binding produced. For example, given |Just (1:[])| as the current expression, and |Just []| as the expression from |rho| which is a homeomorphic embedding of it, we would obtain |let v = 1:[] in Just v|. This method factors out similar parts of the two expressions, starting from the root.
@@ -332,7 +342,7 @@ We use $\sigma^*(y)$ to denote a subexpression $y$ within a containing context $
 We can now write |generalise| as:
 
 \begin{code}
-generalise rho x = head [y | y <<| x, y <- rho] |><| x
+generalise rho x = head [y | y <- rho, y <<| x] |><| x
 \end{code}
 
 Compared the to generalisation using msg alone, our method is able to factor out similar expressions which are not at the root of the expression. For example, given |Just (1:[])| as the current expression, and |[]| as the expression from |rho| which is a homeomorphic embedding of it, we would obtain |let v = [] in Just (1:v)|.
