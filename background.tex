@@ -36,7 +36,7 @@ In this chapter we introduce the background material and general notations used 
 
 \begin{figure}
 \renewcommand{\f}[1]{\text{\hspace{1cm}#1}}
-\def{Prog,Func,Expr,Alt}
+\ind{Prog,Func,Expr,Alt}
 \ignore\begin{code}
 data Prog  =  [Func]              {-"\f{program}"-}
 
@@ -98,7 +98,7 @@ There are several operations that can be defined on our Core expressions type. W
 \subsubsection{General Operations}
 
 \begin{figure}
-\def{CtorName,VarName,FuncName,body,args,rhs,arity,ctors}
+\ind{CtorName,VarName,FuncName,body,args,rhs,arity,ctors}
 \begin{code}
 type CtorName  = String
 type VarName   = String
@@ -131,7 +131,7 @@ We define \ignore|e[v / x]| to be the capture-free substitution of the variable 
 \subsubsection{Variable Classification}
 
 \begin{figure}
-\def{freeVars}
+\ind{freeVars}
 \begin{code}
 freeVars :: Expr -> [VarName]
 freeVars (EVar v       ) = [v]
@@ -362,7 +362,7 @@ In the semantics, the expression |f 1| is reduced twice. However, the a compiler
 \end{example}
 
 \begin{figure}
-\def{occurs,linear}
+\ind{occurs,linear}
 \begin{code}
 occurs :: VarName -> Expr -> Int
 occurs v (EVar v'      ) = if v == v' then 1 else 0
@@ -536,7 +536,7 @@ Homeomorphic embedding $\unlhd$ is a well-quasi order, meaning that for every in
 \subsection{Homeomorphic Embedding of Core Expressions}
 
 \begin{figure}
-\def{Shell,<<||,dive,couple}
+\ind{Shell,<<||,dive,couple}
 \begin{code}
 data Shell alpha = Shell alpha [Shell alpha]
 
