@@ -433,7 +433,7 @@ We present signatures for all our methods in Figure \ref{figU:play}, including s
 \label{secU:implement_play}
 
 \begin{figure}
-\ind{Str,Zero,One,Two,strList,listStr}
+\ind{Str}\ind{Zero}\ind{One}\ind{Two}\ind{strList}\ind{listStr}
 \h{.*}\begin{code}
 data Str alpha = Zero | One alpha | Two (Str alpha) (Str alpha)
 
@@ -474,7 +474,7 @@ propId x = x == context cs
 \label{secU:using_replacechildren}
 
 \begin{figure}
-\ind{children,universe,descend,transform,rewrite,descendM,transformM,rewriteM,para,holes,contexts}
+\ind{children}\ind{universe}\ind{descend}\ind{transform}\ind{rewrite}\ind{descendM}\ind{transformM}\ind{rewriteM}\ind{para}\ind{holes}\ind{contexts}
 \begin{code}
 children :: Uniplate alpha => alpha -> [alpha]
 children = strList . fst . uniplate
@@ -527,7 +527,7 @@ All eleven operations from \S\ref{secU:use_play} can be defined in terms of |uni
 \label{secU:play_instances}
 
 \begin{figure}
-\ind{uniplate,Uniplate}
+\ind{uniplate}\ind{Uniplate}
 \h{.*}\begin{code}
 class Uniplate alpha where
     uniplate :: alpha -> (Str alpha, Str alpha -> alpha)
@@ -690,7 +690,7 @@ Unlike |Uniplate|, |Biplate| does \textit{not} always descend. The idea is that 
 
 We can now define a selection of the |On| functions. Each takes a |biplate| function as an argument:
 
-\ind{childrenOn,universeOn,descendOn,transformOn}
+\ind{childrenOn}\ind{universeOn}\ind{descendOn}\ind{transformOn}
 \begin{code}
 childrenOn :: Uniplate alpha => BiplateType beta alpha -> beta -> [alpha]
 childrenOn biplate x = concatMap children $ strList $ fst $ biplate x
@@ -777,7 +777,7 @@ This technique has been used in the Yhc compiler. The Yhc compiler is written in
 
 If we are willing to make use of \textit{multi-parameter type classes} \cite{jones:mptc} we can define a class |Biplate| with |biplate| as its sole method. We do not require functional dependencies.
 
-\ind{Biplate,biplate}
+\ind{Biplate}\ind{biplate}
 \h{.*}\begin{code}
 class  Uniplate alpha => Biplate beta alpha where
        biplate :: BiplateType beta alpha
@@ -785,7 +785,7 @@ class  Uniplate alpha => Biplate beta alpha where
 
 We can now implement |universeBi| and |transformBi| in terms of their |On| counterparts:
 
-\ind{universeBi,transformBi}
+\ind{universeBi}\ind{transformBi}
 \begin{code}
 universeBi :: Biplate beta alpha => beta -> [alpha]
 universeBi = universeOn biplate
@@ -834,7 +834,7 @@ All three methods can be fully automated using the Derive tool, and all provide 
 \label{secU:implement_playdirect}
 
 \begin{figure}
-\ind{Type,PlateDirect,plate,||*,||+,||-,||||*,||||+}
+\ind{Type}\ind{PlateDirect}\ind{plate}\ind{||*}\ind{||+}\ind{||-}\ind{||||*}\ind{||||+}
 \h{.direct}\begin{code}
 module Data.Generics.PlateDirect where
 
@@ -1079,7 +1079,7 @@ Surprisingly, it is possible to layer |Uniplate| over the |Data| instances of SY
 The next optimisation relies on the extra information present in the |Uniplate| operations -- namely the target type. A boilerplate operation walks over a data structure, looking for target values to process. In SYB, the target values may be of \textit{any} type. For Uniplate the target is a \textit{single uniform} type. If a value is reached which is not a container for the target type, no further exploration is required of the values children. Computing which types are containers for the target type can be done relatively easily in the SYB framework \citep{lammel:syb2}:
 
 \begin{onepage}
-\ind{TypeBox,contains}
+\ind{TypeBox}\ind{contains}
 \begin{code}
 data TypeBox = forall alpha . (Typeable alpha, Data alpha) => TypeBox alpha
 
