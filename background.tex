@@ -36,7 +36,7 @@ In this chapter we introduce the background material and general notations used 
 
 \begin{figure}
 \renewcommand{\f}[1]{\text{\hspace{1cm}#1}}
-\ind{Prog,Func,Expr,Alt}
+\ind{Prog}\ind{Func}\ind{Expr}\ind{Alt}
 \ignore\begin{code}
 data Prog  =  [Func]              {-"\f{program}"-}
 
@@ -98,7 +98,7 @@ There are several operations that can be defined on our Core expressions type. W
 \subsubsection{General Operations}
 
 \begin{figure}
-\ind{CtorName,VarName,FuncName,body,args,rhs,arity,ctors}
+\ind{CtorName}\ind{VarName}\ind{FuncName}\ind{body}\ind{args}\ind{rhs}\ind{arity}\ind{ctors}
 \begin{code}
 type CtorName  = String
 type VarName   = String
@@ -362,7 +362,7 @@ In the semantics, the expression |f 1| is reduced twice. However, the a compiler
 \end{example}
 
 \begin{figure}
-\ind{occurs,linear}
+\ind{occurs}\ind{linear}
 \begin{code}
 occurs :: VarName -> Expr -> Int
 occurs v (EVar v'      ) = if v == v' then 1 else 0
@@ -391,6 +391,7 @@ In the Haskell language, let bindings can be \textit{recursive}. A recursive let
 
 \begin{example}
 \label{exB:repeat}
+\ind{repeat}
 \begin{code}
 repeat x =  let xs = x : xs
             in xs
@@ -536,7 +537,7 @@ Homeomorphic embedding $\unlhd$ is a well-quasi order, meaning that for every in
 \subsection{Homeomorphic Embedding of Core Expressions}
 
 \begin{figure}
-\ind{Shell,<<||,dive,couple}
+\ind{Shell}\ind{dive}\ind{couple}
 \begin{code}
 data Shell alpha = Shell alpha [Shell alpha]
 

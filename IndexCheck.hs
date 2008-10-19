@@ -17,7 +17,7 @@ boring = ["import","hiding","(",")",",","module","->","[","]"
 
 
 main = do
-    index <- readIndex "thesis.ind"
+    index <- readIndex "obj/make/thesis.ind"
     files <- getDirectoryContents "."
     files <- return $ filter ((==) ".tex" . takeExtension) files
     mapM_ (checkTex index) files
@@ -46,7 +46,7 @@ readCode xs = case lex $ dropWhile isSpace xs of
                   [] -> []
                   [(x,y)] -> [x | good x] ++ readCode y
     where
-        good (x:xs) = not $ x `elem` "'\"" || isDigit x
+        good (x:xs) = isAlpha x -- not $ x `elem` "'\"" || isDigit x
 
 
 checkTex index file = do

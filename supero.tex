@@ -102,7 +102,7 @@ Our goal is an automatic optimisation that makes high-level Haskell programs run
 Our supercompiler takes a Core program as input, in the format described in \S\ref{secB:core}, and produces an equivalent Core program as output. To improve the program we do not make small local changes to the original, but instead \textit{evaluate it at compile time} so far as possible, leaving a \textit{residual program} to be run.
 
 \begin{figure}
-\ind{supercompile,tie,drive}
+\ind{supercompile}\ind{tie}\ind{drive}
 \ignore\begin{code}
 supercompile()
     seen := {}
@@ -259,7 +259,7 @@ Taking the second example, |repeat| can be inlined indefinitely. However, by unf
 
 Unfortunately these two examples seem to suggest different strategies for unfolding -- unfold in the let binding or unfold in the let body. However, they do have a common theme -- unfold the function that cannot be unfolded infinitely often. Our strategy can be defined by the |unfold| function:
 
-\ind{unfold,unfolds}
+\ind{unfold}\ind{unfolds}
 \begin{code}
 unfold x = head (filter (not . terminate) xs ++ xs ++ [x])
     where xs = unfolds x

@@ -22,10 +22,14 @@ ellipses = undefined
 
 The following functions come from the following libraries:
 
+\ind{Prelude}\ind{String}\ind{flip}\ind{id}\ind{error}\ind{undefined}
+\ind{True}\ind{False}\ind{Bool}\ind{length}\ind{fst}\ind{snd}
 \begin{code}
 module Prelude where
 
 type String = [Char]
+
+data Bool = False | True
 
 (.) :: (b -> c) -> (a -> b) -> a -> c
 (.) f g x = f (g x)
@@ -41,12 +45,20 @@ error = ellipses -- terminate with an error
 
 undefined :: alpha
 undefined = error "undefined"
+
+length :: [alpha] -> Int
+length []      = 0
+length (x:xs)  = x + length xs
+
+fst (x,y) = x
+snd (x,y) = y
 \end{code}
 
+\ind{List}\ind{map}\ind{any}\ind{all}\ind{zipWith}\ind{elem}
 \begin{code}
 module Data.List where
 
-{-"|data [alpha] = [] | (:) alpha [alpha]|"-}
+{-" |data [alpha] = [] || (:) alpha [alpha]| "-}
 
 map :: (alpha -> beta) -> [alpha] -> [beta]
 map f []      = []
@@ -55,9 +67,24 @@ map f (x:xs)  = f x : map f xs
 (++) :: [alpha] -> [alpha] -> [alpha]
 [] ++ xs = xs
 (y:ys) ++ xs = y : (xs ++ ys)
+
+any, all :: (alpha -> Bool) -> [alpha] -> Bool
+any  f = or   . map f
+all  f = and  . map f
+
+elem :: Eq alpha => alpha -> [alpha] -> Bool
+elem x xs = any (== x) xs
+
+zipWith :: (alpha -> beta -> gamma) -> [alpha] -> [beta] -> [gamma]
+zipWith f (x:xs) (y:ys) = f x y : zipWith f xs ys
+zipWith f _ = []
+
+lookup :: Eq alpha => alpha -> [(alpha, beta)] -> Maybe beta
+lookup a [] = Nothing
+lookup a ((x,y):xs) = 
 \end{code}
 
-
+\ind{Maybe}\ind{Nothing}\ind{Just}\ind{maybe}
 \begin{code}
 module Data.Maybe where
 
@@ -68,7 +95,7 @@ maybe nothing just Nothing   = nothing
 maybe nothing just (Just x)  = just x
 \end{code}
 
-
+\ind{Monad}\ind{return}\ind{liftM}
 \begin{code}
 module Control.Monad where
 
@@ -84,12 +111,15 @@ liftM :: Monad m => (alpha -> beta) -> m alpha -> m beta
 liftM f x = x >>= (return . f)
 \end{code}
 
-
+\ind{State}\ind{runState}\ind{get}\ind{put}\ind{evalState}
 \begin{code}
 module Control.Monad.State where
 
-newtype State s a = State	{runState :: s -> (a, s)}
+newtype State s alpha = State {runState :: s -> (alpha, s)}
 instance Monad (State s)
+
+evalState :: State s alpha -> s -> alpha
+evalState s = fst . runState s
 
 get :: State s s
 put :: s -> State s ()

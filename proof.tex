@@ -158,7 +158,7 @@ In order to reduce the size of some of the intermediate expressions, we have rep
 \todo{Say stuff about the correspondence between the Core language here and in previous chapters}
 
 \begin{figure}
-\ind{Value,Bottom,Expr,Make,Call,Var,Sel,Case,Alt,eval}
+\ind{Value}\ind{Bottom}\ind{Expr}\ind{Make}\ind{Call}\ind{Var}\ind{Sel}\ind{Case}\ind{Alt}\ind{eval}
 \h{.*}\begin{code}
 data Value  =  Value CtorName [Value]
             |  Bottom
@@ -192,7 +192,7 @@ There is no case in |eval| for |Var|, and the behaviour of |eval| with free vari
 We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs,ys)| to denote replacing the free variables |vs| in |x| with |ys|. We use |(/)| instead of |substP| in the proofs, where |substP (zip vs ys) x === x /# (vs,ys)|.
 
 \begin{figure}
-\ind{isBottom,valCtor,propIsTrue,propTaut,satE',satE,sat',sat}
+\ind{isBottom}\ind{valCtor}\ind{isTrue}\ind{tautP}\ind{satE'}\ind{satE}\ind{sat'}\ind{sat}
 \h{.*}\begin{code}
 isBottom :: Value -> Bool
 isBottom Bottom = True
