@@ -14,8 +14,9 @@
 
 \begin{comment}
 \begin{code}
-import Prelude(Char)
-ellipses = undefined
+import Prelude(Char,Show,Eq(..),Int,Num(..),Ord(..),otherwise,repeat,Read,Bool(..))
+data IO a = IO a
+instance Monad IO
 \end{code}
 \end{comment}
 
@@ -30,7 +31,7 @@ module Prelude where
 
 type String = [Char]
 
-data Bool = False | True
+{-" |data Bool = False || True| "-}
 
 not :: Bool -> Bool
 not x = if x then False else True
@@ -81,7 +82,7 @@ module Data.List where
 
 length :: [alpha] -> Int
 length []      = 0
-length (x:xs)  = x + length xs
+length (x:xs)  = 1 + length xs
 
 map :: (alpha -> beta) -> [alpha] -> [beta]
 map f []      = []
@@ -120,11 +121,10 @@ notElem x = all (/= x)
 
 zipWith :: (alpha -> beta -> gamma) -> [alpha] -> [beta] -> [gamma]
 zipWith f (x:xs) (y:ys) = f x y : zipWith f xs ys
-zipWith f _ = []
+zipWith f _ _ = []
 
 zip :: [a] -> [b] -> [(a,b)]
-zip (a:as) (b:bs) = (a,b) : zip as bs
-zip _      _      = []
+zip = zipWith (,)
 
 lookup :: (Eq a) => a -> [(a,b)] -> Maybe b
 lookup key []           =  Nothing
@@ -249,7 +249,7 @@ mapM_ f as      =  sequence_ (map f as)
 
 sequence       :: Monad m => [m a] -> m [a] 
 sequence ms = foldr k (return []) ms
-	where k m m' = do { x <- m; xs <- m'; return (x:xs) }
+	where k m ms = m >>= \x -> ms >>= \xs -> return (x:xs)
 
 sequence_        :: Monad m => [m a] -> m () 
 sequence_ ms     =  foldr (>>) (return ()) ms
@@ -274,7 +274,7 @@ put :: s -> State s ()
 module Data.Function where
 
 on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
-(*) `on` f = \x y -> f x * f y
+on g f x y = g (f x) (f y)
 \end{code}
 
 \ind{System}\ind{IO}\ind{putChar}\ind{putStr}\ind{putStrLn}\ind{print}\ind{getArgs}\ind{getContents}
