@@ -23,6 +23,10 @@ instance Monad IO
 
 The following functions come from the following libraries:
 
+%format Bool2 = Bool
+%format False2 = False
+%format True2 = True
+
 \ind{Prelude}\ind{String}\ind{flip}\ind{id}\ind{error}\ind{undefined}
 \ind{True}\ind{False}\ind{Bool}\ind{fst}\ind{snd}\ind{const}\ind{not}
 \ind{read}\ind{reads}\ind{show}
@@ -31,7 +35,7 @@ module Prelude where
 
 type String = [Char]
 
-{-" |data Bool = False || True| "-}
+data Bool2 = False2 | True2
 
 not :: Bool -> Bool
 not x = if x then False else True
@@ -74,6 +78,10 @@ read :: Read alpha => String -> alpha
 reads :: Read alpha => String -> [(alpha, String)]
 \end{code}
 
+%format (List a) = [a]
+%format Nil = []
+%format Cons = (:)
+
 \ind{List}\ind{map}\ind{any}\ind{all}\ind{zipWith}\ind{elem}\ind{length}\ind{iterate}\ind{zip}
 \ind{notElem}\ind{splitAt}\ind{take}\ind{drop}\ind{break}\ind{span}\ind{takeWhile}\ind{dropWhile}
 \ind{lookup}\ind{null}\ind{tail}\ind{head}\ind{replicate}\ind{filter}\ind{concat}\ind{nub}\ind{foldr}
@@ -81,7 +89,7 @@ reads :: Read alpha => String -> [(alpha, String)]
 \begin{code}
 module Data.List where
 
-{-" |data [alpha] = [] || (:) alpha [alpha]| "-}
+data List alpha = Nil | Cons alpha (List alpha)
 
 length :: [alpha] -> Int
 length []      = 0
@@ -91,8 +99,8 @@ map :: (alpha -> beta) -> [alpha] -> [beta]
 map f xs = [f x | x <- xs]
 
 foldr :: (alpha-> beta -> beta) -> beta -> [alpha] -> beta
-foldr _ z []      = z
-foldr f z (x:xs)  = f x (foldr f z xs)
+foldr f z []       = z
+foldr f z (x:xs)   = f x (foldr f z xs)
 
 (++) :: [alpha] -> [alpha] -> [alpha]
 xs ++ ys = foldr (:) ys xs
@@ -102,12 +110,12 @@ or   = foldr (||)  False
 and  = foldr (&&)  True
 
 any, all :: (alpha -> Bool) -> [alpha] -> Bool
-any  f = or   . map f
-all  f = and  . map f
+any  f = or    . map f
+all  f = and   . map f
 
 null :: [alpha] -> Bool
-null []     =  True
-null (_:_)  =  False
+null []     = True
+null (_:_)  = False
 
 head :: [alpha] -> alpha
 head (x:_) = x
@@ -132,7 +140,7 @@ lookup key ((x,y):xys)  | key == x   = Just y
                         | otherwise  = lookup key xys
 
 iterate :: (alpha -> alpha) -> alpha -> [alpha]
-iterate f x =  x : iterate f (f x)
+iterate f x = x : iterate f (f x)
 
 splitAt :: Int -> [alpha] -> ([alpha],[alpha])
 splitAt n xs = (take n xs, drop n xs)
@@ -145,7 +153,7 @@ take n (x:xs)       = x : take (n-1) xs
 drop :: Int -> [alpha] -> [alpha]
 drop n xs | n <= 0  =  xs
 drop _ []           =  []
-drop n (_:xs)       =  drop (n-1) xs
+drop n (x:xs)       =  drop (n-1) xs
 
 span, break :: (alpha -> Bool) -> [alpha] -> ([alpha],[alpha])
 span p xs = (takeWhile p xs, dropWhile p xs)
@@ -210,15 +218,15 @@ maybe nothing just (Just x)  = just x
 fromMaybe :: alpha -> Maybe alpha -> alpha
 fromMaybe x = maybe x id
 
-fromJust          :: Maybe alpha -> alpha
+fromJust :: Maybe alpha -> alpha
 fromJust (Just x) = x
 
-isNothing         :: Maybe alpha -> Bool
-isNothing Nothing = True
-isNothing _       = False
+isNothing :: Maybe alpha -> Bool
+isNothing Nothing  = True
+isNothing _        = False
 \end{code}
 
-\ind{Monad}\ind{return}\ind{liftM}\ind{mapM}\ind{mapM_}\ind{sequence}\ind{sequence_}
+\ind{Monad}\ind{return}\ind{liftM}\ind{mapM}\ind{mapM\_}\ind{sequence}\ind{sequence\_}
 \ind{Functor}\ind{fmap}
 \begin{code}
 module Control.Monad where
