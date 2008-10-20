@@ -23,13 +23,21 @@ ellipses = undefined
 The following functions come from the following libraries:
 
 \ind{Prelude}\ind{String}\ind{flip}\ind{id}\ind{error}\ind{undefined}
-\ind{True}\ind{False}\ind{Bool}\ind{length}\ind{fst}\ind{snd}
+\ind{True}\ind{False}\ind{Bool}\ind{fst}\ind{snd}\ind{const}\ind{not}
+\ind{read}\ind{reads}\ind{show}
 \begin{code}
 module Prelude where
 
 type String = [Char]
 
 data Bool = False | True
+
+not :: Bool -> Bool
+not x = if x then False else True
+
+(&&),(||) :: Bool -> Bool -> Bool
+a && b = if a then b else True
+a || b = if a then True else b
 
 (.) :: (b -> c) -> (a -> b) -> a -> c
 (.) f g x = f (g x)
@@ -40,51 +48,159 @@ flip f a b = f b a
 id :: alpha -> alpha
 id x = x
 
+-- terminate with an error
 error :: String -> alpha
-error = ellipses -- terminate with an error
 
 undefined :: alpha
 undefined = error "undefined"
 
-length :: [alpha] -> Int
-length []      = 0
-length (x:xs)  = x + length xs
-
 fst (x,y) = x
 snd (x,y) = y
+
+const                   :: a -> b -> a
+const x _               =  x
+
+-- show an item as a string
+show :: Show a => a -> String
+
+-- read an item from a string
+read :: Read a => String -> a
+
+-- read an item, returning all possible parses
+reads :: Read a => String -> [(a, String)]
 \end{code}
 
-\ind{List}\ind{map}\ind{any}\ind{all}\ind{zipWith}\ind{elem}
+\ind{List}\ind{map}\ind{any}\ind{all}\ind{zipWith}\ind{elem}\ind{length}\ind{iterate}\ind{zip}
+\ind{notElem}\ind{splitAt}\ind{take}\ind{drop}\ind{break}\ind{span}\ind{takeWhile}\ind{dropWhile}
+\ind{lookup}\ind{null}\ind{tail}\ind{head}\ind{replicate}\ind{filter}\ind{concat}\ind{nub}\ind{foldr}
+\ind{and}\ind{or}\ind{concatMap}\ind{reverse}\ind{partition}
 \begin{code}
 module Data.List where
 
 {-" |data [alpha] = [] || (:) alpha [alpha]| "-}
 
+length :: [alpha] -> Int
+length []      = 0
+length (x:xs)  = x + length xs
+
 map :: (alpha -> beta) -> [alpha] -> [beta]
 map f []      = []
 map f (x:xs)  = f x : map f xs
 
+foldr            :: (a -> b -> b) -> b -> [a] -> b
+foldr _ z []     =  z
+foldr f z (x:xs) =  f x (foldr f z xs)
+
 (++) :: [alpha] -> [alpha] -> [alpha]
-[] ++ xs = xs
-(y:ys) ++ xs = y : (xs ++ ys)
+xs ++ ys = foldr (:) ys xs
+
+or,and :: [Bool] -> Bool
+or                      =  foldr (||) False
+and                     =  foldr (&&) True
 
 any, all :: (alpha -> Bool) -> [alpha] -> Bool
 any  f = or   . map f
 all  f = and  . map f
 
-elem :: Eq alpha => alpha -> [alpha] -> Bool
-elem x xs = any (== x) xs
+null                    :: [a] -> Bool
+null []                 =  True
+null (_:_)              =  False
+
+head                    :: [a] -> a
+head (x:_)              =  x
+head []                 =  error "head of empty list"
+
+tail                    :: [a] -> [a]
+tail (_:xs)             =  xs
+tail []                 =  error "tail of empty list"
+
+elem,notElem :: Eq alpha => alpha -> [alpha] -> Bool
+elem x = any (== x)
+notElem x = all (/= x)
 
 zipWith :: (alpha -> beta -> gamma) -> [alpha] -> [beta] -> [gamma]
 zipWith f (x:xs) (y:ys) = f x y : zipWith f xs ys
 zipWith f _ = []
 
-lookup :: Eq alpha => alpha -> [(alpha, beta)] -> Maybe beta
-lookup a [] = Nothing
-lookup a ((x,y):xs) = 
+zip :: [a] -> [b] -> [(a,b)]
+zip (a:as) (b:bs) = (a,b) : zip as bs
+zip _      _      = []
+
+lookup :: (Eq a) => a -> [(a,b)] -> Maybe b
+lookup key []           =  Nothing
+lookup key ((x,y):xys)  | key == x   = Just y
+                        | otherwise  = lookup key xys
+
+iterate :: (a -> a) -> a -> [a]
+iterate f x =  x : iterate f (f x)
+
+splitAt                :: Int -> [a] -> ([a],[a])
+splitAt n xs           =  (take n xs, drop n xs)
+
+take :: Int -> [a] -> [a]
+take n _      | n <= 0 =  []
+take _ []              =  []
+take n (x:xs)          =  x : take (n-1) xs
+
+drop :: Int -> [a] -> [a]
+drop n xs     | n <= 0 =  xs
+drop _ []              =  []
+drop n (_:xs)          =  drop (n-1) xs
+
+span, break :: (a -> Bool) -> [a] -> ([a],[a])
+span p xs = (takeWhile p xs, dropWhile p xs)
+break p                 =  span (not . p)
+
+dropWhile               :: (a -> Bool) -> [a] -> [a]
+dropWhile _ []          =  []
+dropWhile p xs@(x:xs')
+            | p x       =  dropWhile p xs'
+            | otherwise =  xs
+
+takeWhile               :: (a -> Bool) -> [a] -> [a]
+takeWhile _ []          =  []
+takeWhile p (x:xs) 
+            | p x       =  x : takeWhile p xs
+            | otherwise =  []
+
+replicate               :: Int -> a -> [a]
+replicate n x           =  take n (repeat x)
+
+filter :: (a -> Bool) -> [a] -> [a]
+filter _pred []    = []
+filter pred (x:xs)
+  | pred x         = x : filter pred xs
+  | otherwise	   = filter pred xs
+
+concat :: [[a]] -> [a]
+concat = foldr (++) []
+
+concatMap               :: (a -> [b]) -> [a] -> [b]
+concatMap f             =  foldr ((++) . f) []
+
+nub                     :: (Eq a) => [a] -> [a]
+nub []             =  []
+nub (x:xs)         =  x : nub (filter (/= x) xs)
+
+reverse :: [a] -> [a]
+reverse l =  rev l []
+  where  rev []     a = a
+         rev (x:xs) a = rev xs (x:a)
+         
+partition :: (a -> Bool) -> [a] -> ([a], [a])
+partition p xs = (filter p xs, filter (not . p) xs)
 \end{code}
 
-\ind{Maybe}\ind{Nothing}\ind{Just}\ind{maybe}
+\ind{isSpace}\ind{Char}
+\begin{code}
+module Data.Char where
+
+-- is a character a space
+isSpace :: Char -> Bool
+\end{code}
+
+
+\ind{Maybe}\ind{Nothing}\ind{Just}\ind{maybe}\ind{fromJust}\ind{fromMaybe}\ind{isNothing}
 \begin{code}
 module Data.Maybe where
 
@@ -93,9 +209,21 @@ data Maybe alpha = Nothing | Just alpha
 maybe :: beta -> (alpha -> beta) -> Maybe alpha -> beta
 maybe nothing just Nothing   = nothing
 maybe nothing just (Just x)  = just x
+
+fromMaybe :: a -> Maybe a -> a
+fromMaybe x = maybe x id
+
+fromJust          :: Maybe a -> a
+fromJust Nothing  = error "Maybe.fromJust: Nothing"
+fromJust (Just x) = x
+
+isNothing         :: Maybe a -> Bool
+isNothing Nothing = True
+isNothing _       = False
 \end{code}
 
-\ind{Monad}\ind{return}\ind{liftM}
+\ind{Monad}\ind{return}\ind{liftM}\ind{mapM}\ind{mapM_}\ind{sequence}\ind{sequence_}
+\ind{Functor}\ind{fmap}
 \begin{code}
 module Control.Monad where
 
@@ -104,11 +232,27 @@ class Monad m where
 		(>>) :: m alpha -> m beta -> m beta
 		return :: alpha -> m alpha
 
+class Functor f where
+	  fmap :: (a -> b) -> f a -> f b
+
 (=<<) :: Monad m => (a -> m b) -> m a -> m b
 (=<<) = flip (>>=)
 
 liftM :: Monad m => (alpha -> beta) -> m alpha -> m beta
 liftM f x = x >>= (return . f)
+
+mapM            :: Monad m => (a -> m b) -> [a] -> m [b]
+mapM f as       =  sequence (map f as)
+
+mapM_           :: Monad m => (a -> m b) -> [a] -> m ()
+mapM_ f as      =  sequence_ (map f as)
+
+sequence       :: Monad m => [m a] -> m [a] 
+sequence ms = foldr k (return []) ms
+	where k m m' = do { x <- m; xs <- m'; return (x:xs) }
+
+sequence_        :: Monad m => [m a] -> m () 
+sequence_ ms     =  foldr (>>) (return ()) ms
 \end{code}
 
 \ind{State}\ind{runState}\ind{get}\ind{put}\ind{evalState}
@@ -124,3 +268,35 @@ evalState s = fst . runState s
 get :: State s s
 put :: s -> State s ()
 \end{code}
+
+\ind{Function}\ind{on}
+\begin{code}
+module Data.Function where
+
+on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
+(*) `on` f = \x y -> f x * f y
+\end{code}
+
+\ind{System}\ind{IO}\ind{putChar}\ind{putStr}\ind{putStrLn}\ind{print}\ind{getArgs}\ind{getContents}
+\begin{code}
+module System.IO where
+
+-- write out a character to the output
+putChar :: Char -> IO ()
+
+putStr :: String -> IO ()
+putStr = mapM_ putChar
+
+putStrLn :: String -> IO ()
+putStrLn x = putStr x >> putChar '\n'
+
+print :: Show alpha => alpha -> IO ()
+print = putStrLn . show
+
+-- get the command line arguments
+getArgs :: IO [String]
+
+-- get the input stream
+getContents :: IO String
+\end{code}
+
