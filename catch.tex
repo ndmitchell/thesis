@@ -62,8 +62,6 @@ instance Eq Val
 \chapter{Pattern-Match Analysis}
 \label{chp:catch}
 
-\todo{Tough chapter to follow. Try and make clear the separation of constraints and analysis, including which data types belong to each part and what the conditions are. Draw a picture, perhaps?}
-
 This chapter describes an automated analysis to check for pattern match errors, which we have called Catch. A proof of the work presented in this chapter is given in Appendix \ref{chp:proof}. \S\ref{secC:catch_intro} gives a small example, and \S\ref{secC:walkthrough} gives an overview of the checking process for this example. \S\ref{secC:manipulate} introduces a small core functional language and a mechanism for reasoning about this language, \S\ref{secC:constraint} describes two constraint languages. \S\ref{secC:results} evaluates Catch on programs from the Nofib suite, on a widely-used library and on a larger application program. \S\ref{secC:catch_related} offers comparisons with related work.
 
 
@@ -190,11 +188,12 @@ True      => (risers2 x y z  ) -< (:)
 \noindent The first line says that if the argument to |risers| is a |(:)|-constructed value, the result will be. The second states that the result from |risers2| is always |(:)|-constructed.
 
 
-
 \section{Pattern Match Analysis}
 \label{secC:manipulate}
 
-This section describes the method used to calculate preconditions for functions. We first give the Core language for our tool in \S\ref{secC:catch_core}, then some essential operations on constraints and propositions in \S\ref{secC:constraints}. We then introduce a simple constraint language in \S\ref{secC:basic}, which we use to illustrate our method. First we define three terms:
+This section describes the method used to calculate preconditions for functions. Our method is composed of two parts -- an analysis algorithm and a constraint language. The analysis works on a Core functional language, and requires only a small number of constraint operations, none of which work with the Core language. By changing the constraint language, we can change the accuracy and execution time of the tool.
+
+We first give the Core language for the analysis in \S\ref{secC:catch_core}, then the operations that constraints must provide in \S\ref{secC:constraints}. We then introduce a simple constraint language in \S\ref{secC:basic}, which we use to illustrate our analysis. First we define three terms:
 
 \begin{itemize}
 \item A \textbf{constraint} describes a (possibly infinite) set of values. We say a value \textit{satisfies} a constraint if the value is within the set.
