@@ -1,16 +1,27 @@
 %include thesis.fmt
 
+% \renewcommand{\indexname}{Function Index}
 \chapter{Function Index}
 
-\todo{Give the definition site for all functions and types defined in the thesis. Give types of Prelude functions at least, and ideally some implementations.}
+This chapter provides an index to all the Haskell functions used in the thesis. Some functions are defined in the body of the thesis, while others are taken from the Haskell report \cite{haskell}. Many of the library functions are reproduced in \S\ref{secI:library}.
 
-\todo{Things to watch out for: symbols appearing correct, items such as propAnd which render as /\ but are textually different, things like ||> which require additional escaping}
+\renewenvironment{theindex}
+    {\thispagestyle{plain}\parindent\z@@
+     \parskip\z@@ \@@plus .3\p@@\relax
+     \columnseprule \z@@
+     \columnsep 35\p@@
+     \let\item\@@idxitem}
+    {}
 
-
+\begin{multicols}{2}
 \printindex
+\end{multicols}
 
 
 \section{Library Functions}
+\label{secI:library}
+
+The following functions are available in the Haskell standard libraries. All the functions are given a type signature, and most contain a possible implementation.
 
 \begin{comment}
 \begin{code}
@@ -20,8 +31,6 @@ instance Monad IO
 \end{code}
 \end{comment}
 
-
-The following functions come from the following libraries:
 
 %format Bool2 = Bool
 %format False2 = False
@@ -167,7 +176,7 @@ dropWhile p (x:xs)
 
 takeWhile :: (alpha -> Bool) -> [alpha] -> [alpha]
 takeWhile _ []           =  []
-takeWhile p (x:xs) 
+takeWhile p (x:xs)
             | p x        =  x : takeWhile p xs
             | otherwise  =  []
 
@@ -191,7 +200,7 @@ reverse :: [alpha] -> [alpha]
 reverse l =  rev l []
   where  rev []     a = a
          rev (x:xs) a = rev xs (x:a)
-         
+
 partition :: (alpha -> Bool) -> [alpha] -> ([alpha], [alpha])
 partition p xs = (filter p xs, filter (not . p) xs)
 \end{code}
@@ -251,11 +260,11 @@ mapM f = sequence . map f
 mapM_ :: Monad m => (alpha -> m beta) -> [alpha] -> m ()
 mapM_ f = sequence_ . map f
 
-sequence :: Monad m => [m alpha] -> m [alpha] 
+sequence :: Monad m => [m alpha] -> m [alpha]
 sequence ms = foldr k (return []) ms
 	where k m ms = m >>= \x -> ms >>= \xs -> return (x:xs)
 
-sequence_ :: Monad m => [m alpha] -> m () 
+sequence_ :: Monad m => [m alpha] -> m ()
 sequence_ ms = foldr (>>) (return ()) ms
 \end{code}
 
