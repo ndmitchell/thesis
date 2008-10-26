@@ -555,6 +555,7 @@ sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
 The second property requires that if a constraint satisfies a value after they have both been extended, then the original value must have satisfied the original constraint. For example, if |Just x `Sat` (("Just",0) ||> k)| is true, then |x `Sat` k| must be true.
 
 \subsection{Soundness Theorem}
+\label{secC:soundness}
 
 \begin{figure}
 \ind{isBottom}\ind{satE}\ind{satE'}
@@ -582,7 +583,7 @@ Our analysis is sound if for any expression |e|, provided the precondition of |e
 satE' $ pre e ==> not $ isBottom $ eval e
 \end{code}
 
-In order to evaluate an expression to normal form, it is necessary for the expression to be closed and for evaluation of the expression to terminate. Provided the expression |e| can be evaluated to normal form, and that both |e| and the program under analysis are first-order Core as described in \S\ref{secC:catch_core}, then we prove the soundness theorem in Appendix \ref{chp:proof}.
+In order to evaluate an expression to normal form, it is necessary for the expression to be closed and for evaluation of the expression to terminate. If the expression |e| can be evaluated to normal form, and both |e| and the program under analysis are first-order Core as described in \S\ref{secC:catch_core}, then we prove the soundness theorem in Appendix \ref{chp:proof}.
 
 
 \subsection{Finite Refinement of Constraints}

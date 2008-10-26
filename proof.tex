@@ -134,11 +134,7 @@ rec :: [Int]
 \chapter{Soundness of Pattern-Match Analysis}
 \label{chp:proof}
 
-\todo{Give a precise statement of what we are going to prove. Include side conditions such as closed e, belongs to the language, evaluation terminates, constructors have the correct arity. Describe the plan for solving.}
-
-\todo{Issue of meta-circularity. Yours proofs of equivalent of Haskell terms, but that isn't correct because they ignore infinite structures. How should they be considered?}
-
-This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. \S\ref{secP:style} describes the style of proof and \S\ref{secP:evaluator} defines an evaluator for expressions. \S\ref{secP:constraint} gives two lemmas that constraint languages must satisfy, and shows they hold for BP-constraints and MP-constraints. \S\ref{secP:general_lemmas} gives eight lemmas, mainly about the constraint operations. \S\ref{secP:proof} gives the proof of soundness and \S\ref{secP:summary} discusses the results.
+This appendix shows that the algorithms and constraint languages presented in Chapter \ref{chp:catch} are sound -- if Catch informs the user that a program is safe, then that program is guaranteed not to call |error|. \S\ref{secP:style} describes the style of proof and \S\ref{secP:evaluator} defines an evaluator for expressions. \S\ref{secP:theorem} states the soundness theorem, along with necessary side conditions. \S\ref{secP:constraint} gives two lemmas that constraint languages must satisfy, and shows they hold for BP-constraints and MP-constraints. \S\ref{secP:general_lemmas} gives eight lemmas, mainly about the constraint operations. \S\ref{secP:proof} gives the proof of soundness and \S\ref{secP:summary} discusses the results.
 
 
 \section{Proof-Style and Notation}
@@ -147,6 +143,8 @@ This appendix shows that the algorithms and constraint languages presented in Ch
 Proofs in this appendix are detailed outlines based on equational reasoning. They make use of induction, application of equational laws, case analysis and inlining of function definitions. The proofs are structured as a series of rewrites, either preserving equality (marked with $\equiv$), or implying the previous statement (marked with $\Leftarrow$). Some expressions may refer to locally bound definitions, which we do not show until necessary. We ignore issues such as strictness. All the properties are boolean valued expressions, typically implications.
 
 \todo{Expand on ignoring strictness. What issues? Where is it ignored? Why is this safe?}
+
+\todo{Issue of meta-circularity. Yours proofs of equivalent of Haskell terms, but that isn't correct because they ignore infinite structures. How should they be considered?}
 
 In order to reduce the size of some of the intermediate expressions, we have replaced one side of an implication with either |lhs| or |rhs|, designating either the left-hand side or right-hand side. We also make heavy use of the function composition and function application operators, namely |(.)| and |($)|. These can be read with the translations:
 
@@ -223,6 +221,18 @@ sat (Sat (Value c xs)  k) = sat' $ (c <| k) /# ([0..],xs)
 \end{figure}
 
 We also make use of a number of auxiliaries defined in Figure \ref{figP:auxiliary}. The |sat| function tests whether a value satisfies a constraint, using the |(<||)| operator from the constraint language. The |satE| function tests whether the result of evaluating an expression satisfies a constraint. The |sat'| and |satE'| functions operate over a proposition.
+
+\section{Soundness Theorem}
+\label{secP:theorem}
+
+We wish to prove that our analysis is sound, as previously discussed in \S\ref{secC:soundness}. Our analysis is sound if for any expression |e|, provided the precondition of |e| is calculated to be true, then the evaluation of |e| will not result in $\bot{}$. Using the definitions from \S\ref{secP:evaluator} we can express this theorem as:
+
+\h{expr}\begin{code}
+satE' $ pre e ==> not $ isBottom $ eval e
+\end{code}
+
+In order to evaluate an expression to normal form, it is necessary for the expression to be closed and for evaluation of the expression to terminate. Therefore we prove that provided the expression |e| can be evaluated to normal form, and that both |e| and the program under analysis are first-order Core as described in \S\ref{secC:catch_core}, the above theorem is true. The above restrictions allow us to assume that all constructors have the correct arity, and that there are no free variables. We will prove this result in \ref{secP:proof}.
+
 
 \section{Constraint Lemmas}
 \label{secP:constraint}
@@ -578,6 +588,8 @@ True
 \end{code}
 
 \define{\lemSatTri\ (MP)}
+
+As |f| is a local function definition of both | <|| | and | ||> |, we use |f_lhd| and |f_rhd| to indicate which |f| we are referring to.
 
 \h{.mp exprlist}\begin{code}
 sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
@@ -1324,7 +1336,7 @@ That is, the analysis defined in Figures \ref{figC:property_fixp}, \ref{figC:pre
 
 \subsection{Proof}
 
-\todo{State that we proceed by induction on the structure of an expression. Make explicit the induction base, the induction hypothesis and the induction step. Replace circular references to "Soundness Theorem" by induction hypothesis.}
+We proceed by case analysis on the structure of the expression |e|. We inductively assume that the theorem is true for all subexpressions of |e|.
 
 \case{|e === Var v|}
 
@@ -1353,7 +1365,7 @@ satE' $ pre $ Sel x (c,i) ==> all (not . isBottom) xs
 satE' $ pre $ Sel x (c,i) ==> not $ isBottom $ Value c' xs
     -- \eq |Value c' xs === eval x|
 satE' $ pre $ Sel x (c,i) ==> not $ isBottom $ eval x
-    -- \im \lemmap
+    -- \im inductive hypothesis
 satE' $ pre $ Sel x (c,i) ==> satE' $ pre x
     -- \eq assuming original |Case| satisfied its constraint
 satE' $ pre $ Case x as ==> satE' $ pre x
@@ -1377,7 +1389,7 @@ satE' $ pre $ Make c xs ==> not $ isBottom $ eval $ Make c xs
 satE' $ pre $ Make c xs ==> not $ isBottom $ Value c $ map eval xs
     -- \eq inline |isBottom|
 satE' $ pre $ Make c xs ==> all (not . isBottom . eval) xs
-    -- \im \lemmap
+    -- \im inductive hypothesis
 satE' $ pre $ Make c xs ==> all (satE' . pre) xs
     -- \eq inline |pre|
 satE' $ propAnds $ map pre xs ==> all (satE' . pre) xs
@@ -1437,7 +1449,7 @@ True
 satE' $ pre $ Call f xs ==> not $ isBottom $ eval $ Call f xs
     -- \eq inline |eval|, assuming |f /= "error"|
 satE' $ pre $ Call f xs ==> not $ isBottom $ eval $ body f / (args f, xs)
-    -- \im \lemmap
+    -- \im inductive hypothesis
 satE' $ pre $ Call f xs ==> satE' $ pre $ body f / (args f, xs)
     -- \eq inline pre on LHS
 satE' $ (precond f /# (args f, xs)) `propAnd` propAnds (map pre xs) ==> rhs
@@ -1481,7 +1493,7 @@ not $ satE' (pre x) && satE' (propAnds $ map alt as)
 not (satE' $ pre x) || not  (satE' $ propAnds $ map alt as)
     -- \im weaken condition
 not $ satE' $ pre x
-    -- \im \lemmap
+    -- \im inductive hypothesis
 not $ not $ isBottom $ eval e
     -- \eq |not (not x) === x|
 isBottom $ eval e
@@ -1505,7 +1517,7 @@ lhs ==> and [not $ isBottom $ eval y | Alt c' vs y <- as, c == c']
 lhs ==> and [c == c' ==> not $ isBottom $ eval y | Alt c' vs y <- as]
     -- \eq rewrite list comprehension as an |all|
 lhs ==> all (\(Alt c' vs y) -> c == c' ==> not $ isBottom $ eval y) as
-    -- \im \lemmap
+    -- \im inductive hypothesis
 lhs ==> all (\(Alt c' vs y) -> c == c' ==> satE' $ pre y) as
     -- \eq switch to LHS
 satE' $ pre $ Case x as ==> rhs
