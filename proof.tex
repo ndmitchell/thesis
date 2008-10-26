@@ -86,6 +86,9 @@ propMap                   :: (alpha -> Prop beta) -> Prop alpha -> Prop beta
 propTrue, propFalse       :: Prop alpha
 propBool                  :: Bool -> Prop alpha
 propLit                   :: alpha -> Prop alpha
+propIsTrue :: Prop () -> Bool
+propTaut :: (alpha -> Bool) -> Prop alpha -> Bool
+
 
 -- variable substitution, replacing free variables
 class SubstVar a where (/) :: a -> ([VarName],[Expr]) -> a
