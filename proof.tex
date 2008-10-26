@@ -192,7 +192,7 @@ There is no case in |eval| for |Var|, and the behaviour of |eval| with free vari
 We make use of |(/)|, which we have redefined as a substitution operator -- we write |x / (vs,ys)| to denote replacing the free variables |vs| in |x| with |ys|. We use |(/)| instead of |substP| in the proofs, where |substP (zip vs ys) x === x /# (vs,ys)|.
 
 \begin{figure}
-\ind{isBottom}\ind{valCtor}\ind{isTrue}\ind{tautP}\ind{satE'}\ind{satE}\ind{sat'}\ind{sat}
+\ind{isBottom}\ind{valCtor}\ind{satE'}\ind{satE}\ind{sat'}\ind{sat}
 \h{.*}\begin{code}
 isBottom :: Value -> Bool
 isBottom Bottom = True
@@ -201,12 +201,6 @@ isBottom (Value c xs) = any isBottom xs
 valCtor :: Value -> Maybe CtorName
 valCtor (Value c xs) = Just c
 valCtor Bottom = Nothing
-
-propIsTrue :: Prop () -> Bool
-propIsTrue = (==) propTrue
-
-propTaut :: (alpha -> Bool) -> Prop alpha -> Bool
-propTaut f = propIsTrue . propMap (propBool . f)
 
 satE' :: Prop (Sat Expr) -> Bool
 satE' = propTaut satE

@@ -204,8 +204,6 @@ We first give the Core language for the analysis in \S\ref{secC:catch_core}, the
 \subsection{Reduced Core language}
 \label{secC:catch_core}
 
-\todo{Would be useful to name the different sublanguages of Core that are used here and in the soundness proof.}
-
 \begin{figure}
 \ind{val}\ind{isRec}\ind{Selector}
 \h{.*}\begin{code}
@@ -218,7 +216,7 @@ isRec  :: Selector  -> Bool
 \label{figC:catch_core_operations}
 \end{figure}
 
-We use a first-order Core language, based on that presented in \S\ref{secB:core}, but restricted to contain no lambda expressions, no general application, and all function and constructor applications must be fully-applied.
+We use a first-order Core language, a subset of the Core language presented in \S\ref{secB:core}. In order to eliminate all constructs which either create or make use of functional values we eliminate lambda expressions and general application, and require all function and constructor applications to be fully-applied.
 
 Figure \ref{figC:catch_core_operations} gives the signatures for two helper functions over the core data types. The |var| function returns |Nothing| for a variable bound as the argument of a top-level function, and |Just (e,(c,i))| for a variable bound as the |i|th component in the |c|-constructed alternative of a case-expression whose scrutinee is |e|.
 
@@ -262,7 +260,7 @@ The final issue of abstraction relates to primitive functions in the |IO| monad,
 \label{secC:constraints}
 
 \begin{figure}
-\ind{Prop}\ind{andP}\ind{orP}\ind{lit}\ind{mapP}\ind{true}\ind{false}\ind{bool}
+\ind{Prop}\ind{andP}\ind{orP}\ind{lit}\ind{mapP}\ind{true}\ind{false}\ind{bool}\ind{isTrue}\ind{tautP}
 \h{.*}\begin{code}
 data Prop alpha
 
@@ -270,14 +268,22 @@ propAnd, propOr           :: Prop alpha -> Prop alpha -> Prop alpha
 propAnds, propOrs         :: [Prop alpha] -> Prop alpha
 propMap                   :: (alpha -> Prop beta) -> Prop alpha -> Prop beta
 propTrue, propFalse       :: Prop alpha
-propBool                  :: Bool -> Prop alpha
 propLit                   :: alpha -> Prop alpha
+
+propBool :: Bool -> Prop alpha
+propBool b = if b then propTrue else propFalse
+
+propIsTrue :: Prop () -> Bool
+propIsTrue = (==) propTrue
+
+propTaut :: (alpha -> Bool) -> Prop alpha -> Bool
+propTaut f = propIsTrue . propMap (propBool . f)
 \end{code}
 \caption{Proposition data type.}
 \label{figC:prop}
 \end{figure}
 
-We write |Sat x c| to assert that the value of expression |x| must be a member of the set described by the constraint |c|, i.e. that |x| \textit{satisfies} |c|. If any component of |x| evaluates to $\bot{}$, the constraint is automatically satisfied: in our method, for a component of |x| to evaluate to $\bot{}$, some other constraint must have been violated, so an error is still reported. Atomic constraints can be combined into propositions, using the proposition data type in Figure \ref{figC:prop}.
+We write |Sat x c| to assert that the value of expression |x| must be a member of the set described by the constraint |c|, i.e. that |x| \textit{satisfies} |c|. If any component of |x| evaluates to $\bot{}$, the constraint is automatically satisfied: in our method, for a component of |x| to evaluate to $\bot{}$, some other constraint must have been violated, so an error is still reported. Atomic constraints can be combined into propositions, using the proposition data type and operations in Figure \ref{figC:prop}.
 
 Several underlying constraint models are possible. To keep the introduction of the algorithms simple we first use \textit{basic pattern constraints} (\S\ref{secC:basic}), which are unsuitable for reasons given in \S\ref{secC:bounded}. We then describe \textit{regular expression constraints} in \S\ref{secC:regexp} -- a variant of the constraints used in earlier versions of Catch. Finally we present \textit{multi-pattern constraints} in \S\ref{secC:multipattern} -- used in the current Catch tool to enable scaling to much larger problems.
 
@@ -503,9 +509,7 @@ prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $
 \subsection{Semantics of Constraints}
 \label{secC:constraint_semantics}
 
-\todo{Use the same notation as in the appendix}
-
-The semantics of a constraint are determined by which values satisfy it. We can model values in our first-order Core with the data type:
+The semantics of a constraint are determined by which values satisfy it. We can model values in our first-order Core language with the data type:
 
 \ind{Value}\ind{Bottom}
 \begin{code}
@@ -513,37 +517,37 @@ data Value  =  Value CtorName [Value]
             |  Bottom
 \end{code}
 
-Given this value representation, we can implement a |satisfies| function using the |<||| operator:
+Given this value representation, we can use the |sat| function to determine whether a value satisfies a constraint, implemented in terms of the |<||| operator:
 
 \begin{onepage}
-\ind{satisfies}\ind{satisfiesP}
+\ind{sat}\ind{sat'}
 \begin{code}
-satisfies :: Value -> Constraint -> Bool
-satisfies Bottom        k = True
-satisfies (Value c xs)  k = satisfiesP $ substP (zip [0..] xs) (c <| k)
+sat :: Sat Value -> Bool
+sat (Sat Bottom        k) = True
+sat (Sat (Value c xs)  k) = sat' $ substP (zip [0..] xs) (c <| k)
 
-satisfiesP :: Prop (Sat Value) -> Bool
-satisfiesP x =  (propTrue :: Prop ()) == propMap (\(Sat v k) -> propBool $ satisfies v k) x
+sat' :: Prop (Sat Value) -> Bool
+sat' = propTaut sat
 \end{code}
 \end{onepage}
 
-The first equation returns |True| given a value of type |Bottom|, as if a value contains $\bot{}$ then any constraint is true. In order to be consistent with |<|||, the other operations must respect certain properties, here expressed as boolean-valued functions that should always return True.
+The first equation returns |True| given a value of type |Bottom|, as if a value contains $\bot{}$ then any constraint is true. In order to be consistent, the constraint operations must respect the following two properties -- both of which permit constraints to be more restrictive than necessary. In Appendix \ref{chp:proof} we use these properties to prove correctness of the analysis.
 
-\begin{code}
-propExtend  v@(Value c xs) k i
-    | satisfies v ((c,i) |> k) = satisfies (xs !! i) k
-propExtend _ _ _ = True
+\subsubsection*{Property C1}
+
+\h{expr}\begin{code}
+sat' (Value c xs -< cs) ==> c `elem` cs
 \end{code}
 
-\noindent The |propExtend| property requires that if a constraint satisfies a value after they have both been extended, then the original value must have satisfied the original constraint. For example, if |Just alpha `Sat` (("Just",0) ||> k)| is true, then |alpha `Sat` k| must be true.
+The first property requires that |v -< cs| must not match values constructed by constructors not in |cs|.
 
-\begin{code}
-propOneOf  v@(Value c xs) cs
-    | c `notElem` cs = not (satisfiesP (v -< cs))
-propOneOf  _ _ = True
+\subsubsection*{Property C2}
+
+\h{expr}\begin{code}
+sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
 \end{code}
 
-\noindent The |propOneOf| property requires that |v -< cs| must not match values constructed by constructors not in |cs|. Note that both properties allow for constraints to be more restrictive than necessary. In Appendix \ref{chp:proof} we show that these properties are sufficient to prove correctness.
+The second property requires that if a constraint satisfies a value after they have both been extended, then the original value must have satisfied the original constraint. For example, if |Just x `Sat` (("Just",0) ||> k)| is true, then |x `Sat` k| must be true.
 
 \subsection{Finite Refinement of Constraints}
 \label{secC:bounded}
@@ -695,8 +699,6 @@ Catch computes over propositional formulae with constraints as atomic propositio
 
 \subsection{Multipattern (MP) Constraints \& Simplification}
 \label{secC:multipattern}
-
-\todo{Tighten up the definition of MP constraints}
 
 \begin{figure}
 \ind{Constraint}\ind{Val}\ind{Pattern}\ind{Any}\ind{Pattern}\ind{nonRecs}\ind{complete}\ind{mergeVal}\ind{merge}
