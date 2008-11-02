@@ -6,7 +6,6 @@
 %format lhs = "\mathrm{LHS}"
 %format rhs = "\mathrm{RHS}"
 
-%subst comment a = "\hspace{-5mm}\mbox{\textit{" a "\}}}"
 \newcommand{\eq}{$\equiv$ \{}
 \newcommand{\im}{$\Leftarrow$ \{}
 
@@ -152,7 +151,6 @@ In order to reduce the size of some of the intermediate expressions, we have rep
 \section{Evaluator}
 \label{secP:evaluator}
 
-\todo{misformatted by lhs2tex}
 \begin{figure}
 \ind{Value}\ind{Bottom}\ind{Expr}\ind{Make}\ind{Call}\ind{Var}\ind{Sel}\ind{Case}\ind{Alt}\ind{eval}
 \h{.*}\begin{code}
@@ -228,6 +226,7 @@ satE' $ pre e ==> not $ isBottom $ eval e
 
 In order to evaluate an expression to normal form, it is necessary for the expression to be closed and for evaluation of the expression to terminate. Therefore we prove that provided the expression |e| can be evaluated to normal form, and that both |e| and the program under analysis are first-order Core as described in \S\ref{secC:catch_core}, the above theorem is true. The above restrictions allow us to assume that all constructors have the correct arity, and that there are no free variables. We will prove this result in \ref{secP:proof}.
 
+%subst comment a = "\hspace{-5mm}\mbox{\textit{" a "\}}}"
 
 \section{Constraint Lemmas}
 \label{secP:constraint}
