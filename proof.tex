@@ -140,11 +140,7 @@ This appendix shows that the algorithms and constraint languages presented in Ch
 \section{Proof-Style and Notation}
 \label{secP:style}
 
-Proofs in this appendix are detailed outlines based on equational reasoning. They make use of induction, application of equational laws, case analysis and inlining of function definitions. The proofs are structured as a series of rewrites, either preserving equality (marked with $\equiv$), or implying the previous statement (marked with $\Leftarrow$). Some expressions may refer to locally bound definitions, which we do not show until necessary. We ignore issues such as strictness. All the properties are boolean valued expressions, typically implications.
-
-\todo{Expand on ignoring strictness. What issues? Where is it ignored? Why is this safe?}
-
-\todo{Issue of meta-circularity. Yours proofs of equivalent of Haskell terms, but that isn't correct because they ignore infinite structures. How should they be considered?}
+Proofs in this appendix are detailed outlines based on equational reasoning. They make use of induction, application of equational laws, case analysis and inlining of function definitions. When performing case analysis we ignore the possibility of $\bot{}$ as a Haskell value, which is valid provided all expressions within the proof do not result in $\bot{}$. The proofs are structured as a series of rewrites, either preserving equality (marked with $\equiv$), or implying the previous statement (marked with $\Leftarrow$). Some expressions may refer to locally bound definitions, which we do not show until necessary. All the properties are boolean valued expressions, typically implications.
 
 In order to reduce the size of some of the intermediate expressions, we have replaced one side of an implication with either |lhs| or |rhs|, designating either the left-hand side or right-hand side. We also make heavy use of the function composition and function application operators, namely |(.)| and |($)|. These can be read with the translations:
 
@@ -156,19 +152,17 @@ In order to reduce the size of some of the intermediate expressions, we have rep
 \section{Evaluator}
 \label{secP:evaluator}
 
-\todo{Say stuff about the correspondence between the Core language here and in previous chapters}
-
 \begin{figure}
 \ind{Value}\ind{Bottom}\ind{Expr}\ind{Make}\ind{Call}\ind{Var}\ind{Sel}\ind{Case}\ind{Alt}\ind{eval}
 \h{.*}\begin{code}
 data Value  =  Value CtorName [Value]
             |  Bottom
 
-data Expr  =  Make CtorName [Expr]
-           |  Call FuncName [Expr]
-           |  Var  VarName
-           |  Sel  Expr Selector
-           |  Case Expr [Alt]
+data Expr  =  Make CtorName [Expr]  -- Constructor application
+           |  Call FuncName [Expr]  -- Function application
+           |  Var  VarName          -- Function variable
+           |  Sel  Expr Selector    -- Case alternative variable
+           |  Case Expr [Alt]       -- Case expression
 
 data Alt = Alt CtorName [VarName] Expr
 
@@ -186,7 +180,7 @@ eval (Case x as    )  =  case eval x of
 \label{figP:eval}
 \end{figure}
 
-We start with an evaluator for a Core expression language defined in Figure \ref{figP:eval}. The |Expr| data type is based on a first-order variant of the Core language from \S\ref{secB:core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluates to the constructor mentioned in the selector.
+We start with an evaluator for a Core expression language defined in Figure \ref{figP:eval}. The |Expr| data type represents the first-order Core language described in \S\ref{secC:catch_core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluates to the constructor mentioned in the selector.
 
 There is no case in |eval| for |Var|, and the behaviour of |eval| with free variables is undefined. The |Call| equation will replace any free variables in the body of a function with the supplied arguments.
 
