@@ -64,7 +64,7 @@ id x = x
 
 -- terminate with an error
 error :: String -> alpha
-
+\end{code}\begin{code}
 undefined :: alpha
 undefined = error "undefined"
 
@@ -173,7 +173,7 @@ dropWhile _ []           = []
 dropWhile p (x:xs)
             | p x        = dropWhile p xs
             | otherwise  = x:xs
-
+\end{code}\begin{code}
 takeWhile :: (alpha -> Bool) -> [alpha] -> [alpha]
 takeWhile _ []           =  []
 takeWhile p (x:xs)
