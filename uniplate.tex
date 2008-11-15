@@ -140,7 +140,7 @@ The Uniplate library provides the |universe| function to support queries.
 universe :: Uniplate alpha => alpha -> [alpha]
 \end{code}
 
-This function takes a data structure, and returns a list of \textit{all} structures of the same type found within it. For example:
+This function takes a data structure, and returns a list of \textit{all} structures of the same type found within it, including the root. For example:
 
 \begin{code}
 universe (Add (Neg (Var "x")) (Val 12)) =
@@ -232,7 +232,7 @@ So we do support top-down transformations, but require the programmer to make th
 descend :: Uniplate alpha => (alpha -> alpha) -> alpha -> alpha
 \end{code}
 
-The result of |descend f x| is obtained by replacing each |alpha|-child |x_i| in |x| by |f x_i|. Unlike |everywhere'|, there is \textit{no recursion} within |descend|.
+The result of |descend f x| is obtained by replacing each outermost |alpha|-child |x_i| in |x| by |f x_i|. Unlike |everywhere'|, there is \textit{no recursion} within |descend|.
 
 \begin{comment}
 \h{.expr2}\begin{code}
@@ -336,7 +336,7 @@ f x                   = x
 Rewrite transformations apply a set of rules \textit{repeatedly} until a normal form is found. One alternative is an action transformation, where each node is visited and transformed \textit{once}, and state is maintained and updated as the operation proceeds. The standard technique is to thread a monad through the operation, which we do using |transformM|, with a bottom-up transformation strategy.
 
 \begin{example}
-Suppose we wish to rename each variable to be unique:
+Suppose we wish to rename each variable occurrence to be unique:
 
 \begin{code}
 uniqueVars :: Expr -> Expr
@@ -463,7 +463,7 @@ uniplate :: Uniplate alpha => alpha -> (Str alpha, Str alpha -> alpha)
 uniplate x = (cs,context)
 \end{code}
 
-The original Uniplate paper \cite{me:uniplate} used lists of items, but we instead use the |Str| data type defined in Figure \ref{figU:str} to collect items. The use of |Str| simplifies the definition of instances and improves performance. The value |cs| contains the same elements as |children x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has the same structure of |Str| constructors as |cs|. The result pair splits the information in the value, but by combining the |context| with |cs| the original value can be recovered:
+The original Uniplate paper \cite{me:uniplate} used lists of items, but we instead use the |Str| data type defined in Figure \ref{figU:str} to collect items. The use of |Str| simplifies the definition of instances and improves performance. The value |cs| contains the same elements as |children x|; the |context| is a function to generate a new value, with a different set of children. The caller of |context| must ensure that the value given to |context| has precisely the same structure of |Str| constructors as |cs|. The result pair splits the information in the value, but by combining the |context| with |cs| the original value can be recovered:
 
 \begin{code}
 propId x = x == context cs
@@ -518,10 +518,10 @@ contexts x  =  (x,id) : [ (x_2, g_1 . g_2)
             |  (x_1, g_1) <- holes x, (x_2, g_2) <- contexts x_1]
 \end{code}
 \caption{Implementation of all |Uniplate| methods.}
-\label{fig:Uimplements}
+\label{figU:implements}
 \end{figure}
 
-All eleven operations from \S\ref{secU:use_play} can be defined in terms of |uniplate|. We define all eleven operations in Figure \ref{fig:Uimplements}. The common pattern is to call |uniplate|, then operate on the current children, often calling |context| to create a modified value. Some of these definitions can be made more efficient -- see \S\ref{secU:optimise_everything}.
+All eleven operations from \S\ref{secU:use_play} can be defined in terms of |uniplate|. We define all eleven operations in Figure \ref{figU:implements}. The common pattern is to call |uniplate|, then operate on the current children, often calling |context| to create a modified value. Some of these definitions can be made more efficient -- see \S\ref{secU:optimise_everything}.
 
 \subsection{Writing |Uniplate| instances}
 \label{secU:play_instances}
@@ -609,7 +609,7 @@ _N $| Expr |$ \? x = case x of
 _N $| List |$ \? v_1 x = case x of
     []            -> (Zero, \(Zero) -> [])
     (:)  y_1 y_2  -> (Zero `Two` a_1 `Two` a_2
-                     ,\(Zero `Two` z_1 `Two` z_2) -> Neg (b_1 z_1) (b_2 z_2))
+                     ,\(Zero `Two` z_1 `Two` z_2) -> (:) (b_1 z_1) (b_2 z_2))
         where  (a_1,b_1) = v_1 y_1
                (a_2,b_2) =  _N $| List |$ \? v_1 y_2
 \end{code}
@@ -678,7 +678,7 @@ type BiplateType beta alpha = beta -> (Str alpha, Str alpha -> beta)
 biplate :: BiplateType beta alpha
 \end{code}
 
-The intuition for |biplate| is that given a structure of type |beta|, the function should return the largest substructures in it of type |alpha|. If \ignore|alpha == beta| the original value should be returned:
+The intuition for |biplate| is that given a structure of type |beta|, the function should return the largest substructures in it of type |alpha|. Unlike |uniplate|, if \ignore|alpha == beta| the original value should be returned:
 
 \ind{biplateSelf}
 \begin{code}
@@ -688,7 +688,7 @@ biplateSelf x = (One x, \(One x') -> x')
 
 Unlike |Uniplate|, |Biplate| does \textit{not} always descend. The idea is that |Biplate| is used once at the beginning of a traversal to find the values of type |alpha|, then |Uniplate| operates recursively descending through the data structure.
 
-We can now define a selection of the |On| functions. Each takes a |biplate| function as an argument:
+We can now define a selection of the |On| functions -- the remaining functions from Figure \ref{figU:implements} can be implemented in a similar way. Each takes a |biplate| function as an argument:
 
 \ind{childrenOn}\ind{universeOn}\ind{descendOn}\ind{transformOn}
 \begin{code}
@@ -819,12 +819,12 @@ In this redefinition we have again made a single change to the equation: the add
 \section{Implementing |Biplate|}
 \label{secU:implement_playex}
 
-The complicating feature of |biplate| is that when defining |Biplate| where \ignore|alpha == beta| the function does not descend to the children, but simply returns its argument. This rule can be captured either using the type system, or using the |Typeable| class \cite{lammel:syb}. We present three methods for defining a |Biplate| instance -- offering a trade-off between performance, compatibility and volume of code.
+The complicating feature of |biplate| is that when defining |Biplate| where \ignore|alpha == beta| the function does not descend to the children, but simply returns its argument -- requiring a check for type equality between values. This check can be captured either using the type system, or using the |Typeable| class \cite{lammel:syb}. We present three methods for defining a |Biplate| instance -- offering a trade-off between performance, compatibility and volume of code.
 
 \begin{enumerate}
-\item Direct definition requires $O(n^2)$ instances, but offers the highest performance with the fewest extensions.
-\item The |Typeable| class can be used, requiring $O(n)$ instances and no further Haskell extensions, but giving worse performance.
-\item The |Data| class can be used, providing fully automatic instances with GHC, but requiring the use of rank-2 types, and giving the worst performance.
+\item Direct definition requires $O(n^2)$ instances, but offers the highest performance with the fewest extensions. See \S\ref{secU:implement_playdirect}.
+\item The |Typeable| class can be used, requiring $O(n)$ instances and no further Haskell extensions, but giving worse performance. See \S\ref{secU:implement_playtypeable}.
+\item The |Data| class can be used, providing fully automatic instances with GHC, but requiring the use of rank-2 types, and giving the worst performance. See \S\ref{secU:implement_playdata}.
 \end{enumerate}
 
 All three methods can be fully automated using the Derive tool, and all provide a simplified method for writing |Uniplate| instances. The |Biplate| class definition itself is independent of the method used to implement its instances. This abstraction allows the user to start with the simplest instance scheme available to them, then move to alternative schemes to gain increased performance or compatibility.
@@ -1107,7 +1107,7 @@ The |contains| function determines the types directly contained by a data type. 
 \item The set of other types which \textit{do not} contain the target type.
 \end{enumerate}
 
-We compute these sets for each type only once, by using a CAF inside the class to store it. The cost of computing them is small. When examining a value, if its type is a member of set 3 we can prune the search. This trick is surprisingly effective. Take for example an operation over |Bool| on the value |(True,"Haskell")|. The SYB approach finds 16 subcomponents, Uniplate touches only 3 subcomponents.
+We compute these sets for each type only once, and the cost of computing them is small. When examining a value, if its type is a member of set 3 we can prune the search. This trick is surprisingly effective. Take for example an operation over |Bool| on the value |(True,"Haskell")|. The SYB approach finds 16 subcomponents, Uniplate touches only 3 subcomponents.
 
 With all these optimisations we can usually perform both queries and transformations faster than SYB. In the benchmarks we improve on SYB by between 30\% and 225\%, with an average of 145\% faster. Full details are presented in \S\ref{secU:results_speed}.
 
@@ -1407,6 +1407,8 @@ In order to measure conciseness of expression, we have taken the code for all so
 The Compos approach requires much more residual boilerplate than Uniplate, particularly for queries, bottom-up transformations and in type signatures. The Compos approach also requires a GADT representation.
 
 Compared with SYB, Uniplate seems much more similar. For queries, Uniplate is able to make use of list comprehensions, which produces shorter code and does not require encoding a manual fold over the items of interest. For transformations, typically both are able to use the same underlying operation, and the difference often boils down to the |mkT| wrappers in SYB.
+
+All the Uniplate functions could be implemented in the SYB framework, using the |Data| and |Typeable| classes instead of |Uniplate| and |Biplate|. If this was done, then the SYB examples would be identical to the Uniplate examples, and consequently have identical lexeme counts.
 
 
 \subsection{Runtime Overhead}

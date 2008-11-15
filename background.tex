@@ -235,7 +235,7 @@ case x of {... ; c vs_ -> \v -> y ; ...}
 \ignore\begin{code}
 let v = x in y
     => y[v/x]
-    where x {-" \hbox{is used once in } "-} y
+    where x {-" \hbox{occurs once in } "-} y {-" \hbox{, see \S\ref{secB:sharing}} "-}
 \end{code}}
 \end{simplify}
 \caption{Simplification rules.}
