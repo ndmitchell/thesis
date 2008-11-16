@@ -179,7 +179,7 @@ eval (Case x as    )  =  case eval x of
 \label{figP:eval}
 \end{figure}
 
-We start with an evaluator for a Core expression language defined in Figure \ref{figP:eval}. The |Expr| data type represents the first-order Core language described in \S\ref{secC:catch_core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluates to the constructor mentioned in the selector.
+We start with an evaluator for a Core expression language defined in Figure \ref{figP:eval}. The value |Bottom| corresponds to program failure, \textit{not} divergence. The |Expr| data type represents the first-order Core language described in \S\ref{secC:catch_core}. We have introduced |Sel|, which represents variables bound in case alternatives. For the algorithms presented previously, the |Sel| expression contains the information returned by the |var| function. While evaluating a |Sel| expression we know that we are beneath a |Case| on the same expression |x|, and that |x| evaluates to the constructor mentioned in the selector. The |Alt| constructor has a list of variables which are unnecessary because selectors are used instead of local variable names -- but they are retained to allow direct use of the algorithms from Chapter \ref{chp:catch}.
 
 There is no case in |eval| for |Var|, and the behaviour of |eval| with free variables is undefined. The |Call| equation will replace any free variables in the body of a function with the supplied arguments.
 
@@ -245,7 +245,7 @@ sat' (Value c xs -< cs) ==> c `elem` cs
 sat $ Sat (Value c xs) ((c,i) |> k) ==> sat $ Sat (xs !! i) k
 \end{code}
 
-Both lemmas are given in \S\ref{secC:constraint_semantics}, as properties. Note that the definition of |sat| makes use of |(<||)|, so these lemmas require the additional two operators to be consistent with |(<||)|. We prove them for the BP-constraint and MP-constraint systems in \S\ref{secP:bp} and \S\ref{secP:mp}. Since RE-constraints do not scale sufficiently, we do not recommend their use, and have not attempted to prove these lemmas for them.
+Both lemmas are given in \S\ref{secC:constraint_semantics}, as properties. These properties require the |(-<)| and |(||>)| operators to be consistent with |sat|. The |sat| function is defined in terms of |(<||)|, and therefore all three operators must be consistent with each other. We prove them for the BP-constraint and MP-constraint systems in \S\ref{secP:bp} and \S\ref{secP:mp}. Since RE-constraints do not scale sufficiently, we do not recommend their use, and have not attempted to prove these lemmas for them.
 
 \subsection{BP-Constraint Lemmas}
 \label{secP:bp}
@@ -1326,7 +1326,7 @@ True
 satE' $ pre e ==> not $ isBottom $ eval e
 \end{code}
 
-That is, the analysis defined in Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop} is sound
+That is, the analysis defined in Figures \ref{figC:property_fixp}, \ref{figC:precondition}, \ref{figC:precond_fixp} and \ref{figC:prop} is sound.
 
 \subsection{Proof}
 
@@ -1334,7 +1334,7 @@ We proceed by case analysis on the structure of the expression |e|. We inductive
 
 \case{|e === Var v|}
 
-We do not need to consider |Var| as |eval| cannot be called on expressions with free variables.
+We do not need to consider |Var| as |eval| cannot be called on expressions with free variables, see \S\ref{secP:theorem}.
 
 \case{|e === Sel x (c,i)|}
 

@@ -67,7 +67,7 @@ instance Eq Val
 \chapter{Pattern-Match Analysis}
 \label{chp:catch}
 
-This chapter describes an automated analysis to check for pattern match errors, which we have called Catch. A proof of the work presented in this chapter is given in Appendix \ref{chp:proof}. \S\ref{secC:catch_intro} gives a small example, and \S\ref{secC:walkthrough} gives an overview of the checking process for this example. \S\ref{secC:manipulate} introduces a small core functional language and a mechanism for reasoning about this language, \S\ref{secC:constraint} describes two constraint languages. \S\ref{secC:results} evaluates Catch on programs from the Nofib suite, on a widely-used library and on a larger application program. \S\ref{secC:catch_related} offers comparisons with related work.
+This chapter describes an automated analysis to check for pattern match errors, which we have called Catch. If Catch reports that a program has no pattern-match errors, then the program is guaranteed not to fail with a pattern-match error at runtime. A proof of the work presented in this chapter is given in Appendix \ref{chp:proof}. \S\ref{secC:catch_intro} gives a small example, and \S\ref{secC:walkthrough} gives an overview of the checking process for this example. \S\ref{secC:manipulate} introduces a small core functional language and a mechanism for reasoning about this language, \S\ref{secC:constraint} describes two constraint languages. \S\ref{secC:results} evaluates Catch on programs from the Nofib suite, on a widely-used library and on a larger application program. \S\ref{secC:catch_related} offers comparisons with related work.
 
 
 \section{Motivation}
@@ -223,7 +223,7 @@ isRec  :: Selector  -> Bool
 
 We use a first-order Core language, a subset of the Core language presented in \S\ref{secB:core}. In order to eliminate all constructs which either create or make use of functional values we eliminate lambda expressions and general application, and require all function and constructor applications to be fully-applied.
 
-Figure \ref{figC:catch_core_operations} gives the signatures for two helper functions over the core data types. The |var| function returns |Nothing| for a variable bound as the argument of a top-level function, and |Just (e,(c,i))| for a variable bound as the |i|th component in the |c|-constructed alternative of a case-expression whose scrutinee is |e|.
+Figure \ref{figC:catch_core_operations} gives the signatures for two helper functions over the core data types. The |var| function returns |Nothing| for a variable bound as the argument of a top-level function, and |Just (e,(c,i))| for a variable bound as the |i|th component in the |c|-constructed alternative of a case-expression whose scrutinee is |e|. We assume unique variable names throughout the program.
 
 \begin{example}
 Given the definition:
@@ -413,7 +413,7 @@ We can improve the efficiency of the algorithm by tracking dependencies between 
 
 \subsubsection{Preconditions and Laziness}
 
-The |pre| function defined in Figure \ref{figC:precondition} does not exploit laziness. The function application equation demands that preconditions hold on \textit{all} arguments -- only correct if a function is strict in all arguments. For example, the precondition on |False && error "here"| is False, when it should be True. In general, preconditions may be more restrictive than necessary. However, investigation of a range of examples suggests that inlining |(&&)| and |(||||)| captures many of the common cases where laziness would be required.
+The |pre| function defined in Figure \ref{figC:precondition} does not exploit laziness. The function application equation demands that preconditions hold on \textit{all} arguments -- which is unnecessarily restrictive unless a function is strict in all arguments. For example, the precondition on |False && error "here"| is False, when it should be True. In general, preconditions may be more restrictive than necessary. However, investigation of a range of examples suggests that inlining |(&&)| and |(||||)| captures many of the common cases where laziness would be required.
 
 
 \subsection{Manipulating constraints}
@@ -453,7 +453,7 @@ pre' null [xs] `propAnd` (null xs -< ["True"] `propOr` pre' tail [xs])
 null xs -< ["True"] `propOr` xs -< [":"]
 \end{code}
 
-\noindent Now we use an entailment to turn the constraint on |null|'s result into a constraint on its argument:
+\noindent Now we use an entailment calculated by |prePost| to turn the constraint on |null|'s result into a constraint on its argument:
 
 \ignore\begin{code}
 xs -< ["[]"] `propOr` xs -< [":"]
@@ -503,7 +503,8 @@ The intuition is that given knowledge of the root constructor of a data value, w
 \ignore\begin{code}
 prePost :: FuncName -> Constraint -> Prop (Sat VarName)
 prePost Rec0   f k =  propTrue
-prePost RecN1  f k =  prePost RecN f k `propAnd` reduce{prePost RecN} (propLit $ body f `Sat` k)
+prePost RecN1  f k =  prePost RecN f k `propAnd` reduce RecN (propLit $ body f `Sat` k)
+    where reduce RecN = reduce {-" \hbox{ using } "-} prePost RecN
 \end{code}
 \caption{Fixed point calculation for |prePost|.}
 \label{figC:property_fixp}
@@ -589,7 +590,7 @@ In order to evaluate an expression to normal form, it is necessary for the expre
 \subsection{Finite Refinement of Constraints}
 \label{secC:bounded}
 
-With unbounded recursion in patterns, the BP-constraint language does \textit{not} have only finite chains of refinement. As we saw in \S\ref{secC:fixp_precond}, we need this property for termination of the iterative analysis. In the next section we introduce two alternative constraint systems. Both share a key property: \textit{for any type, there are finitely many constraints}.
+With unbounded recursion in patterns, the BP-constraint language does \textit{not} have only finite chains of refinement, as constraints can become infinitely long. As we saw in \S\ref{secC:fixp_precond}, we need this property for termination of the iterative analysis. In the next section we introduce two alternative constraint systems. Both share a key property: \textit{for any type, there are finitely many constraints}.
 
 \section{Richer but Finite Constraint Systems}
 \label{secC:constraint}
@@ -643,7 +644,7 @@ differentiate p (Star    r:rs)  | p `elem` r  = Just (Star r:rs)
 \label{figC:regexp}
 \end{figure}
 
-An implementation of regular expression based constraints (RE-constraints) is given in Figure \ref{figC:regexp}. In a constraint of the form \h{.re}|(r :- cs)|, |r| is a regular expression and |cs| is a set of constructors. Such a constraint is satisfied by a data structure |d| if every well-defined application to |d| of a sequence of selectors described by |r| reaches a constructor in the set |cs|. If no such sequence of selectors has a well-defined result then the constraint is vacuously true.
+An implementation of regular expression based constraints (RE-constraints) is given in Figure \ref{figC:regexp}. In a constraint of the form \h{.re}|(r :- cs)|, |r| is a regular expression and |cs| is a set of constructors. Such a constraint is satisfied by a data structure |d| if every sequence of selectors which is applicable to |d|, and described by |r|, reaches a constructor in the set |cs|. If no such sequence of selectors has a well-defined result then the constraint is vacuously true.
 
 Concerning the helper functions needed to define | ||>| and |<||| in Figure \ref{figC:regexp}, the |differentiate| function is from \citet{conway:regexp}; |integrate| is its inverse; |ewp| is the empty word property.
 
@@ -788,7 +789,7 @@ merge  ms_1 ms_2 = [Pattern c_1 (zipWith mergeVal vs_1 vs_2) |
 
 Although RE-constraints are capable of solving many examples, they suffer from a problem of scale. As programs become more complex the size of the propositions grows quickly, slowing Catch unacceptably. Multipattern constraints (MP-constraints, defined in Figure \ref{figC:enumeration}) are an alternative which scales better.
 
-MP-constraints are similar to BP-constraints, but can constrain an infinite number of items. A value |v| satisfies a constraint \h{.mp}|p_1 :* p_2| if |v| itself satisfies the pattern |p_1| and \textit{all its recursive components at any depth} satisfy |p_2|. We call |p_1| the root pattern, and |p_2| the recursive pattern. Each of |p_1| and |p_2| is given as a set of matches similar to BP-constraints, but each |Pattern| only specifies the values for the non-recursive selectors, all recursive selectors are handled by |p_2|. A constraint is a disjunctive list of |:*| patterns.
+MP-constraints are similar to BP-constraints, but can constrain an infinite number of items. A value |v| satisfies a constraint \h{.mp}|p_1 :* p_2| if |v| itself satisfies the pattern |p_1| and \textit{all its subcomponents of the same type as \textsf{v}} satisfy |p_2|. We call |p_1| the root pattern, and |p_2| the recursive pattern. Each of |p_1| and |p_2| is given as a set of matches similar to BP-constraints, but each |Pattern| only specifies the values for the non-recursive selectors, all recursive selectors are handled by |p_2|. A constraint is a disjunctive list of |:*| patterns.
 
 The intuition behind the definition of |(c,i) ||> ps| is that if the selector |(c,i)| is recursive, given a pattern \h{.mp}|alpha :* beta|, the new root pattern requires the value to be |c|-constructed, and the recursive patterns become \h{.mp}|merge alpha beta| -- i.e. all recursive values must satisfy both the root and recursive patterns of the original pattern. If the selector is non-recursive, then each new pattern contains the old pattern within it, as the appropriate non-recursive field. So, for example:
 
