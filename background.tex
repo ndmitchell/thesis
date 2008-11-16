@@ -82,7 +82,7 @@ The arity of a top-level function is the number of arguments in its associated d
 
 Some functions are used but lack corresponding definitions in the program. These are defined to be \textit{primitive}. They have some meaning to an underlying runtime system, but are not available for transformation. A primitive function may perform an action such as outputting a character to the screen, or may manipulate primitive numbers such as addition.
 
-The largest difference between our Core language and GHC-Core \cite{ghc_core} is that our Core language is untyped. The Core is generated from well-typed Haskell, and is guaranteed not to fail with a type error. All our algorithms could be implemented equally well in a typed Core language, but we prefer to work in an untyped language for simplicity of implementation. For describing data types we use the same notation as Haskell 98. One of the most common data types is the list, which can be defined as:
+The largest difference between our Core language and GHC-Core \cite{ghc_core} is that our Core language is untyped. Core is generated from well-typed Haskell, and is guaranteed not to fail with a type error. All our algorithms could be implemented equally well in a typed core language, but we prefer to work in an untyped language for simplicity of implementation. For describing data types we use the same notation as Haskell 98. One of the most common data types is the list, which can be defined as:
 
 \begin{code}
 data List alpha = Nil | Cons alpha (List alpha)
@@ -114,12 +114,12 @@ ctors  :: CtorName  -> [CtorName]
 \label{figB:core_operations}
 \end{figure}
 
-Figure \ref{figB:core_operations} gives the signatures for helper functions over the core data types. We use the functions |body f| and |args f| to denote the body and arguments of the function definition |f|. We use the function |rhs| to extract the expression on the right of a case alternative. Every function and constructor has an arity, which can be obtained with the |arity| function. To determine alternative constructors the |ctors| function can be used; for example \h{stmt}|ctors "True" = ["False", "True"]| and \h{stmt}|ctors "[]" = ["[]",":"]|.
+Figure \ref{figB:core_operations} gives the signatures for helper functions over the core data types. We use the functions |body f| and |args f| to denote the body and arguments of the function definition for |f|. We use the function |rhs| to extract the expression on the right of a case alternative. Every function and constructor has an arity, which can be obtained with the |arity| function. To determine alternative constructors the |ctors| function can be used; for example \h{stmt}|ctors "True" = ["False", "True"]| and \h{stmt}|ctors "[]" = ["[]",":"]|.
 
 
 \subsubsection{Substitution}
 
-We define \ignore|e[v / x]| to be the capture-free substitution of the variable |v| for the expression |x| within the expression |e|. We define \ignore|e[v_1,...,v_n / x_1,...,x_n]| to be the simultaneous substitution of each variable |v_i| for each expression |x_i| in |e|.
+We define \ignore|e[v / x]| to be the capture-free substitution of the variable |v| by the expression |x| within the expression |e|. We define \ignore|e[v_1,...,v_n / x_1,...,x_n]| to be the simultaneous substitution of each variable |v_i| for each expression |x_i| in |e|.
 
 \begin{example}
 \ignore\begin{code}
@@ -149,7 +149,7 @@ freeVars' xs_ = unions (map freeVars xs_)
 \label{figB:free_variables}
 \end{figure}
 
-An occurrence of a variable |v| is \textit{bound} in |x| if it occurs on the right-hand side a case alternative whose pattern includes |v|, as the argument of an enclosing lambda abstraction or as a binding in an enclosing let expression; all other variables are \textit{free}. The set of free variables of an expression |e| is denoted by |freeVars e|, and can be computed using the function in Figure \ref{figB:free_variables}.
+An occurrence of a variable |v| is \textit{bound} in |x| if it occurs on the right-hand side of a case alternative whose pattern includes |v|, as the argument of an enclosing lambda abstraction or as a binding in an enclosing let expression; all other variable occurences are \textit{free}. The set of free variables of an expression |e| is denoted by |freeVars e|, and can be computed using the function in Figure \ref{figB:free_variables}.
 
 In order to avoid accidental variable name clashes while performing transformations, we demand that all variables within a program are unique. All transformations may assume and should preserve this invariant.
 
@@ -235,7 +235,7 @@ case x of {... ; c vs_ -> \v -> y ; ...}
 \ignore\begin{code}
 let v = x in y
     => y[v/x]
-    where x {-" \hbox{occurs once in } "-} y {-" \hbox{, see \S\ref{secB:sharing}} "-}
+    where v {-" \hbox{occurs once in } "-} y {-" \hbox{, see \S\ref{secB:sharing}} "-}
 \end{code}}
 \end{simplify}
 \caption{Simplification rules.}
@@ -343,7 +343,7 @@ This section informally discusses the relevant sharing properties of Haskell. In
 
 \subsection{Let bindings}
 
-A let expression introduces \textit{sharing} of the computational result of expressions. Consider the expression:
+A let expression introduces \textit{sharing} of the computational result of expressions.
 
 \begin{example}
 \ignore\begin{code}
@@ -351,14 +351,14 @@ let x = f 1
 in x + x
 \end{code}
 
-The semantic rules for evaluating this expression result in:
+The evaluation of this expression results in:
 
 \ignore\begin{code}
 (x + x)[x / f 1]
 (f 1 + f 1)
 \end{code}
 
-In the semantics, the expression |f 1| is reduced twice. However, the a compiler would only evaluate |f 1| once. The first time the value of |x| is demanded, |f 1| evaluates to WHNF, and is bound to |x|. Any successive examinations of |x| return immediately, pointing at the same result.
+The expression |f 1| is reduced twice. However, a compiler would only evaluate |f 1| once. The first time the value of |x| is demanded, |f 1| evaluates to weak head normal form, and is bound to |x|. Any successive examinations of |x| return immediately, pointing at the same result.
 \end{example}
 
 \begin{figure}
@@ -383,7 +383,7 @@ linear v x = occurs v x <= 1
 \label{figB:linear}
 \end{figure}
 
-In general, the substitution of a bound variable for the associated expression may cause duplicate computation to be formed. However, in some circumstances, duplicate computation can be guaranteed not to occur. If a bound variable can be used at most once in an expression, it is said to be \textit{linear}, and substitution can be performed. A variable is linear if it is used at most once, i.e. occurs at most once down each possible flow of control according to the definition in Figure \ref{figB:linear}.
+In general, the substitution of a bound variable by the associated expression may cause duplicate computation to be formed. However, in some circumstances, duplicate computation can be guaranteed not to occur. If a bound variable can be used at most once in an expression, it is said to be \textit{linear}, and substitution can be performed. A variable is linear if it is used at most once, i.e. occurs at most once down each possible flow of control according to the definition in Figure \ref{figB:linear}.
 
 \subsection{Recursive let bindings}
 
@@ -400,7 +400,7 @@ repeat x =  let xs = x : xs
 Here the variable |xs| is both defined and referenced in the binding. Given the application |repeat 1|, regardless of how much of the list is examined, the program will only ever create one single cons cell. This construct effectively ties a loop in the memory.
 \end{example}
 
-Our Core language does not allow recursive let bindings, for reasons of simplicity. If there is a recursive binding to a function, it will be removed by lambda lifting. To remove all recursive let bindings, we can replace value bindings with lambda expressions applied to dummy arguments, then lambda lift.
+Our Core language does not allow recursive let bindings, for reasons of simplicity. If there is a recursive binding to a function, it will be removed by lambda lifting \cite{lambda_lift}. To remove all recursive let bindings, we can replace value bindings with lambda expressions applied to dummy arguments, then lambda lift.
 
 \begin{examplerevisit}{\ref{exB:repeat}}
 Applying this algorithm to our example from before, we first add a lambda expression and a dummy argument:
@@ -477,7 +477,7 @@ The internal Core language of Yhc is PosLambda -- a simple variant of lambda cal
 
 The Yhc compiler can generate the Core for a single source file. Yhc can also link in all definitions from all necessary libraries, producing a single Core file representing a whole program. All function and constructor names are fully qualified, so the linking process simply involves merging the list of functions from each required Core file.
 
-In the process of generating a Core file, Yhc performs several transformations. Haskell's type classes are removed using the dictionary transformation (see \S\ref{secB:dictionary_transformation}). All local functions are lambda lifted, leaving only top-level functions -- ensuring Yhc generated Core does \textit{not} contain any lambda expressions. All constructor applications and primitive applications are fully saturated.
+In the process of generating a Core file, Yhc performs several transformations. Haskell's type classes are removed using the dictionary transformation (see \S\ref{secB:dictionary_transformation}). All local functions are lambda lifted, leaving only top-level functions -- ensuring Yhc generated Core does \textit{not} contain any lambda expressions. All constructor applications and primitive applications are fully applied.
 
 
 \subsection{The Dictionary Transformation}

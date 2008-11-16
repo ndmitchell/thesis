@@ -312,7 +312,7 @@ fix f x = if x == x' then x else fix f x'
 Each stage will be described separately. The overall control of the algorithm is given by the |(+||+)| operator, defined in Figure \ref{figF:fixp_op}. The expression |f +||+ g| applies |f| to an input until it reaches a fixed point, then applies |g|. If |g| changes the value, then the whole process is repeated until a fixed point of both |f| and |g| is achieved. This formulation has several important properties:
 
 \begin{description}
-\item[Joint fixpoint] After the operation has completed, applying either |f| or |g| does not change the value.
+\item[Joint fixpoint] If the operation completes, applying either |f| or |g| does not change the value.
 
 \begin{code}
 propFix f g x = let r = (+|+) f g x in (f r == r) && (g r == r)
@@ -461,7 +461,7 @@ isLambda (ELam v x)  = True
 isLambda _           = False
 \end{code}
 
-The |isBox| function as presented may not terminate, but by simply keeping a list of followed functions, we can assume the result is false in any duplicate call. This modification does not change the result of any previously terminating evaluations.
+The |isBox| function as presented may not terminate, but by simply keeping a list of followed functions, we can assume the result is |False| in any duplicate call. This modification does not change the result of any previously terminating evaluations.
 \caption{The |isBox| function, to test if an expression is a boxed lambda.}
 \label{figF:boxed_lambda}
 \end{figure}
@@ -500,7 +500,7 @@ case (f xs_) of alts_
         {-" \text{If } "-} isBox y {-" \text{ evaluates to } "-} True
 \end{code}
 
-As with the simplification stage, there may be some loss of sharing if the definition being inlined has a arity 0 -- a constant applicative form (CAF). A Haskell implementation computes these expressions only once, and reuses their value as necessary. If they are inlined, this sharing will be lost.
+As with the simplification stage, there may be some loss of sharing if the definition being inlined has arity 0 -- a constant applicative form (CAF). A Haskell implementation computes these expressions only once, and reuses their value as necessary. If they are inlined, this sharing will be lost.
 
 \subsection{Specialisation}
 
@@ -834,7 +834,7 @@ b_n'  =  lam e_n &+ fun b_n' e_n &+ con (b_n' - lam e_n) &+ app e_n e_n &+ var &
 
 As an example of how the component subsets of |b_n'| are obtained, take |fun b_n' e_n|. A function application is a lambda box if the function's body is a lambda box. Therefore, provided the body of the function is not a lambda box, the function application will not be. The arguments to a function application do not affect whether the application is a lambda box, and are left unrestricted as |e_n|.
 
-The inlining stage and the (bind-box) simplification rule match expressions which are lambda boxes, therefore these expressions can be can be eliminated from the residual program:
+The inlining stage and the (bind-box) simplification rule match expressions which are lambda boxes, therefore these expressions can be eliminated from the residual program:
 
 \ignore\begin{code}
 s_5   =  l_5'
@@ -1150,7 +1150,7 @@ In order to gain acceptable speed, we perform a number of optimisations over the
 
 \subsection{Program Size}
 
-We measured program size by counting the number of lines of Core code. On average the size of the resultant program is smaller by 30\% (see Size in Table \ref{tabF:results}). The decrease in program size is mainly due to the elimination of dictionaries holding references to unnecessary code. An optimising compiler will perform dictionary specialisation, and therefore is likely to also reduce program size. We do not claim that defunctionalisation reduces code size, merely hope to alleviate concerns raised by previous papers \cite{chin:higher_order_removal} that doing so might cause an explosion in code size.
+We measure program size by counting the number of lines of Core code. On average the size of the resultant program is smaller by 30\% (see Size in Table \ref{tabF:results}). The decrease in program size is mainly due to the elimination of dictionaries holding references to unnecessary code. An optimising compiler will perform dictionary specialisation, and therefore is likely to also reduce program size. We do not claim that defunctionalisation reduces code size, merely hope to alleviate concerns raised by previous papers \cite{chin:higher_order_removal} that doing so might cause an explosion in code size.
 
 
 \section{Related Work}
@@ -1198,7 +1198,7 @@ The closest work to ours is by \citet{chin:higher_order_removal}, which itself i
 \item To ensure termination of the specialisation step, they \textit{never specialise a recursive function} unless it has all functional arguments passed identically in all recursive calls. This restriction is satisfied by higher-order functions such as |map|, but fails in many other cases.
 \end{itemize}
 
-In addition, functional programs now use monads, IO continuations and type classes as a matter of course. Such features were still experimental when Chin and Darlington developed their merhotd and it did not handle them. Our work can be seen as a successor to theirs, indeed we achieve most of the aims set out in their future work section. We have tried their examples, and can confirm that all of them are successfully handled by our system. Some of their observations and extensions apply equally to our work: for example, they suggest possible methods of removing accumulating functions such as in Example \ref{exF:functional_lists}.
+In addition, functional programs now use monads, IO continuations and type classes as a matter of course. Such features were still experimental when Chin and Darlington developed their method and it did not handle them. Our work can be seen as a successor to theirs, indeed we achieve most of the aims set out in their future work section. We have tried their examples, and can confirm that all of them are successfully handled by our system. Some of their observations and extensions apply equally to our work: for example, they suggest possible methods of removing accumulating functions such as in Example \ref{exF:functional_lists}.
 
 \subsection{Partial Evaluation and Supercompilation}
 

@@ -91,7 +91,7 @@ variables :: Expr -> [String]
 variables x = [y | Var y <- universe x]
 \end{code}
 
-The type signature is optional, and would be inferred automatically if left absent. This example assumes a |Uniplate| instance for the |Expr| data type, given in \S\ref{secU:play_instances}. This example requires only Haskell 98. For more advanced examples we require multi-parameter type classes \cite{jones:mptc} -- but no functional dependencies, rank-2 types or GADTs.
+The type signature is optional, and would be inferred automatically if left absent. This example assumes a |Uniplate| instance for the |Expr| data type, given in \S\ref{secU:play_instances}. This example requires only Haskell 98. For more advanced examples we require multi-parameter type classes \cite{jones:mptc} -- but no functional dependencies, rank-2 types or generalised algebraic data types (GADTs).
 
 The central idea is to exploit a common property of many traversals: they only require value-specific behaviour for a \textit{single uniform type}. Looking at the |variables| example, the only type of interest is |Expr|. In practical applications, this pattern is common\footnote{Most examples in boilerplate removal papers meet this restriction, even though the systems being discussed do not depend on it.}. By focusing only on uniform type traversals, we are able to exploit well-developed techniques in list processing.
 

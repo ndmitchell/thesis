@@ -91,7 +91,7 @@ Our goal is an automatic optimisation that makes high-level Haskell programs run
 
 \begin{itemize}
 \item To our knowledge, this is the first time supercompilation has been applied to Haskell.
-\item We make careful study of the let expression, something absent from the Core language of many other papers on supercompilation.
+\item We make careful study of the let expression, something absent from the core language of many other papers on supercompilation.
 \item We present an alternative generalisation step, based on a homeomorphic embedding \cite{leuschel:homeomorphic}.
 \end{itemize}
 
@@ -533,7 +533,7 @@ x2n1 			& 0.58 & 0.64 & 1.61 & 3.04 & 1.09 & 0.33 \\
 \label{tabS:haskell_results}
 \end{table}
 
-The results of these benchmarks are given in Figure \ref{figS:haskell_results}, along with detailed breakdowns in Table \ref{tabS:haskell_results}. All results are relative to the runtime of a program compiled with GHC -O2, lower numbers being better. The first three variants (Supero, msg, spine) all use homeomorphic embedding as the termination criterion, and $\bowtie$, msg or nothing respectively as the generalisation function. The final variant, none, uses a termination test that always causes a residuation. The `none' variant is useful as a control to determine which improvements are due to bringing all definitions into one module scope, and which are a result of supercompilation. Compilation times ranged from a few seconds to five minutes.
+The results of these benchmarks are given in Figure \ref{figS:haskell_results}, along with detailed breakdowns in Table \ref{tabS:haskell_results}. All results are relative to the runtime of a program compiled with GHC -O2, lower numbers being better. The first three variants (Supero, msg, spine) all use homeomorphic embedding as the termination criterion, and $\bowtie$, msg or nothing respectively as the generalisation function. The final variant, none, uses a termination test that always causes a residuation. The `none' variant is useful as a control to determine which improvements are due to bringing all definitions into one module scope, and which are a result of supercompilation. Compilation times ranged from a few seconds to twelve minutes.
 
 The Bernouilli benchmark is the only one where Supero is slower than GHC by more than 3\%. The reason for this anomaly is that a dictionary is referred to in an inner loop which is specialised away by GHC, but not by Supero.
 
@@ -550,7 +550,7 @@ For these benchmarks it is important to clarify which optimisations are performe
 \subsection{Compile Time}
 \label{secS:compile_time}
 
-The compile times for the benchmarks presented in Table \ref{tabS:haskell_results} vary between 1 minute and 12 minutes. These compile times are unsuitable for general development. Profiling shows that 25\% of the time is spent applying simplification rules, and 65\% is spent testing for a homeomorphic embedding. We suspect both these costs can be reduced, although we have not yet tried to do so.
+The compile times for some of the benchmarks presented in Table \ref{tabS:haskell_results} were as high as twelve minutes. These compile times are unsuitable for general development. Profiling shows that 25\% of the time is spent applying simplification rules, and 65\% is spent testing for a homeomorphic embedding. We suspect both these costs can be reduced, although we have not yet tried to do so.
 
 \paragraph{Simplification Time} The rules from \S\ref{secB:core_simplify} are applied using the Uniplate library, in particular using the bottom-up rewrite strategy described in \S\ref{secU:rewrite_bottom}. After each function inlining, the rules are applied everywhere within the expression -- despite much of the expression remaining unchanged. By targeting the application of rules more precisely, compile times would decrease.
 
@@ -587,7 +587,7 @@ The GRIN approach \cite{grin} uses whole program compilation for Haskell. It is 
 
 \subsection{Lower Level Optimisations}
 
-Our optimisation works at the Core level, but even once efficient Core has been generated there is still some work before efficient machine code can be produced. Key optimisations include strictness analysis and unboxing \cite{spj:unboxing}. In GHC both of these optimisations are done at the Core level, using a Core language extended with unboxed types. After this lower level Core has been generated, it is then compiled to STG machine instructions \cite{spj:stg}, from which assembly code is generated. There is still work being done to modify the lowest levels to take advantage of the current generation of microprocessors \cite{marlow:pointer_tagging}. We rely on GHC to perform all these optimisations after Supero generates a residual program.
+Our optimisation works at the Core level, but even once efficient Core has been generated there is still some work before efficient machine code can be produced. Key optimisations include strictness analysis and unboxing \cite{spj:unboxing}. In GHC both of these optimisations are done at the core level, using a core language extended with unboxed types. After this lower level core has been generated, it is then compiled to STG machine instructions \cite{spj:stg}, from which assembly code is generated. There is still work being done to modify the lowest levels to take advantage of the current generation of microprocessors \cite{marlow:pointer_tagging}. We rely on GHC to perform all these optimisations after Supero generates a residual program.
 
 \subsection{Other Transformations}
 

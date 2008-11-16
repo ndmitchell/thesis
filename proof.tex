@@ -1055,7 +1055,7 @@ satE' (pre x / (vs, ys)) && all (satE' . (/ (vs, ys)) . alt) as ==>
     -- \im \lemma{\lemPre}
 all (satE' . (/ (vs, ys)) . alt) as  ==> all (satE' . alt . (/ (vs, ys))) as
     -- \im implication over |all|
-satE' $ alt a / (vs, ys) ==> satE' $ alt $ as / (vs, ys)
+satE' $ alt a / (vs, ys) ==> satE' $ alt $ a / (vs, ys)
     -- \eq instantiate |a| as a general |Alt|
 satE' $ alt (Alt c ws y) / (vs, ys) ==> satE' $ alt $ Alt c ws y / (vs, ys)
     -- \eq inline |(/)| on RHS
