@@ -152,7 +152,7 @@ let v = c x_1 ... x_n in y
 \label{figS:simplify}
 \end{figure}
 
-The supercompilation of an expression proceeds by repeatedly inlining a function application until some termination criterion is met. Once the termination criterion holds, the expression is generalised before the outer shell of the expression becomes part of the residual program and all subexpressions are assigned names. After each inlining step, the expression is simplified using the standard simplification rules from \S\ref{secB:core_simplify}, along with additional simplification rules from Figure \ref{figS:simplify}. The additional simplification rules all reduce the sharing in an expression, but by small constant amounts, and permit additional transformations. There are three key decisions in the supercompilation of an expression:
+The supercompilation of an expression proceeds by repeatedly inlining a function application until some termination criterion is met. Once the termination criterion holds, the expression is generalised before the outer shell of the expression becomes part of the residual program and all subexpressions are assigned names. After each inlining step, the expression is simplified using the standard simplification rules from \S\ref{secB:core_simplify}, along with additional simplification rules from Figure \ref{figS:simplify}. The additional simplification rules all reduce the sharing in an expression, but by small constant amounts, and permit additional transformations. For example, the first rule will cause a fresh constructor application to be created inside a case alternative, instead of sharing the case scrutinee. There are three key decisions in the supercompilation of an expression:
 
 \begin{enumerate}
 \item Which function to inline.
@@ -237,7 +237,7 @@ Both intermediate lists have been removed, and the functional arguments to |map|
 \subsection{Which function to inline}
 \label{secS:which_inline}
 
-During the supercompilation of an expression, at each step some function needs to be inlined. Which to choose? In most supercompilation work the choice is made following the runtime semantics of the program. But in a language with let expressions this may be inappropriate. If a function applied \textit{in a let binding} is inlined, its application when reduced may be simple enough to substitute in the let body. However, if a function applied \textit{in a let body} is inlined, the let body may now only refer to the let binding once, allowing the binding to be substituted. Let us take two expressions, based on intermediate steps obtained from real programs (word counting and prime number calculation respectively):
+During the supercompilation of an expression, at each step some function needs to be inlined. Which to choose? In most supercompilation work the choice is made following the runtime semantics of the program. But in a language with let expressions this may be inappropriate. If a function applied \textit{in a let binding} is inlined, its application when reduced may be a constructor or lambda, which would then be substituted in the let body. However, if a function applied \textit{in a let body} is inlined, the let body may now only refer to the let binding once, allowing the binding to be substituted. Let us take two expressions, based on intermediate steps obtained from real programs (word counting and prime number calculation respectively):
 
 \begin{center}
 \begin{tabular}{p{5cm}p{5cm}}
@@ -253,17 +253,19 @@ in const 0 x : map f x
 \end{tabular}
 \end{center}
 
-In the first example, inlining |($)| in the let binding gives |(\x -> 1 == x)|, which is now simple enough to substitute for |x|, resulting in |((1 == 1) : map (\x -> 1 == x) ys)| after simplification. Now |map| can be specialised appropriately. Alternatively, expanding the |map| repeatedly would keep increasing the size of expression until the termination criterion was met, aborting the supercompilation of this expression without achieving specialisation.
+In the first example, inlining |($)| in the let binding gives |(\x -> 1 == x)|, which is now a lambda and can be substituted for |x|, resulting in |((1 == 1) : map (\x -> 1 == x) ys)| after simplification. Now |map| can be specialised appropriately. Alternatively, expanding the |map| repeatedly would keep increasing the size of expression until the termination criterion was met, aborting the supercompilation of this expression without achieving specialisation.
 
-Taking the second example, |repeat| can be inlined indefinitely. However, by unfolding the |const| we produce |let x = repeat 1 in 0 : map f x|. Since |x| is only used once we substitute it to produce |(0 : map f (repeat 1))|, which can be deforested.
+Taking the second example, |repeat| can be inlined indefinitely. However, by unfolding the |const| we produce |let x = repeat 1 in 0 : map f x|. Since |x| is only used once we substitute it to produce |(0 : map f (repeat 1))|, which can have an intermediate list removed.
 
 Unfortunately these two examples seem to suggest different strategies for unfolding -- unfold in the let binding or unfold in the let body. However, they do have a common theme -- unfold the function that cannot be unfolded infinitely often. Our strategy can be defined by the |unfold| function:
 
 \ind{unfold}\ind{unfolds}
 \begin{code}
+unfold :: Expr -> Expr
 unfold x = head (filter (not . terminate) xs ++ xs ++ [x])
     where xs = unfolds x
 
+unfolds :: Expr -> [Expr]
 unfolds (EFun f xs_) = [ EApp (inline f) xs_ ]
 unfolds x = [gen y | (c,gen) <- holes x, y <- unfolds c]
 \end{code}
@@ -293,7 +295,7 @@ In addition to using the homeomorphic embedding, we also terminate if further un
 
 \subsection{Generalisation}
 
-When the termination criterion has been met, it is necessary to discard information about the current expression, so that the supercompilation terminates. We always residuate the outer shell of the expression, but first we attempt to generalise the expression to improve subsequent optimisation. The simplest generalisation strategy is to do nothing, and always residuate the outer shell. We now introduce and compare two additional strategies, the first based on the most specific generalisation, and a second of our own creation.
+When the termination criterion has been met, it is necessary to reduce the size of the current expression, so that the supercompilation terminates. We always residuate the outer shell of the expression, but first we attempt to generalise the expression to improve subsequent optimisation. The simplest generalisation strategy is to do nothing, and always residuate the outer shell. We now introduce and compare two additional strategies, the first based on the most specific generalisation, and a second of our own creation.
 
 The additional strategies work by using both the current expression |x|, and the expression |y| which caused the termination criteria to apply, where |y `elem` rho| and |y <<|| x|. The generalisation must return an expression equivalent to |x|, but aims to have similarities with |y| after residuation of the outer shell. By being similar to |y|, the parts of the expression that occur repeatedly are not split apart by residuation and can be optimised well.
 

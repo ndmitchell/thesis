@@ -115,7 +115,7 @@ There are a number of limitations to our approach, most importantly:
 
 Informally, if a program creates functional values at runtime it is higher-order, otherwise it is first-order. Functional values can only be created in two ways: (1) a lambda expression; or (2) a partially-applied function application. We therefore make the following definition:
 
-A program which contains no lambda expressions and no partially-applied functions is first-order.
+A program which contains no lambda expressions and no partially-applied top-level functions is first-order.
 
 \begin{examplerevisit}{\ref{exF:incList}}
 The original definition of |incList| is higher-order because of the partial applications of both |map| and |(+)|. The original definition of |map| is first-order. In the defunctionalised version, the program is first-order.
@@ -446,7 +446,7 @@ Given a body which is a lambda expression, the arguments to the lambda expressio
 \subsection{Inlining}
 \label{secF:inlining}
 
-We use inlining as the first stage in the removal of functional values stored within a data value -- for example |Just (\x -> x)|. We refer to expressions that evaluate to functional values inside data values as \textit{boxed lambdas}. If a boxed lambda is bound in a let expression, we substitute the let binding, using the (bind-box) rule from Figure \ref{figF:lambda_simplify}. We only inline a function if two conditions both hold: (1) the function's body is a boxed lambda; (2) the function application occurs within a case scrutinee.
+We use inlining of top-level functions as the first stage in the removal of functional values stored within a data value -- for example |Just (\x -> x)|. We refer to expressions that evaluate to functional values inside data values as \textit{boxed lambdas}. If a boxed lambda is bound in a let expression, we substitute the let binding, using the (bind-box) rule from Figure \ref{figF:lambda_simplify}. We only inline a function if two conditions both hold: (1) the function's body is a boxed lambda; (2) the function application occurs within a case scrutinee.
 
 \begin{figure}
 \ind{isBox}\ind{isLambda}
@@ -504,7 +504,7 @@ As with the simplification stage, there may be some loss of sharing if the defin
 
 \subsection{Specialisation}
 
-For each application of a function in which at least on argument contains a lambda, a specialised variant is created, and used where applicable. The process follows the same pattern as constructor specialisation \cite{spj:specconstr}, but applies where function arguments are lambda expressions, rather than known constructors. Examples of common functions whose applications can usually be made first-order by specialisation include |map|, |filter|, |foldr| and |foldl|.
+For each application of a top-level function in which at least on argument has a subexpression which is a lambda, a specialised variant is created, and used where applicable. The process follows the same pattern as constructor specialisation \cite{spj:specconstr}, but applies where function arguments are lambda expressions, rather than known constructors. Examples of common functions whose applications can usually be made first-order by specialisation include |map|, |filter|, |foldr| and |foldl|.
 
 The specialisation transformation makes use of \textit{templates}. A template is an expression where some sub-expressions are omitted, denoted by an underscore. The process of specialisation proceeds as follows:
 
@@ -928,7 +928,7 @@ let(lam(x),y)    -> lam(let(x,y))
 \label{figF:term_simplification}
 \end{figure}
 
-In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. An encoding of a simplified version of our rules is given in Figure \ref{figF:term_simplification}. We have encoded rules by considering what type of expression is transformed by a rule. For example, then rule replacing |(\v -> x) y| with |let v = y in x| is expressed as a rewrite replacing \ignore|app(lam(x),y)| with \ignore|let(y,x)|. The names of binding variables with expressions have been ignored. To simplify the encoding, we have only considered applications with on argument. The rules are applied non-deterministically at any suitable location, so faithfully model the behaviour of the original rules.
+In order to check the termination of the simplifier we have used the AProVE system \cite{aprove} to model our rules as a \textit{term rewriting system}, and check its termination. An encoding of a simplified version of the rules from Figures \ref{figB:simplify} and \ref{figF:lambda_simplify} is given in Figure \ref{figF:term_simplification}. We have encoded rules by considering what type of expression is transformed by a rule. For example, then rule replacing |(\v -> x) y| with |let v = y in x| is expressed as a rewrite replacing \ignore|app(lam(x),y)| with \ignore|let(y,x)|. The names of binding variables with expressions have been ignored. To simplify the encoding, we have only considered applications with on argument. The rules are applied non-deterministically at any suitable location, so faithfully model the behaviour of the original rules.
 
 The encoding of the (bind-box) and (bind-lam) rules is excluded. Given these rules, there are non terminating sequences. For example:
 
@@ -944,7 +944,7 @@ Such expressions are a problem for GHC, and can cause the compiler to non-termin
 
 \subsection{Termination of Arity Raising}
 
-Functions may only ever increase in arity, and provided the function bodies do not grow without bound, the increase in arity may only occur a finite number of times. Hence, providing the other stages do not generate infinite expressions, the arity raising stage will terminate.
+Functions may only ever increase in arity, and in a well-typed program, provided the function bodies do not grow without bound, the increase in arity may only occur a finite number of times. The untyped program |f x = f| causes arity-raising to non-terminate, and can be mitigated by a bound in a similar manner to \S\ref{secF:termination_simplification}.
 
 \subsection{Termination of Inlining}
 
@@ -972,7 +972,7 @@ case f of B _ -> B (\x -> x)
 \noindent So this expression would cause non-termination.
 \end{example}
 
-To avoid such problems, we permit inlining a function |f|, at all application sites within the definition of a function |g|, but only once per pair |(f,g)|. In the above example we would inline |f| within its own body, but only once. Any future attempts to inline |f| within this function would be disallowed, although |f| could still be inlined within other function bodies. This restriction is sufficient to ensure termination of inlining. Given $n$ functions, there can only be $n^2$ possible inlining steps, each for possibly many application sites.
+To avoid such problems, we permit inlining a function |f|, at all use sites within the definition of a function |g|, but only once per pair |(f,g)|. In the previous example we would inline |f| within its own body, but only once. Any future attempts to inline |f| within this function would be disallowed, although |f| could still be inlined within other function bodies. This restriction is sufficient to ensure termination of inlining. Given $n$ functions, there can only be $n^2$ possible inlining steps, each for possibly many application sites.
 
 
 \subsection{Termination of Specialisation}
@@ -993,7 +993,7 @@ main = f (Value head)
 In the first iteration, the specialiser generates a version of |f| specialised for the argument |Value head|. In the second iteration it would specialise for |Wrap (Value head)|, then in the third with |Wrap (Wrap (Value head))|. Specialisation would generate an infinite number of specialisations of |f|.
 \end{example}
 
-To ensure we only specialise a finite number of times we use a homeomorphic embedding, from \S\ref{secB:homeomorphic}. We associate a set $S$ with each function. After specialising with a template we add that template to the set $S$ of the function associated with that expression. When we create a new function based on a template, we copy the $S$ associated with the function in which the specialisation is performed.
+To ensure we only specialise a finite number of times we use a homeomorphic embedding, from \S\ref{secB:homeomorphic}. We associate a set $S$ with each function. After specialising with a template we add that template to the set $S$ of the function associated with that expression. When we create a new function based on a template, we copy the $S$ associated with the function in which the specialisation is performed. If a function wants to specialise using a template that is a homeomorphic embedding of the $S$ associated with that function, the specialisation is not permformed.
 
 One of the conditions for termination of homeomorphic embedding is that there is only a finite alphabet. During the process of specialisation we create new functions, and these new functions are new symbols in our language. So we only use function names from the original input program. Every template has a correspondence with an expression in the original program. We perform the homeomorphic embedding test only after transforming all templates into their original equivalent expression.
 
@@ -1068,7 +1068,7 @@ Average         & 5 & 260  & 0 & 232 & 5 & 0.5  & -30\% \\
 \bigskip
 \textbf{Name} is the name of the program;
 \textbf{Bound} is the numeric bound used for termination (see \S\ref{secF:termination_specialisation});
-\textbf{HO Create} the number of lambda expressions and under-applied functions, first in the input program and then in the output program;
+\textbf{HO Create} the static number of lambda expressions and under-applied functions, first in the input program and then in the output program;
 \textbf{HO Use} the number of application expressions and over-applied functions;
 \textbf{Time} the execution time of our method in seconds;
 \textbf{Size} the change in the program size measured as the number of lines of Core.
@@ -1183,7 +1183,7 @@ map f (x:xs) = apply f x : map f xs
 
 Reynolds' method works on all programs. Defunctionalised code is still type safe, but type checking would require a dependently typed language. Others have proposed variants of Reynolds' method that are type safe in the simply typed lambda calculus \cite{bell:type_driven_defunctionalization}, and within a polymorphic type system \cite{pottier:polymorhpic_typed_defunctionaization}.
 
-The method is complete, removing all possible higher-order functions, and preserves space behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The control flow is complicated by the extra level of indirection and in practice the |apply| interpreter is a bottleneck for analysis. Various analysis methods have been proposed to reduce the size of the |apply| function, by statically determining a safe subset of the possible functional values at a call site \cite{cejtin:closure_conversion,grin}.
+The method is complete, removing all possible higher-order functions, and preserves space and time behaviour. The disadvantage is that the transformation essentially embeds a mini-interpreter for the original program into the new program. The control flow is complicated by the extra level of indirection and in practice the |apply| interpreter is a bottleneck for analysis. Various analysis methods have been proposed to reduce the size of the |apply| function, by statically determining a safe subset of the possible functional values at a call site \cite{cejtin:closure_conversion,grin}.
 
 Reynolds' method has been used as a tool in program calculation \cite{danvy:defunctionalization_at_work,hutton:calculating_an_exceptional_machine}, often as a mechanism for removing introduced continuations. Another use of Reynolds' method is for optimisation \cite{jhc}, allowing flow control information to be recovered without the complexity of higher-order transformation.
 
