@@ -944,7 +944,7 @@ Such expressions are a problem for GHC, and can cause the compiler to non-termin
 
 \subsection{Termination of Arity Raising}
 
-Functions may only ever increase in arity, and in a well-typed program, provided the function bodies do not grow without bound, the increase in arity may only occur a finite number of times. The untyped program |f x = f| causes arity-raising to non-terminate, and can be mitigated by a bound in a similar manner to \S\ref{secF:termination_simplification}.
+Functions may only ever increase in arity, and in a well-typed program, provided the function bodies do not grow without bound, the increase in arity may only occur a finite number of times. The untyped program \ignore|f x = f| causes arity-raising to non-terminate, and can be mitigated by a bound in a similar manner to \S\ref{secF:termination_simplification}.
 
 \subsection{Termination of Inlining}
 
