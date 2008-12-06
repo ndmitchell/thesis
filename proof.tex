@@ -941,7 +941,7 @@ The definition of |prePost f k| is a conjunction where the second conjunct is |r
 satE' (pre e / (vs, ys)) && all (satE' . pre) ys ==> satE' $ pre $ e / (vs, ys)
 \end{code}
 
-We assume that all free variables in |e| are bound in |vs|. To shorten the proofs we do not explicitly write the |all (satE' . pre) ys| term, as it is never manipulated.
+We assume that all free variables in |e| are bound in |vs|. To shorten the proofs we do not explicitly write the |all (satE' . pre) ys| term, as it is never manipulated. We proceed by induction on |e|.
 
 \case{|e === Var v|}
 
@@ -994,7 +994,7 @@ satE' $ propAnds $ map ((/ (vs,ys)) . pre) xs ==>
     satE' $ propAnds $ map (pre . (/ (vs, ys))) xs
     -- \eq inline |satE'| on both sides
 all (satE' . (/ (vs,ys)) . pre) xs ==> all (satE' . pre . (/ (vs, ys))) xs
-    -- \im \lemma{\lemPre}
+    -- \im by induction
 True
 \end{code}
 
@@ -1052,7 +1052,7 @@ satE' $ (pre x / (vs, ys)) `propAnd` propAnds (map ((/ (vs, ys)) . alt) as)  ==>
     -- \eq inline |satE'|
 satE' (pre x / (vs, ys)) && all (satE' . (/ (vs, ys)) . alt) as ==>
     satE' (pre (x / (vs, ys))) && all (satE' . alt . (/ (vs, ys))) as
-    -- \im \lemma{\lemPre}
+    -- \im by induction
 all (satE' . (/ (vs, ys)) . alt) as  ==> all (satE' . alt . (/ (vs, ys))) as
     -- \im implication over |all|
 satE' $ alt a / (vs, ys) ==> satE' $ alt $ a / (vs, ys)
@@ -1074,7 +1074,7 @@ satE' (x / (vs,ys) -< cs) || satE' (pre y / (vs, ys)) ==>
     satE' (x / (vs,ys) -< cs) || satE' (pre (y / (vs, ys)))
     -- \im remove duplicate bits on each side
 satE' $ pre y / (vs, ys) ==> satE' $ pre $ y / (vs, ys)
-    -- \im \lemma{\lemPre}
+    -- \im by induction
 True
 \end{code}
 
@@ -1084,6 +1084,8 @@ True
 \h{expr}\begin{code}
 satE' $ red e k /# sub ==> sat $ Sat (eval $ e / sub) k
 \end{code}
+
+We proceed by induction on |e|.
 
 \case{|e === Var v|}
 
@@ -1123,7 +1125,7 @@ satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (xs !! i) k
 satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (Value c xs) ((c,i) |> k)
     -- \eq replace using the assumption
 satE' $ red x ((c,i) |> k) /# sub ==> sat $ Sat (eval (x / sub)) ((c,i) |> k)
-    -- \im \lemma{\lemRed}
+    -- \im by induction
 True
 \end{code}
 
@@ -1283,7 +1285,7 @@ c `elem` (ctors c \\ [c]) || satE' (red y k /# sub) ==> rhs
 False || satE' (red y k /# sub) ==> rhs
     -- \eq inline |(||||)|
 satE' $ red y k /# sub ==> sat $ Sat (eval $ y / sub) k
-    -- \im \lemma{\lemRed}
+    -- \im by induction
 True
 \end{code}
 
